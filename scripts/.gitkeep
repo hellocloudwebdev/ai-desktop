@@ -1,0 +1,2 @@
+# Reserved for repository-level tooling (verification scripts, codemods, release helpers).
+# Intentionally empty in PR1: only scripts genuinely required by the foundation belong here.
