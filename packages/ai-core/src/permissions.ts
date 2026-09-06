@@ -19,8 +19,64 @@ export type RiskLevel = z.infer<typeof RiskLevelSchema>;
 export const PermissionStatusSchema = z.enum(["pending", "granted", "denied", "expired"]);
 export type PermissionStatus = z.infer<typeof PermissionStatusSchema>;
 
-export const PermissionScopeSchema = z.enum(["once", "session", "workspace", "always"]);
+export const PermissionScopeSchema = z.enum(["once", "session", "workspace", "project", "always"]);
 export type PermissionScope = z.infer<typeof PermissionScopeSchema>;
+
+/**
+ * User approval modes when interactive confirmation is required.
+ */
+export const UserApprovalModeSchema = z.enum([
+  "allow_once",
+  "allow_session",
+  "allow_project",
+  "deny",
+]);
+export type UserApprovalMode = z.infer<typeof UserApprovalModeSchema>;
+
+/**
+ * Canonical check input submitted to PermissionManager.
+ * Contains all 5 canonical evaluation dimensions: capability, action, resource, scope, risk,
+ * plus relatedToolCallIds for coalescing.
+ */
+export const PermissionCheckSchema = z.object({
+  capability: z.string().min(1, "capability must not be empty"),
+  action: z.string().min(1, "action must not be empty"),
+  resource: z.string().min(1, "resource must not be empty"),
+  scope: PermissionScopeSchema.default("once"),
+  risk: RiskLevelSchema.default("medium"),
+  relatedToolCallIds: z
+    .array(ToolCallIdSchema)
+    .min(1, "PermissionCheck must relate to at least one tool call"),
+  reason: z.string().optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+});
+
+export type PermissionCheck = z.infer<typeof PermissionCheckSchema>;
+
+/**
+ * Canonical three-way evaluation outcome returned by PermissionManager.check():
+ *   - allow: capability permitted without further prompt
+ *   - deny: capability forbidden (with optional explanation)
+ *   - requires_user: capability requires explicit human interactive approval
+ */
+export type PermissionDecisionResult =
+  | { readonly kind: "allow" }
+  | { readonly kind: "deny"; readonly reason?: string }
+  | { readonly kind: "requires_user"; readonly request: PermissionRequest };
+
+export const PermissionDecisionResultSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("allow"),
+  }),
+  z.object({
+    kind: z.literal("deny"),
+    reason: z.string().optional(),
+  }),
+  z.object({
+    kind: z.literal("requires_user"),
+    request: z.lazy(() => PermissionRequestSchema),
+  }),
+]);
 
 /**
  * Canonical request for permission to execute a privileged capability.

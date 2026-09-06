@@ -1,10 +1,10 @@
 # Phase 0 — What Exists and What Does Not
 
 This document prevents the repository (and its documentation) from claiming functionality
-that does not exist. It reflects the state after **PR6 (thin in-process EventBus)** and is
+that does not exist. It reflects the state after **PR7 (AllowAllPermissionManager)** and is
 updated as each PR lands.
 
-## Implemented (as of PR6)
+## Implemented (as of PR7)
 
 - Repository foundation: pnpm workspace + Turborepo task graph (`build`, `dev`,
   `typecheck`, `lint`, `test`).
@@ -71,6 +71,17 @@ updated as each PR lands.
     and zero agent loop/planning implementation.
   - 14 focused unit tests in `packages/agent-runtime/src/events/__tests__/*.test.ts`; full
     build emits JavaScript and declarations to `dist/`.
+- Permission abstraction & Phase-0 permissive manager (`@ai-desktop/permissions`, PR7):
+  - Primary interface (`src/core/permission-manager.ts`): `PermissionManager.check(request: PermissionCheck): Promise<PermissionDecisionResult>`.
+  - Checkpoint model in `ai-core`: evaluates across the 5 canonical dimensions (`capability`,
+    `action`, `resource`, `scope`, `risk`) and requires `relatedToolCallIds` for coalescing.
+  - Outcomes: `allow`, `deny`, and `requires_user` with approval modes (`allow_once`,
+    `allow_session`, `allow_project`, `deny`).
+  - Phase-0 permissive implementation (`src/allow-all/allow-all-permission-manager.ts`):
+    strictly validates request schema (rejecting invalid inputs with `ValidationError`),
+    unconditionally returns `{ kind: "allow" }` for valid requests, and stores no state.
+  - Zero persistence, zero sandboxing, zero interactive UI, zero policy engine.
+  - 5 unit tests in `packages/permissions/src/__tests__/*.test.ts`; builds `.js` and declarations to `dist/`.
 - All remaining canonical packages stay **empty shells** (`package.json`, `tsconfig.json`,
   `src/index.ts` placeholder) — deliberately no premature domain functionality inside them.
 - Toolchain: TypeScript 5.9.3, ESLint 10.10.0, Vitest 4.1.10, Vite 8.1.0, Prettier 3.9.6,
@@ -79,7 +90,6 @@ updated as each PR lands.
 
 ## Not yet implemented
 
-- `permissions` (`AllowAllPermissionManager`) — PR7.
 - `storage` (Prisma schema, Prisma client, migrations) — PR8.
 - `providers` (Anthropic adapter, capability models) — PR9.
 - `mcp` (MCP client/server integration) — PR10/PR11.
@@ -95,9 +105,9 @@ The claims above are checkable:
 pnpm install && pnpm typecheck && pnpm lint && pnpm test && pnpm build
 ```
 
-All five succeed across the shared, ai-core, and agent-runtime (EventBus) packages,
+All five succeed across the shared, ai-core, agent-runtime (EventBus), and permissions packages,
 while future packages remain shells. A repository search finds no `@prisma/client`,
 `@modelcontextprotocol`, `dockerode`, `@anthropic-ai`, Electron implementations
 (`BrowserWindow`, `ipcMain`, `ipcRenderer`), or future runtime classes
-(`PermissionManager`, `ToolExecutor`, `MCPHost`, `ExecutionManager`, `MemoryStore`,
-`AgentLoop`, `AnthropicAdapter`) anywhere in implementation files.
+(`ToolExecutor`, `MCPHost`, `ExecutionManager`, `MemoryStore`, `AgentLoop`, `AnthropicAdapter`)
+anywhere in implementation files.

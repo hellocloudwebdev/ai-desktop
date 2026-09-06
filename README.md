@@ -1,8 +1,9 @@
 # ai-desktop
 
-A desktop AI assistant. This repository is currently at **PR6 — agent-runtime EventBus**:
-the shared primitives, canonical AI domain contracts, projections, and the thin in-process
-EventBus are implemented. Future packages remain empty shells awaiting their respective
+A desktop AI assistant. This repository is currently at **PR7 — permissions
+(AllowAllPermissionManager)**: shared primitives, canonical AI domain contracts, projections,
+in-process EventBus, and the canonical permission checkpoint with its Phase-0 permissive
+manager are implemented. Future packages remain empty shells awaiting their respective
 implementation PRs — see [docs/architecture/phase-0.md](docs/architecture/phase-0.md) for
 the honest list of what is and is not implemented.
 
@@ -32,7 +33,7 @@ pnpm typecheck            # tsc --noEmit in every package
 pnpm lint                 # eslint in every package + boundaries enforcement
 pnpm architecture:check   # validate declarations, graph edges, and Electron boundary
 pnpm test                 # vitest unit tests + package tests via Turbo
-pnpm build                # compiles shared, ai-core, and agent-runtime; later shells stay placeholders
+pnpm build                # compiles shared, ai-core, agent-runtime, permissions; others stay shells
 pnpm format               # prettier --write .
 pnpm format:check
 ```
@@ -50,7 +51,7 @@ mechanically enforced by `scripts/validate-dependencies.mjs` and `eslint-plugin-
 | `@ai-desktop/ai-core`       | messages, content, events, tools, projections (PR4/PR5) | shared                                |
 | `@ai-desktop/providers`     | model providers; SDK types stay here                    | ai-core, shared                       |
 | `@ai-desktop/storage`       | persistence; the only Prisma consumer (PR8)             | ai-core, shared                       |
-| `@ai-desktop/permissions`   | PermissionManager mediation                             | ai-core, storage, shared              |
+| `@ai-desktop/permissions`   | PermissionManager mediation (PR7)                       | ai-core, storage, shared              |
 | `@ai-desktop/mcp`           | MCP host; SDK types stay here                           | ai-core, storage, permissions, shared |
 | `@ai-desktop/skills`        | skill loader                                            | ai-core, storage, shared              |
 | `@ai-desktop/execution`     | tool/code/container execution                           | ai-core, permissions, storage, shared |
