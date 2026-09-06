@@ -1,11 +1,11 @@
 # ai-desktop
 
-A desktop AI assistant. This repository is currently at **PR7 — permissions
-(AllowAllPermissionManager)**: shared primitives, canonical AI domain contracts, projections,
-in-process EventBus, and the canonical permission checkpoint with its Phase-0 permissive
-manager are implemented. Future packages remain empty shells awaiting their respective
-implementation PRs — see [docs/architecture/phase-0.md](docs/architecture/phase-0.md) for
-the honest list of what is and is not implemented.
+A desktop AI assistant. This repository is currently at **PR8 — storage foundation**:
+shared primitives, canonical AI domain contracts, projections, in-process EventBus,
+permission checkpoint, and the SQLite WAL append-only event storage foundation are implemented.
+Future packages remain empty shells awaiting their respective implementation PRs — see
+[docs/architecture/phase-0.md](docs/architecture/phase-0.md) for the honest list of what
+is and is not implemented.
 
 ## Toolchain
 
@@ -18,11 +18,12 @@ the honest list of what is and is not implemented.
 | Prettier                 | 3.9.6                                    |                                                                    |
 | ESLint                   | ^10.10.0 (+ `typescript-eslint` ^8.69.0) |                                                                    |
 | eslint-plugin-boundaries | 7.2.0                                    | AST-level dependency boundaries in per-package lint                |
+| Prisma                   | 6.4.1                                    | used strictly inside `@ai-desktop/storage`                         |
 | Vitest                   | 4.1.10                                   | root test runner for repository tooling                            |
 | Vite                     | 8.1.0                                    | locked peer foundation for Vitest                                  |
 
 Electron is **not** a dependency of this repository yet (locked architecturally, pinned in
-PR12). The same applies to Prisma, the MCP SDK, provider SDKs, and Docker tooling — none
+PR12). The same applies to the MCP SDK, provider SDKs, and Docker tooling — none
 of them may be installed before their own implementation PR.
 
 ## Quickstart
@@ -33,7 +34,7 @@ pnpm typecheck            # tsc --noEmit in every package
 pnpm lint                 # eslint in every package + boundaries enforcement
 pnpm architecture:check   # validate declarations, graph edges, and Electron boundary
 pnpm test                 # vitest unit tests + package tests via Turbo
-pnpm build                # compiles shared, ai-core, agent-runtime, permissions; others stay shells
+pnpm build                # compiles shared, ai-core, agent-runtime, permissions, storage; others stay shells
 pnpm format               # prettier --write .
 pnpm format:check
 ```

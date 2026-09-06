@@ -22,3 +22,9 @@ coverage/
 .env
 .env.*
 !.env.example
+
+# sqlite databases and wal files
+*.db
+*.db-journal
+*.db-wal
+*.db-shm

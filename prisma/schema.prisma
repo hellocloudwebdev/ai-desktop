@@ -1,0 +1,33 @@
+// Prisma Schema for ai-desktop
+//
+// Canonical storage rules (Step 31):
+//   - Database: SQLite with WAL mode (PRAGMA journal_mode = WAL)
+//   - Canonical Event model is append-only and immutable
+//   - UNIQUE(conversationId, sequence) ensures strict ordering per conversation
+//   - schemaVersion is persisted alongside every event
+//   - Prisma Client is used exclusively within packages/storage
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Event {
+  id             String   @id
+  conversationId String
+  taskId         String?
+  sequence       Int
+  schemaVersion  Int
+  type           String
+  payload        String   // JSON-serialized canonical event payload
+  createdAt      String   // ISO-8601 UTC timestamp string
+
+  @@unique([conversationId, sequence], name: "conversationId_sequence")
+  @@index([conversationId])
+  @@index([taskId])
+  @@map("events")
+}
