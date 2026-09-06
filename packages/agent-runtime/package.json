@@ -3,16 +3,30 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
   "scripts": {
-    "build": "node -e \"console.log('@ai-desktop/agent-runtime: build is implemented in a later PR')\"",
-    "dev": "node -e \"console.log('@ai-desktop/agent-runtime: dev is implemented in a later PR')\"",
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "test": "node -e \"console.log('@ai-desktop/agent-runtime: tests are added in a later PR')\""
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@ai-desktop/ai-core": "workspace:*",
+    "@ai-desktop/shared": "workspace:*"
   },
   "devDependencies": {
     "eslint": "^10.10.0",
     "typescript": "5.9.3",
-    "typescript-eslint": "^8.69.0"
+    "typescript-eslint": "^8.69.0",
+    "vitest": "4.1.10"
   }
 }

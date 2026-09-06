@@ -1,10 +1,10 @@
 # Phase 0 — What Exists and What Does Not
 
 This document prevents the repository (and its documentation) from claiming functionality
-that does not exist. It reflects the state after **PR5 (ai-core projections & reducers)**
-and is updated as each PR lands.
+that does not exist. It reflects the state after **PR6 (thin in-process EventBus)** and is
+updated as each PR lands.
 
-## Implemented (as of PR5)
+## Implemented (as of PR6)
 
 - Repository foundation: pnpm workspace + Turborepo task graph (`build`, `dev`,
   `typecheck`, `lint`, `test`).
@@ -59,6 +59,18 @@ and is updated as each PR lands.
       topological execution order, and handles dynamic replanning (`task.replan`).
   - 47 focused domain and projection unit tests in `packages/ai-core/src/*.test.ts` and
     `packages/ai-core/src/projections/__tests__/*.test.ts`. Full build emits declarations to `dist/`.
+- Thin in-process EventBus (`@ai-desktop/agent-runtime`, PR6):
+  - In-process event distribution (`src/events/event-bus.ts`): publishes and distributes
+    canonical `AIEvent`s to subscribers with strict FIFO publication order preservation.
+  - Re-entrancy protection: queues nested publish calls to maintain sequential event dispatch.
+  - Subscriber isolation: errors/rejections in individual listeners are isolated and reported
+    via configurable `onError` handler without disrupting other listeners.
+  - Lifecycle: `subscribe`, `once`, and completely idempotent `unsubscribe` functions.
+  - Immutability: published events are frozen to prevent subscriber mutation.
+  - Non-responsibilities preserved: zero persistence, zero IPC, zero provider logic,
+    and zero agent loop/planning implementation.
+  - 14 focused unit tests in `packages/agent-runtime/src/events/__tests__/*.test.ts`; full
+    build emits JavaScript and declarations to `dist/`.
 - All remaining canonical packages stay **empty shells** (`package.json`, `tsconfig.json`,
   `src/index.ts` placeholder) — deliberately no premature domain functionality inside them.
 - Toolchain: TypeScript 5.9.3, ESLint 10.10.0, Vitest 4.1.10, Vite 8.1.0, Prettier 3.9.6,
@@ -67,7 +79,6 @@ and is updated as each PR lands.
 
 ## Not yet implemented
 
-- `EventBus` — PR6.
 - `permissions` (`AllowAllPermissionManager`) — PR7.
 - `storage` (Prisma schema, Prisma client, migrations) — PR8.
 - `providers` (Anthropic adapter, capability models) — PR9.
@@ -84,9 +95,9 @@ The claims above are checkable:
 pnpm install && pnpm typecheck && pnpm lint && pnpm test && pnpm build
 ```
 
-All five succeed across the shared and ai-core contract packages, while future packages
-remain shells. A repository search finds no `@prisma/client`, `@modelcontextprotocol`,
-`dockerode`, `@anthropic-ai`, Electron implementations (`BrowserWindow`, `ipcMain`,
-`ipcRenderer`), or runtime classes (`EventBus`, `PermissionManager`, `ToolExecutor`,
-`MCPHost`, `ExecutionManager`, `MemoryStore`, `AgentLoop`, `AnthropicAdapter`) anywhere
-in implementation files.
+All five succeed across the shared, ai-core, and agent-runtime (EventBus) packages,
+while future packages remain shells. A repository search finds no `@prisma/client`,
+`@modelcontextprotocol`, `dockerode`, `@anthropic-ai`, Electron implementations
+(`BrowserWindow`, `ipcMain`, `ipcRenderer`), or future runtime classes
+(`PermissionManager`, `ToolExecutor`, `MCPHost`, `ExecutionManager`, `MemoryStore`,
+`AgentLoop`, `AnthropicAdapter`) anywhere in implementation files.

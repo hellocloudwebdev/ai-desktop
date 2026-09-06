@@ -1,11 +1,10 @@
 # ai-desktop
 
-A desktop AI assistant. This repository is currently at **PR5 — ai-core projections**:
-the shared primitives, canonical AI domain contracts, and deterministic event-to-read-model
-projections (`projectMessages`, `projectConversation`, `projectTaskGraph`) are implemented.
-Future packages remain empty shells awaiting their respective implementation PRs — see
-[docs/architecture/phase-0.md](docs/architecture/phase-0.md) for the honest list of what
-is and is not implemented.
+A desktop AI assistant. This repository is currently at **PR6 — agent-runtime EventBus**:
+the shared primitives, canonical AI domain contracts, projections, and the thin in-process
+EventBus are implemented. Future packages remain empty shells awaiting their respective
+implementation PRs — see [docs/architecture/phase-0.md](docs/architecture/phase-0.md) for
+the honest list of what is and is not implemented.
 
 ## Toolchain
 
@@ -33,7 +32,7 @@ pnpm typecheck            # tsc --noEmit in every package
 pnpm lint                 # eslint in every package + boundaries enforcement
 pnpm architecture:check   # validate declarations, graph edges, and Electron boundary
 pnpm test                 # vitest unit tests + package tests via Turbo
-pnpm build                # compiles shared and ai-core; later shells stay placeholders
+pnpm build                # compiles shared, ai-core, and agent-runtime; later shells stay placeholders
 pnpm format               # prettier --write .
 pnpm format:check
 ```
@@ -56,7 +55,7 @@ mechanically enforced by `scripts/validate-dependencies.mjs` and `eslint-plugin-
 | `@ai-desktop/skills`        | skill loader                                            | ai-core, storage, shared              |
 | `@ai-desktop/execution`     | tool/code/container execution                           | ai-core, permissions, storage, shared |
 | `@ai-desktop/memory`        | memory storage                                          | ai-core, storage, providers, shared   |
-| `@ai-desktop/agent-runtime` | Electron-agnostic orchestration                         | all of the above                      |
+| `@ai-desktop/agent-runtime` | in-process EventBus (PR6); orchestration (later)        | all of the above                      |
 | `@ai-desktop/workspace`     | workspace UI                                            | (later PRs)                           |
 | `@ai-desktop/plugins`       | plugin infrastructure                                   | (not yet defined)                     |
 | `@ai-desktop/desktop`       | Electron shell app (PR12)                               | agent-runtime                         |
