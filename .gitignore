@@ -28,6 +28,3 @@ coverage/
 *.db-journal
 *.db-wal
 *.db-shm
-
-# agent memory / scratchpad
-*memory*.md
