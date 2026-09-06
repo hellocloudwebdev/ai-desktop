@@ -47,6 +47,7 @@ is forbidden.
 | `execution`     | `ai-core`, `permissions`, `storage`, `shared`                                                                             |
 | `memory`        | `ai-core`, `storage`, `providers`, `shared`                                                                               |
 | `agent-runtime` | `ai-core`, `providers`, `permissions`, `mcp`, `skills`, `execution`, `memory`, `storage`, `shared`                        |
+| `workspace`     | not yet defined — edges are added in later PRs as workspace UI dependencies are locked                                    |
 | `desktop`       | `agent-runtime` (and, transitively, everything above)                                                                     |
 | `plugins`       | not yet defined — the plugin architecture is a later decision; no dependency edges are locked for this package in Phase 0 |
 
@@ -70,5 +71,10 @@ call the MCP SDK directly (mcp does).
 
 ## Enforcement status
 
-- **PR1 (this state):** structure exists; edges are documented here only.
-- **PR2:** ESLint/boundary rules enforce this graph mechanically in CI.
+- **PR1:** structure exists; edges documented here.
+- **PR2 (current state):** mechanical enforcement is fully active:
+  1. **Machine-readable graph:** `docs/architecture/dependency-graph.json` is the single source of truth for allowed edges and package locations.
+  2. **ESLint boundary rules:** `eslint-plugin-boundaries` (7.2.0) is configured per-package via `scripts/eslint-package-config.mjs` to enforce allowed edges at AST level during `pnpm lint`.
+  3. **Dependency validator:** `scripts/validate-dependencies.mjs` (`pnpm architecture:check`) checks the workspace in one pass: validates package.json declarations against graph edges, prevents undeclared imports, prevents relative package escapes, enforces the `workspace:` protocol, and enforces the Electron boundary.
+  4. **Test suite:** `scripts/validate-dependencies.test.mjs` tests the validator itself across valid and invalid edge scenarios.
+  5. **CI gate:** `.github/workflows/ci.yml` runs `pnpm lint` and `pnpm architecture:check` on every push and pull request. Failure blocks merge.

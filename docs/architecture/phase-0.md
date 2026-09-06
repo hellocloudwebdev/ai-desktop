@@ -1,24 +1,36 @@
 # Phase 0 — What Exists and What Does Not
 
 This document prevents the repository (and its documentation) from claiming functionality
-that does not exist. It reflects the state after **PR1 (repository foundation)** and is
-updated as each PR lands.
+that does not exist. It reflects the state after **PR2 (dependency & architectural
+enforcement)** and is updated as each PR lands.
 
-## Implemented (as of PR1)
+## Implemented (as of PR2)
 
 - Repository foundation: pnpm workspace + Turborepo task graph (`build`, `dev`,
   `typecheck`, `lint`, `test`).
 - All canonical package boundaries as **empty shells** (`package.json`, `tsconfig.json`,
   `src/index.ts` placeholder, shared ESLint config re-export) — deliberately no
   functionality inside them.
-- TypeScript (5.9.3), ESLint (lint-foundation only — architecture/boundary rules arrive in
-  PR2), and Prettier configuration.
+- Mechanical architectural enforcement (PR2):
+  - Machine-readable locked dependency graph: `docs/architecture/dependency-graph.json`.
+  - ESLint boundary rules: `eslint-plugin-boundaries` (7.2.0) integrated across all 13
+    workspace packages via `scripts/eslint-package-config.mjs`, enforcing element boundaries
+    and external module restrictions at the AST level.
+  - Dependency & boundary validator: `scripts/validate-dependencies.mjs`
+    (`pnpm architecture:check`) verifying `package.json` declarations against graph edges,
+    blocking undeclared dependencies, blocking relative cross-package imports, enforcing
+    the `workspace:` protocol, and locking `electron` to `apps/desktop` only.
+  - Validator test suite: `scripts/validate-dependencies.test.mjs` executed via
+    `vitest` (4.1.10) verifying edge matrix and error conditions.
+- TypeScript (5.9.3), ESLint (10.10.0 + typescript-eslint 8.69.0 + boundaries 7.2.0),
+  Vitest (4.1.10 + Vite 8.1.0), and Prettier (3.9.6) configuration.
 - Documentation structure: constitution, canonical dependency graph, this document, and
   the ADR series (`docs/decisions/ADR-001` … `ADR-014`).
-- CI workflow proving the foundation: install → typecheck → lint → test → build →
+- CI workflow: install → typecheck → lint → architecture check → test → build →
   format check.
 - `prisma/` as the canonical repository location only (no schema, no dependency).
-- `scripts/` directory reserved for repository tooling (empty — nothing speculative).
+- `scripts/` containing verified repository tooling (`validate-dependencies.mjs`,
+  `eslint-package-config.mjs`, validator test suite).
 
 ## Not yet implemented
 

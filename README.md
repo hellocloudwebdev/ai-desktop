@@ -1,21 +1,25 @@
 # ai-desktop
 
-A desktop AI assistant. This repository is currently at **PR1 — repository foundation**:
-a valid pnpm/Turborepo monorepo with all canonical package boundaries established as
-empty shells. No application functionality exists yet — see
+A desktop AI assistant. This repository is currently at **PR2 — dependency &
+architectural enforcement**: mechanical architecture validation is in place via ESLint
+boundary rules, a workspace dependency validator, and CI gates. Packages remain empty
+shells awaiting their implementation PRs — see
 [docs/architecture/phase-0.md](docs/architecture/phase-0.md) for the honest list of what
 is and is not implemented.
 
 ## Toolchain
 
-| Tool       | Version                                  | Notes                                                              |
-| ---------- | ---------------------------------------- | ------------------------------------------------------------------ |
-| Node.js    | >= 22 (developed on 24.16.0)             |                                                                    |
-| pnpm       | 11.25.0                                  | pinned via `packageManager`                                        |
-| Turborepo  | 2.10.12                                  |                                                                    |
-| TypeScript | 5.9.3                                    | TypeScript 7 deliberately not adopted without a compatibility pass |
-| Prettier   | 3.9.6                                    |                                                                    |
-| ESLint     | ^10.10.0 (+ `typescript-eslint` ^8.69.0) | lint foundation only; boundary rules arrive in PR2                 |
+| Tool                     | Version                                  | Notes                                                              |
+| ------------------------ | ---------------------------------------- | ------------------------------------------------------------------ |
+| Node.js                  | >= 22 (developed on 24.16.0)             |                                                                    |
+| pnpm                     | 11.25.0                                  | pinned via `packageManager`                                        |
+| Turborepo                | 2.10.12                                  |                                                                    |
+| TypeScript               | 5.9.3                                    | TypeScript 7 deliberately not adopted without a compatibility pass |
+| Prettier                 | 3.9.6                                    |                                                                    |
+| ESLint                   | ^10.10.0 (+ `typescript-eslint` ^8.69.0) |                                                                    |
+| eslint-plugin-boundaries | 7.2.0                                    | AST-level dependency boundaries in per-package lint                |
+| Vitest                   | 4.1.10                                   | root test runner for repository tooling                            |
+| Vite                     | 8.1.0                                    | locked peer foundation for Vitest                                  |
 
 Electron is **not** a dependency of this repository yet (locked architecturally, pinned in
 PR12). The same applies to Prisma, the MCP SDK, provider SDKs, and Docker tooling — none
@@ -25,11 +29,12 @@ of them may be installed before their own implementation PR.
 
 ```sh
 pnpm install
-pnpm typecheck   # tsc --noEmit in every package
-pnpm lint        # eslint in every package
-pnpm test        # placeholder until packages gain tests
-pnpm build       # placeholder until packages gain build outputs
-pnpm format      # prettier --write .
+pnpm typecheck            # tsc --noEmit in every package
+pnpm lint                 # eslint in every package + boundaries enforcement
+pnpm architecture:check   # validate declarations, graph edges, and Electron boundary
+pnpm test                 # vitest unit tests + package tests via Turbo
+pnpm build                # placeholder until packages gain build outputs
+pnpm format               # prettier --write .
 pnpm format:check
 ```
 
@@ -37,7 +42,7 @@ pnpm format:check
 
 All packages are private shells at this stage. The dependency edges below are the locked
 architecture from [docs/architecture/dependency-graph.md](docs/architecture/dependency-graph.md);
-PR2 enforces them mechanically.
+mechanically enforced by `scripts/validate-dependencies.mjs` and `eslint-plugin-boundaries`.
 
 | Package                     | Role                                                | May depend on                         |
 | --------------------------- | --------------------------------------------------- | ------------------------------------- |

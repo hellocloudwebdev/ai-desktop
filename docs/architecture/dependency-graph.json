@@ -1,0 +1,88 @@
+{
+  "comment": [
+    "Machine-readable representation of the locked package dependency graph.",
+    "Human-readable canonical version: docs/architecture/dependency-graph.md",
+    "Consumed by scripts/validate-dependencies.mjs and the per-package ESLint",
+    "boundary configuration (scripts/eslint-package-config.mjs).",
+    "Constitutional rule: package.json declarations, actual imports, and this",
+    "graph must agree. A new edge (or package) is only valid when this file,",
+    "dependency-graph.md, and the PR description are updated together."
+  ],
+  "scope": "@ai-desktop",
+  "packages": {
+    "shared": {
+      "directory": "packages/shared",
+      "internalDependencies": []
+    },
+    "ai-core": {
+      "directory": "packages/ai-core",
+      "internalDependencies": ["shared"]
+    },
+    "providers": {
+      "directory": "packages/providers",
+      "internalDependencies": ["ai-core", "shared"]
+    },
+    "storage": {
+      "directory": "packages/storage",
+      "internalDependencies": ["ai-core", "shared"]
+    },
+    "permissions": {
+      "directory": "packages/permissions",
+      "internalDependencies": ["ai-core", "storage", "shared"]
+    },
+    "mcp": {
+      "directory": "packages/mcp",
+      "internalDependencies": ["ai-core", "storage", "permissions", "shared"]
+    },
+    "skills": {
+      "directory": "packages/skills",
+      "internalDependencies": ["ai-core", "storage", "shared"]
+    },
+    "execution": {
+      "directory": "packages/execution",
+      "internalDependencies": ["ai-core", "permissions", "storage", "shared"],
+      "note": "execution -> storage is intentional (see dependency-graph.md)."
+    },
+    "memory": {
+      "directory": "packages/memory",
+      "internalDependencies": ["ai-core", "providers", "storage", "shared"]
+    },
+    "agent-runtime": {
+      "directory": "packages/agent-runtime",
+      "internalDependencies": [
+        "ai-core",
+        "execution",
+        "memory",
+        "mcp",
+        "permissions",
+        "providers",
+        "shared",
+        "skills",
+        "storage"
+      ],
+      "note": "Pure composition layer; stays Electron-agnostic."
+    },
+    "workspace": {
+      "directory": "packages/workspace",
+      "internalDependencies": [],
+      "note": "Edges are not locked yet; they are defined by the PR that implements the workspace."
+    },
+    "plugins": {
+      "directory": "packages/plugins",
+      "internalDependencies": [],
+      "note": "Edges are not locked yet; the plugin architecture is a later decision."
+    }
+  },
+  "applications": {
+    "desktop": {
+      "directory": "apps/desktop",
+      "internalDependencies": ["agent-runtime"],
+      "note": "Privileged application assembly node. Additional direct edges are added by the implementation PR that first requires them (updating this graph and dependency-graph.md together). Electron may only be imported/declared here."
+    }
+  },
+  "external": {
+    "electron": {
+      "allowedIn": ["desktop"]
+    }
+  }
+}

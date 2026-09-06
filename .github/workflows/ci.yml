@@ -28,6 +28,9 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      - name: Architecture check
+        run: pnpm architecture:check
+
       - name: Test
         run: pnpm test
 

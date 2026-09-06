@@ -4,8 +4,9 @@ These are normative rules for the `ai-desktop` monorepo. They hold for every PR,
 exception. A rule can only be changed through a new or amended ADR and an explicit review
 decision — never silently, and never "temporarily" inside a feature PR.
 
-Import-boundary rules are enforced mechanically by ESLint starting in PR2. Until that
-enforcement lands, they are review criteria that every PR is checked against by hand.
+Import-boundary rules are enforced mechanically by ESLint (`eslint-plugin-boundaries`)
+and the workspace dependency validator (`scripts/validate-dependencies.mjs`) as of PR2.
+Every CI run executes these checks, and violations fail the build.
 
 ## 1. Process and UI boundaries
 
