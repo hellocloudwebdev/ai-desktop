@@ -1,10 +1,10 @@
 # Phase 0 — What Exists and What Does Not
 
 This document prevents the repository (and its documentation) from claiming functionality
-that does not exist. It reflects the state after **PR4 (ai-core canonical contracts)** and
-is updated as each PR lands.
+that does not exist. It reflects the state after **PR5 (ai-core projections & reducers)**
+and is updated as each PR lands.
 
-## Implemented (as of PR4)
+## Implemented (as of PR5)
 
 - Repository foundation: pnpm workspace + Turborepo task graph (`build`, `dev`,
   `typecheck`, `lint`, `test`).
@@ -31,27 +31,34 @@ is updated as each PR lands.
     `ChatSubscribeCommand`), stream events (`ChatStreamEvent`), and generic envelopes.
   - 47 unit tests in `packages/shared/src/*.test.ts` verifying all primitives.
   - Full TypeScript build output (`dist/`) with declarations and source maps.
-- AI core canonical domain contracts (`@ai-desktop/ai-core`, PR4):
+- AI core canonical domain contracts & projection layer (`@ai-desktop/ai-core`, PR4 & PR5):
   - Domain IDs (`src/identifiers.ts`): branded `EventId`, `ExecutionId`, and `TaskNodeId`,
     built on shared's canonical ULID primitives.
   - Canonical multimodal content (`src/content.ts`): text, image, audio, video, file,
-    tool-call, and tool-result parts without provider-native types.
-  - Message projection (`src/message.ts`): materialized `Message` models that explicitly
-    remain distinct from authoritative AI event history.
+    tool-call, tool-use, tool-result, code, citation, and thinking parts without provider-native types.
+  - Message projection model (`src/message.ts`): materialized `Message` models representing
+    projected conversation turns.
   - AI event model (`src/events.ts`): immutable, sequenced, versioned discriminated union
     across Core, Capability, and Extension events. Every persisted event requires
     `eventId`, `conversationId`, `sequence`, `schemaVersion`, and `timestamp`.
   - Tool contracts (`src/tools.ts`): independent `ToolSource` and `ToolRuntime` axes,
     `ToolDefinition`, `ToolCall`, and `ToolResult` contracts.
   - Permission contracts (`src/permissions.ts`): canonical `PermissionRequest` with required
-    `relatedToolCallIds` and permission decision models; no permission-engine behavior.
+    `relatedToolCallIds` and permission decision models.
   - Execution contracts (`src/execution.ts`): engine-neutral execution requests, limits, and
-    outcomes; no container, process, or engine implementation.
-  - Task graph contracts (`src/tasks.ts`): durable `Task` and `TaskNode` vocabulary;
-    no planner, agent loop, or graph execution implementation.
+    outcomes.
+  - Task graph contracts (`src/tasks.ts`): durable `Task` and `TaskNode` DAG vocabulary.
   - AI-domain errors (`src/errors.ts`) built from shared's domain-neutral `BaseError`.
-  - 31 focused contract tests in `packages/ai-core/src/*.test.ts`; full build emits
-    JavaScript declarations to `dist/`.
+  - Pure deterministic projection layer (`src/projections/`):
+    - `projectMessages(events)`: replays message events, merges streaming token deltas into
+      coherent text blocks, and preserves partial transcripts upon cancellation.
+    - `projectConversation(events, conversationId?)`: constructs full conversation view with
+      metadata and messages.
+    - `projectTaskGraph(events, taskId)`: reconstructs the DAG task graph, validates DAG
+      invariants (rejecting self-dependencies, missing dependencies, and cycles), provides
+      topological execution order, and handles dynamic replanning (`task.replan`).
+  - 47 focused domain and projection unit tests in `packages/ai-core/src/*.test.ts` and
+    `packages/ai-core/src/projections/__tests__/*.test.ts`. Full build emits declarations to `dist/`.
 - All remaining canonical packages stay **empty shells** (`package.json`, `tsconfig.json`,
   `src/index.ts` placeholder) — deliberately no premature domain functionality inside them.
 - Toolchain: TypeScript 5.9.3, ESLint 10.10.0, Vitest 4.1.10, Vite 8.1.0, Prettier 3.9.6,
@@ -60,7 +67,6 @@ is updated as each PR lands.
 
 ## Not yet implemented
 
-- Message projections and projection reducers over authoritative AI events — PR5.
 - `EventBus` — PR6.
 - `permissions` (`AllowAllPermissionManager`) — PR7.
 - `storage` (Prisma schema, Prisma client, migrations) — PR8.

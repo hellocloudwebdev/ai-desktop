@@ -66,6 +66,15 @@ export const ToolCallContentSchema = z.object({
 
 export type ToolCallContent = z.infer<typeof ToolCallContentSchema>;
 
+export const ToolUseContentSchema = z.object({
+  type: z.literal("tool_use"),
+  toolCallId: ToolCallIdSchema,
+  toolName: z.string().min(1),
+  arguments: z.unknown(),
+});
+
+export type ToolUseContent = z.infer<typeof ToolUseContentSchema>;
+
 export const ToolResultContentSchema = z.object({
   type: z.literal("tool_result"),
   toolCallId: ToolCallIdSchema,
@@ -75,6 +84,31 @@ export const ToolResultContentSchema = z.object({
 
 export type ToolResultContent = z.infer<typeof ToolResultContentSchema>;
 
+export const CodeContentSchema = z.object({
+  type: z.literal("code"),
+  code: z.string(),
+  language: z.string().optional(),
+});
+
+export type CodeContent = z.infer<typeof CodeContentSchema>;
+
+export const CitationContentSchema = z.object({
+  type: z.literal("citation"),
+  source: z.string().min(1),
+  text: z.string().optional(),
+  url: z.string().optional(),
+});
+
+export type CitationContent = z.infer<typeof CitationContentSchema>;
+
+export const ThinkingContentSchema = z.object({
+  type: z.literal("thinking"),
+  thinking: z.string(),
+  signature: z.string().optional(),
+});
+
+export type ThinkingContent = z.infer<typeof ThinkingContentSchema>;
+
 export const ContentPartSchema = z.discriminatedUnion("type", [
   TextContentSchema,
   ImageContentSchema,
@@ -82,7 +116,11 @@ export const ContentPartSchema = z.discriminatedUnion("type", [
   VideoContentSchema,
   FileContentSchema,
   ToolCallContentSchema,
+  ToolUseContentSchema,
   ToolResultContentSchema,
+  CodeContentSchema,
+  CitationContentSchema,
+  ThinkingContentSchema,
 ]);
 
 export type ContentPart = z.infer<typeof ContentPartSchema>;
@@ -127,12 +165,35 @@ export function toolCallPart(
   return { type: "tool_call", toolCallId, toolName, arguments: args };
 }
 
+export function toolUsePart(
+  toolCallId: ToolCallId,
+  toolName: string,
+  args: unknown,
+): ToolUseContent {
+  return { type: "tool_use", toolCallId, toolName, arguments: args };
+}
+
 export function toolResultPart(
   toolCallId: ToolCallId,
   result: unknown,
   isError = false,
 ): ToolResultContent {
   return { type: "tool_result", toolCallId, result, isError };
+}
+
+export function codePart(code: string, language?: string): CodeContent {
+  return { type: "code", code, language };
+}
+
+export function citationPart(
+  source: string,
+  options?: { text?: string; url?: string },
+): CitationContent {
+  return { type: "citation", source, ...options };
+}
+
+export function thinkingPart(thinking: string, signature?: string): ThinkingContent {
+  return { type: "thinking", thinking, signature };
 }
 
 export function isTextPart(part: ContentPart): part is TextContent {
@@ -147,6 +208,22 @@ export function isToolCallPart(part: ContentPart): part is ToolCallContent {
   return part.type === "tool_call";
 }
 
+export function isToolUsePart(part: ContentPart): part is ToolUseContent {
+  return part.type === "tool_use";
+}
+
 export function isToolResultPart(part: ContentPart): part is ToolResultContent {
   return part.type === "tool_result";
+}
+
+export function isCodePart(part: ContentPart): part is CodeContent {
+  return part.type === "code";
+}
+
+export function isCitationPart(part: ContentPart): part is CitationContent {
+  return part.type === "citation";
+}
+
+export function isThinkingPart(part: ContentPart): part is ThinkingContent {
+  return part.type === "thinking";
 }

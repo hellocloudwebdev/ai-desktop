@@ -13,7 +13,7 @@ import { type ContentPart, ContentPartSchema, isTextPart } from "./content.js";
 export const MessageRoleSchema = z.enum(["system", "user", "assistant", "tool"]);
 export type MessageRole = z.infer<typeof MessageRoleSchema>;
 
-export const MessageStatusSchema = z.enum(["streaming", "completed", "failed"]);
+export const MessageStatusSchema = z.enum(["streaming", "completed", "failed", "cancelled"]);
 export type MessageStatus = z.infer<typeof MessageStatusSchema>;
 
 export const MessageSchema = z.object({

@@ -15,3 +15,4 @@ export * from "./execution.js";
 export * from "./tasks.js";
 export * from "./events.js";
 export * from "./errors.js";
+export * from "./projections/index.js";

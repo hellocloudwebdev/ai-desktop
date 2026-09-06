@@ -10,16 +10,26 @@ import { ConversationIdSchema, TaskIdSchema, TimestampStringSchema } from "@ai-d
 import type { TaskNodeId } from "./identifiers.js";
 import { TaskNodeIdSchema } from "./identifiers.js";
 
-export const TaskStatusSchema = z.enum(["pending", "running", "completed", "failed", "cancelled"]);
+export const TaskStatusSchema = z.enum([
+  "pending",
+  "active",
+  "running",
+  "blocked",
+  "completed",
+  "failed",
+  "cancelled",
+]);
 export type TaskStatus = z.infer<typeof TaskStatusSchema>;
 
 export const TaskNodeStatusSchema = z.enum([
   "pending",
+  "active",
   "ready",
   "running",
   "completed",
   "failed",
   "blocked",
+  "cancelled",
   "skipped",
 ]);
 export type TaskNodeStatus = z.infer<typeof TaskNodeStatusSchema>;
@@ -30,13 +40,17 @@ export type TaskNodeStatus = z.infer<typeof TaskNodeStatusSchema>;
 export const TaskNodeSchema = z.object({
   id: TaskNodeIdSchema,
   taskId: TaskIdSchema,
-  title: z.string().min(1),
+  parentId: TaskNodeIdSchema.optional(),
+  title: z.string().optional(),
+  goal: z.string().optional(),
   description: z.string().optional(),
   status: TaskNodeStatusSchema,
+  dependsOn: z.array(TaskNodeIdSchema).default([]),
   dependencies: z.array(TaskNodeIdSchema).default([]),
   result: z.unknown().optional(),
   error: z.string().optional(),
   createdAt: TimestampStringSchema,
+  updatedAt: TimestampStringSchema.optional(),
   startedAt: TimestampStringSchema.optional(),
   completedAt: TimestampStringSchema.optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
@@ -45,13 +59,17 @@ export const TaskNodeSchema = z.object({
 export type TaskNode = {
   readonly id: TaskNodeId;
   readonly taskId: TaskId;
-  readonly title: string;
+  readonly parentId?: TaskNodeId;
+  readonly goal?: string;
+  readonly title?: string;
   readonly description?: string;
   readonly status: TaskNodeStatus;
-  readonly dependencies: readonly TaskNodeId[];
+  readonly dependsOn?: readonly TaskNodeId[];
+  readonly dependencies?: readonly TaskNodeId[];
   readonly result?: unknown;
   readonly error?: string;
   readonly createdAt: Timestamp;
+  readonly updatedAt?: Timestamp;
   readonly startedAt?: Timestamp;
   readonly completedAt?: Timestamp;
   readonly metadata?: Readonly<Record<string, unknown>>;

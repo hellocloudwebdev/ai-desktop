@@ -24,6 +24,7 @@ import { ContentPartSchema } from "./content.js";
 import { ToolRuntimeSchema, ToolSourceSchema } from "./tools.js";
 import { PermissionScopeSchema, RiskLevelSchema } from "./permissions.js";
 import { ExecutionModeSchema } from "./execution.js";
+import { TaskNodeSchema, TaskNodeStatusSchema } from "./tasks.js";
 
 export const CURRENT_SCHEMA_VERSION = 1;
 
@@ -60,6 +61,15 @@ export const MessageCreatedEventSchema = z.object({
   content: z.array(ContentPartSchema),
 });
 
+export const MessageStartedEventSchema = z.object({
+  ...BaseEventFields,
+  type: z.literal("message.started"),
+  category: z.literal("core"),
+  messageId: MessageIdSchema,
+  role: z.enum(["system", "user", "assistant", "tool"]),
+  content: z.array(ContentPartSchema).default([]),
+});
+
 export const MessageDeltaEventSchema = z.object({
   ...BaseEventFields,
   type: z.literal("message.delta"),
@@ -86,6 +96,14 @@ export const MessageFailedEventSchema = z.object({
   code: z.string().optional(),
 });
 
+export const MessageCancelledEventSchema = z.object({
+  ...BaseEventFields,
+  type: z.literal("message.cancelled"),
+  category: z.literal("core"),
+  messageId: MessageIdSchema,
+  reason: z.string().optional(),
+});
+
 export const ErrorEventSchema = z.object({
   ...BaseEventFields,
   type: z.literal("error"),
@@ -99,17 +117,21 @@ export const ErrorEventSchema = z.object({
 export const CoreEventSchema = z.discriminatedUnion("type", [
   ConversationCreatedEventSchema,
   MessageCreatedEventSchema,
+  MessageStartedEventSchema,
   MessageDeltaEventSchema,
   MessageCompletedEventSchema,
   MessageFailedEventSchema,
+  MessageCancelledEventSchema,
   ErrorEventSchema,
 ]);
 
 export type ConversationCreatedEvent = z.infer<typeof ConversationCreatedEventSchema>;
 export type MessageCreatedEvent = z.infer<typeof MessageCreatedEventSchema>;
+export type MessageStartedEvent = z.infer<typeof MessageStartedEventSchema>;
 export type MessageDeltaEvent = z.infer<typeof MessageDeltaEventSchema>;
 export type MessageCompletedEvent = z.infer<typeof MessageCompletedEventSchema>;
 export type MessageFailedEvent = z.infer<typeof MessageFailedEventSchema>;
+export type MessageCancelledEvent = z.infer<typeof MessageCancelledEventSchema>;
 export type ErrorEvent = z.infer<typeof ErrorEventSchema>;
 export type CoreEvent = z.infer<typeof CoreEventSchema>;
 
@@ -309,6 +331,57 @@ export const TaskCancelledEventSchema = z.object({
   reason: z.string().optional(),
 });
 
+export const TaskStartedEventSchema = z.object({
+  ...BaseEventFields,
+  type: z.literal("task.started"),
+  category: z.literal("extension"),
+  taskId: TaskIdSchema,
+});
+
+export const TaskProgressEventSchema = z.object({
+  ...BaseEventFields,
+  type: z.literal("task.progress"),
+  category: z.literal("extension"),
+  taskId: TaskIdSchema,
+  nodeId: TaskNodeIdSchema.optional(),
+  progress: z.number().min(0).max(1).optional(),
+  status: TaskNodeStatusSchema.optional(),
+  detail: z.string().optional(),
+});
+
+export const TaskSubtaskCreatedEventSchema = z.object({
+  ...BaseEventFields,
+  type: z.literal("task.subtask.created"),
+  category: z.literal("extension"),
+  taskId: TaskIdSchema,
+  nodeId: TaskNodeIdSchema,
+  parentId: TaskNodeIdSchema.optional(),
+  goal: z.string().min(1),
+  dependsOn: z.array(TaskNodeIdSchema).optional().default([]),
+  status: TaskNodeStatusSchema.optional().default("pending"),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+});
+
+export const TaskBlockedEventSchema = z.object({
+  ...BaseEventFields,
+  type: z.literal("task.blocked"),
+  category: z.literal("extension"),
+  taskId: TaskIdSchema,
+  nodeId: TaskNodeIdSchema.optional(),
+  reason: z.string().min(1),
+});
+
+export const TaskReplanEventSchema = z.object({
+  ...BaseEventFields,
+  type: z.literal("task.replan"),
+  category: z.literal("extension"),
+  taskId: TaskIdSchema,
+  reason: z.string().optional(),
+  addedNodes: z.array(TaskNodeSchema).optional(),
+  removedNodeIds: z.array(TaskNodeIdSchema).optional(),
+  updatedDependencies: z.record(z.string(), z.array(TaskNodeIdSchema)).optional(),
+});
+
 export const ExtensionCustomEventSchema = z.object({
   ...BaseEventFields,
   type: z.literal("extension.custom"),
@@ -319,6 +392,11 @@ export const ExtensionCustomEventSchema = z.object({
 
 export const ExtensionEventSchema = z.discriminatedUnion("type", [
   TaskCreatedEventSchema,
+  TaskStartedEventSchema,
+  TaskProgressEventSchema,
+  TaskSubtaskCreatedEventSchema,
+  TaskBlockedEventSchema,
+  TaskReplanEventSchema,
   TaskNodeStartedEventSchema,
   TaskNodeCompletedEventSchema,
   TaskNodeFailedEventSchema,
@@ -329,6 +407,11 @@ export const ExtensionEventSchema = z.discriminatedUnion("type", [
 ]);
 
 export type TaskCreatedEvent = z.infer<typeof TaskCreatedEventSchema>;
+export type TaskStartedEvent = z.infer<typeof TaskStartedEventSchema>;
+export type TaskProgressEvent = z.infer<typeof TaskProgressEventSchema>;
+export type TaskSubtaskCreatedEvent = z.infer<typeof TaskSubtaskCreatedEventSchema>;
+export type TaskBlockedEvent = z.infer<typeof TaskBlockedEventSchema>;
+export type TaskReplanEvent = z.infer<typeof TaskReplanEventSchema>;
 export type TaskNodeStartedEvent = z.infer<typeof TaskNodeStartedEventSchema>;
 export type TaskNodeCompletedEvent = z.infer<typeof TaskNodeCompletedEventSchema>;
 export type TaskNodeFailedEvent = z.infer<typeof TaskNodeFailedEventSchema>;
@@ -348,9 +431,11 @@ export const AIEventTypeSchema = z.enum([
   // Core
   "conversation.created",
   "message.created",
+  "message.started",
   "message.delta",
   "message.completed",
   "message.failed",
+  "message.cancelled",
   "error",
   // Capability
   "tool.call.requested",
@@ -366,6 +451,11 @@ export const AIEventTypeSchema = z.enum([
   "execution.failed",
   // Extension
   "task.created",
+  "task.started",
+  "task.progress",
+  "task.subtask.created",
+  "task.blocked",
+  "task.replan",
   "task.node.started",
   "task.node.completed",
   "task.node.failed",
@@ -383,9 +473,11 @@ export type AIEventCategory = z.infer<typeof AIEventCategorySchema>;
 export const AIEventSchema = z.discriminatedUnion("type", [
   ConversationCreatedEventSchema,
   MessageCreatedEventSchema,
+  MessageStartedEventSchema,
   MessageDeltaEventSchema,
   MessageCompletedEventSchema,
   MessageFailedEventSchema,
+  MessageCancelledEventSchema,
   ErrorEventSchema,
   ToolCallRequestedEventSchema,
   ToolCallStartedEventSchema,
@@ -399,6 +491,11 @@ export const AIEventSchema = z.discriminatedUnion("type", [
   ExecutionCompletedEventSchema,
   ExecutionFailedEventSchema,
   TaskCreatedEventSchema,
+  TaskStartedEventSchema,
+  TaskProgressEventSchema,
+  TaskSubtaskCreatedEventSchema,
+  TaskBlockedEventSchema,
+  TaskReplanEventSchema,
   TaskNodeStartedEventSchema,
   TaskNodeCompletedEventSchema,
   TaskNodeFailedEventSchema,
