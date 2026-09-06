@@ -1,11 +1,11 @@
 # ai-desktop
 
-A desktop AI assistant. This repository is currently at **PR3 — shared contracts**:
-primitives (branded ULIDs, Result, domain-neutral errors, ISO timestamps, and typed IPC
-contracts) are implemented in `@ai-desktop/shared`. Packages remain empty shells awaiting
-their respective implementation PRs — see
-[docs/architecture/phase-0.md](docs/architecture/phase-0.md) for the honest list of what
-is and is not implemented.
+A desktop AI assistant. This repository is currently at **PR4 — ai-core canonical
+contracts**: the shared primitives plus the implementation-neutral canonical AI vocabulary
+(messages, content, events, tools, permissions, execution, and task contracts) are
+implemented. Future packages remain empty shells awaiting their respective implementation
+PRs — see [docs/architecture/phase-0.md](docs/architecture/phase-0.md) for the honest
+list of what is and is not implemented.
 
 ## Toolchain
 
@@ -33,32 +33,33 @@ pnpm typecheck            # tsc --noEmit in every package
 pnpm lint                 # eslint in every package + boundaries enforcement
 pnpm architecture:check   # validate declarations, graph edges, and Electron boundary
 pnpm test                 # vitest unit tests + package tests via Turbo
-pnpm build                # placeholder until packages gain build outputs
+pnpm build                # compiles shared and ai-core; later shells stay placeholders
 pnpm format               # prettier --write .
 pnpm format:check
 ```
 
 ## Packages
 
-All packages are private shells at this stage. The dependency edges below are the locked
-architecture from [docs/architecture/dependency-graph.md](docs/architecture/dependency-graph.md);
+All packages are private. `shared` and `ai-core` contain the implemented contract layers;
+the rest remain intentionally empty shells. The dependency edges below are the locked
+architecture from [docs/architecture/dependency-graph.md](docs/architecture/dependency-graph.md),
 mechanically enforced by `scripts/validate-dependencies.mjs` and `eslint-plugin-boundaries`.
 
-| Package                     | Role                                                | May depend on                         |
-| --------------------------- | --------------------------------------------------- | ------------------------------------- |
-| `@ai-desktop/shared`        | shared contracts & primitives (implemented in PR3)  | —                                     |
-| `@ai-desktop/ai-core`       | messages, events, projections, task graph (PR4/PR5) | shared                                |
-| `@ai-desktop/providers`     | model providers; SDK types stay here                | ai-core, shared                       |
-| `@ai-desktop/storage`       | persistence; the only Prisma consumer (PR8)         | ai-core, shared                       |
-| `@ai-desktop/permissions`   | PermissionManager mediation                         | ai-core, storage, shared              |
-| `@ai-desktop/mcp`           | MCP host; SDK types stay here                       | ai-core, storage, permissions, shared |
-| `@ai-desktop/skills`        | skill loader                                        | ai-core, storage, shared              |
-| `@ai-desktop/execution`     | tool/code/container execution                       | ai-core, permissions, storage, shared |
-| `@ai-desktop/memory`        | memory storage                                      | ai-core, storage, providers, shared   |
-| `@ai-desktop/agent-runtime` | Electron-agnostic orchestration                     | all of the above                      |
-| `@ai-desktop/workspace`     | workspace UI                                        | (later PRs)                           |
-| `@ai-desktop/plugins`       | plugin infrastructure                               | (not yet defined)                     |
-| `@ai-desktop/desktop`       | Electron shell app (PR12)                           | agent-runtime                         |
+| Package                     | Role                                               | May depend on                         |
+| --------------------------- | -------------------------------------------------- | ------------------------------------- |
+| `@ai-desktop/shared`        | shared contracts & primitives (implemented in PR3) | —                                     |
+| `@ai-desktop/ai-core`       | messages, content, events, tools, tasks (PR4)      | shared                                |
+| `@ai-desktop/providers`     | model providers; SDK types stay here               | ai-core, shared                       |
+| `@ai-desktop/storage`       | persistence; the only Prisma consumer (PR8)        | ai-core, shared                       |
+| `@ai-desktop/permissions`   | PermissionManager mediation                        | ai-core, storage, shared              |
+| `@ai-desktop/mcp`           | MCP host; SDK types stay here                      | ai-core, storage, permissions, shared |
+| `@ai-desktop/skills`        | skill loader                                       | ai-core, storage, shared              |
+| `@ai-desktop/execution`     | tool/code/container execution                      | ai-core, permissions, storage, shared |
+| `@ai-desktop/memory`        | memory storage                                     | ai-core, storage, providers, shared   |
+| `@ai-desktop/agent-runtime` | Electron-agnostic orchestration                    | all of the above                      |
+| `@ai-desktop/workspace`     | workspace UI                                       | (later PRs)                           |
+| `@ai-desktop/plugins`       | plugin infrastructure                              | (not yet defined)                     |
+| `@ai-desktop/desktop`       | Electron shell app (PR12)                          | agent-runtime                         |
 
 ## Repository layout
 

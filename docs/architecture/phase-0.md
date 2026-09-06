@@ -1,10 +1,10 @@
 # Phase 0 — What Exists and What Does Not
 
 This document prevents the repository (and its documentation) from claiming functionality
-that does not exist. It reflects the state after **PR3 (shared contracts)** and is
-updated as each PR lands.
+that does not exist. It reflects the state after **PR4 (ai-core canonical contracts)** and
+is updated as each PR lands.
 
-## Implemented (as of PR3)
+## Implemented (as of PR4)
 
 - Repository foundation: pnpm workspace + Turborepo task graph (`build`, `dev`,
   `typecheck`, `lint`, `test`).
@@ -31,7 +31,28 @@ updated as each PR lands.
     `ChatSubscribeCommand`), stream events (`ChatStreamEvent`), and generic envelopes.
   - 47 unit tests in `packages/shared/src/*.test.ts` verifying all primitives.
   - Full TypeScript build output (`dist/`) with declarations and source maps.
-- All other canonical packages remain **empty shells** (`package.json`, `tsconfig.json`,
+- AI core canonical domain contracts (`@ai-desktop/ai-core`, PR4):
+  - Domain IDs (`src/identifiers.ts`): branded `EventId`, `ExecutionId`, and `TaskNodeId`,
+    built on shared's canonical ULID primitives.
+  - Canonical multimodal content (`src/content.ts`): text, image, audio, video, file,
+    tool-call, and tool-result parts without provider-native types.
+  - Message projection (`src/message.ts`): materialized `Message` models that explicitly
+    remain distinct from authoritative AI event history.
+  - AI event model (`src/events.ts`): immutable, sequenced, versioned discriminated union
+    across Core, Capability, and Extension events. Every persisted event requires
+    `eventId`, `conversationId`, `sequence`, `schemaVersion`, and `timestamp`.
+  - Tool contracts (`src/tools.ts`): independent `ToolSource` and `ToolRuntime` axes,
+    `ToolDefinition`, `ToolCall`, and `ToolResult` contracts.
+  - Permission contracts (`src/permissions.ts`): canonical `PermissionRequest` with required
+    `relatedToolCallIds` and permission decision models; no permission-engine behavior.
+  - Execution contracts (`src/execution.ts`): engine-neutral execution requests, limits, and
+    outcomes; no container, process, or engine implementation.
+  - Task graph contracts (`src/tasks.ts`): durable `Task` and `TaskNode` vocabulary;
+    no planner, agent loop, or graph execution implementation.
+  - AI-domain errors (`src/errors.ts`) built from shared's domain-neutral `BaseError`.
+  - 31 focused contract tests in `packages/ai-core/src/*.test.ts`; full build emits
+    JavaScript declarations to `dist/`.
+- All remaining canonical packages stay **empty shells** (`package.json`, `tsconfig.json`,
   `src/index.ts` placeholder) — deliberately no premature domain functionality inside them.
 - Toolchain: TypeScript 5.9.3, ESLint 10.10.0, Vitest 4.1.10, Vite 8.1.0, Prettier 3.9.6,
   Zod 4.4.3.
@@ -39,7 +60,7 @@ updated as each PR lands.
 
 ## Not yet implemented
 
-- `ai-core` (Message, AIEvent, projections, task graph) — PR4/PR5.
+- Message projections and projection reducers over authoritative AI events — PR5.
 - `EventBus` — PR6.
 - `permissions` (`AllowAllPermissionManager`) — PR7.
 - `storage` (Prisma schema, Prisma client, migrations) — PR8.
@@ -57,8 +78,9 @@ The claims above are checkable:
 pnpm install && pnpm typecheck && pnpm lint && pnpm test && pnpm build
 ```
 
-All five succeed against the package shells. A repository search finds no
-`@prisma/client`, `@modelcontextprotocol`, `dockerode`, `@anthropic-ai`, Electron
-implementations (`BrowserWindow`, `ipcMain`, `ipcRenderer`), or runtime classes
-(`EventBus`, `PermissionManager`, `ToolExecutor`, `MCPHost`, `ExecutionManager`,
-`MemoryStore`, `AgentLoop`, `AnthropicAdapter`) anywhere in implementation files.
+All five succeed across the shared and ai-core contract packages, while future packages
+remain shells. A repository search finds no `@prisma/client`, `@modelcontextprotocol`,
+`dockerode`, `@anthropic-ai`, Electron implementations (`BrowserWindow`, `ipcMain`,
+`ipcRenderer`), or runtime classes (`EventBus`, `PermissionManager`, `ToolExecutor`,
+`MCPHost`, `ExecutionManager`, `MemoryStore`, `AgentLoop`, `AnthropicAdapter`) anywhere
+in implementation files.

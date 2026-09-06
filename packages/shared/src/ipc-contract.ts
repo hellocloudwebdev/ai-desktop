@@ -9,7 +9,7 @@
 //   - Zod schemas provide runtime validation at process boundaries.
 
 import { z } from "zod";
-import type { ConversationId, MessageId, TaskId, ToolCallId } from "./ids.js";
+import type { ConversationId, MessageId, PermissionRequestId, TaskId, ToolCallId } from "./ids.js";
 import type { Timestamp } from "./time.js";
 import { type Result, ok, err } from "./result.js";
 import { ValidationError } from "./errors.js";
@@ -54,6 +54,9 @@ export const ConversationIdSchema = UlidStringSchema.transform(
 );
 export const MessageIdSchema = UlidStringSchema.transform((val) => val.toUpperCase() as MessageId);
 export const TaskIdSchema = UlidStringSchema.transform((val) => val.toUpperCase() as TaskId);
+export const PermissionRequestIdSchema = UlidStringSchema.transform(
+  (val) => val.toUpperCase() as PermissionRequestId,
+);
 export const ToolCallIdSchema = UlidStringSchema.transform(
   (val) => val.toUpperCase() as ToolCallId,
 );
