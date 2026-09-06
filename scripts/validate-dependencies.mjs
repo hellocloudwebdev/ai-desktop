@@ -25,9 +25,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const SOURCE_EXTENSIONS = new Set([".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"]);
 const IGNORED_DIRECTORIES = new Set(["node_modules", "dist", "coverage", ".turbo", "out", "build"]);
-// ESLint config files are lint tooling, not runtime architecture; their imports
-// are resolved by Node itself and they are the ESLint layer's concern.
-const ESLINT_CONFIG_FILE = /(^|[/\\])eslint\.config\.[cm]?[jt]sx?$/;
+// Tooling config files are lint/test runner harness, not runtime package source.
+const TOOLING_CONFIG_FILES = /(^|[/\\])(eslint|vitest)\.config\.[cm]?[jt]sx?$/;
 // Mirrors pnpm-workspace.yaml ("packages/*", "apps/*"). If the workspace globs
 // change, this list and the graph must be updated together.
 const WORKSPACE_ROOTS = ["packages", "apps"];
@@ -81,6 +80,13 @@ function internalBasePackage(specifier, scope) {
   return base === scope ? null : base; // bare scope ("@ai-desktop/x" handled) — scope alone is not a package
 }
 
+function externalBasePackage(specifier) {
+  if (specifier.startsWith("@")) {
+    return specifier.split("/").slice(0, 2).join("/");
+  }
+  return specifier.split("/")[0];
+}
+
 function walkSourceFiles(dir, out = []) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     if (entry.isDirectory()) {
@@ -90,7 +96,7 @@ function walkSourceFiles(dir, out = []) {
       continue;
     }
     if (!SOURCE_EXTENSIONS.has(path.extname(entry.name))) continue;
-    if (ESLINT_CONFIG_FILE.test(entry.name)) continue;
+    if (TOOLING_CONFIG_FILES.test(entry.name)) continue;
     out.push(path.join(dir, entry.name));
   }
   return out;
@@ -235,7 +241,8 @@ function analyzePackage(key, node, graph, repoRoot, issues, stats) {
         continue;
       }
 
-      if (!declared[specifier]) {
+      const externalPkg = externalBasePackage(specifier);
+      if (!declared[externalPkg] && !declared[specifier]) {
         issues.push({
           rule: "undeclared-dependency",
           message: `${relFile}:${line}: import "${specifier}" is not declared in ${scope}/${key}/package.json`,

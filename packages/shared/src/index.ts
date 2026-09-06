@@ -1,4 +1,13 @@
-// Package shell - @ai-desktop/shared.
-// Deliberately unimplemented in PR1 (repository foundation).
-// See docs/architecture/phase-0.md for what exists and what is deferred.
-export {};
+// PR3: packages/shared — Public API Surface
+//
+// Cross-cutting, domain-neutral contracts and primitives for the ai-desktop
+// monorepo. Every package in the workspace may depend on this package.
+//
+// Dependency rule:
+//   shared -> nothing (no internal workspace dependencies)
+
+export * from "./ids.js";
+export * from "./result.js";
+export * from "./errors.js";
+export * from "./time.js";
+export * from "./ipc-contract.js";

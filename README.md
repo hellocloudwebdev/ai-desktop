@@ -1,9 +1,9 @@
 # ai-desktop
 
-A desktop AI assistant. This repository is currently at **PR2 — dependency &
-architectural enforcement**: mechanical architecture validation is in place via ESLint
-boundary rules, a workspace dependency validator, and CI gates. Packages remain empty
-shells awaiting their implementation PRs — see
+A desktop AI assistant. This repository is currently at **PR3 — shared contracts**:
+primitives (branded ULIDs, Result, domain-neutral errors, ISO timestamps, and typed IPC
+contracts) are implemented in `@ai-desktop/shared`. Packages remain empty shells awaiting
+their respective implementation PRs — see
 [docs/architecture/phase-0.md](docs/architecture/phase-0.md) for the honest list of what
 is and is not implemented.
 
@@ -46,7 +46,7 @@ mechanically enforced by `scripts/validate-dependencies.mjs` and `eslint-plugin-
 
 | Package                     | Role                                                | May depend on                         |
 | --------------------------- | --------------------------------------------------- | ------------------------------------- |
-| `@ai-desktop/shared`        | shared contracts (PR3)                              | —                                     |
+| `@ai-desktop/shared`        | shared contracts & primitives (implemented in PR3)  | —                                     |
 | `@ai-desktop/ai-core`       | messages, events, projections, task graph (PR4/PR5) | shared                                |
 | `@ai-desktop/providers`     | model providers; SDK types stay here                | ai-core, shared                       |
 | `@ai-desktop/storage`       | persistence; the only Prisma consumer (PR8)         | ai-core, shared                       |
