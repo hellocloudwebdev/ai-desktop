@@ -86,6 +86,7 @@ Do **NOT** "helpfully" upgrade package versions without a verified toolchain com
 | **Vite**                     | `8.1.0`                    | Pinned peer foundation                                                                      |
 | **Zod**                      | `4.4.3`                    | Schema validation at process and contract boundaries                                        |
 | **Prisma**                   | `6.4.1`                    | SQLite persistence with WAL mode strictly inside `storage`                                  |
+| **@napi-rs/keyring**         | `2.0.0`                    | Native OS keychain binding (Windows Credential Manager / macOS / Linux) inside `storage`    |
 | **Electron**                 | `44.0.0`                   | Locked for PR12 (not yet installed)                                                         |
 
 ---
@@ -102,8 +103,9 @@ Do **NOT** "helpfully" upgrade package versions without a verified toolchain com
 | **PR6**     | `pr6-event-bus` (`9f8fc47`)              | Complete | Thin in-process EventBus, FIFO ordering, re-entrancy queue, error isolation                  |
 | **PR7**     | `pr7-permissions` (`0d3e2c1`)            | Complete | `PermissionManager` interface, 5-dimension check, `AllowAllPermissionManager`                |
 | **PR8**     | `pr8-storage` (`bc27f6b`)                | Complete | Prisma SQLite WAL mode, `PrismaEventRepository` append-only storage                          |
-| **PR9**     | `pr9-providers`                          | **NEXT** | Anthropic adapter, capability models, OS keychain credential references                      |
-| **PR10/11** | —                                        | Deferred | MCP split packages (`@modelcontextprotocol/client` and `server`)                             |
+| **PR9**     | `pr9-secrets`                            | Complete | `SecretStore`, `SecretRef`, `@napi-rs/keyring` OS keychain integration, 14 unit tests        |
+| **PR10**    | `pr10-providers`                         | **NEXT** | Anthropic adapter, capability models, OS keychain credential references                      |
+| **PR11**    | —                                        | Deferred | MCP split packages (`@modelcontextprotocol/client` and `server`)                             |
 | **PR12**    | —                                        | Deferred | Electron 44.0.0 application shell                                                            |
 | **PR13–15** | —                                        | Deferred | Typed IPC, `ActiveStreamRegistry`, 32ms event batching                                       |
 | **PR16**    | —                                        | Deferred | First vertical end-to-end conversation slice                                                 |

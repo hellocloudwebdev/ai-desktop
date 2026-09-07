@@ -1,8 +1,9 @@
 # ai-desktop
 
-A desktop AI assistant. This repository is currently at **PR8 — storage foundation**:
-shared primitives, canonical AI domain contracts, projections, in-process EventBus,
-permission checkpoint, and the SQLite WAL append-only event storage foundation are implemented.
+A desktop AI assistant. This repository is currently at **PR9 — secrets abstraction
+& OS keychain**: shared primitives, canonical AI domain contracts, projections, in-process
+EventBus, permission checkpoint, SQLite WAL event repository, and the native OS-backed
+credential store (`SecretStore`, `SecretRef`, `OSKeychainSecretStore`) are implemented.
 Future packages remain empty shells awaiting their respective implementation PRs — see
 [docs/architecture/phase-0.md](docs/architecture/phase-0.md) for the honest list of what
 is and is not implemented.
@@ -51,7 +52,7 @@ mechanically enforced by `scripts/validate-dependencies.mjs` and `eslint-plugin-
 | `@ai-desktop/shared`        | shared contracts & primitives (implemented in PR3)      | —                                     |
 | `@ai-desktop/ai-core`       | messages, content, events, tools, projections (PR4/PR5) | shared                                |
 | `@ai-desktop/providers`     | model providers; SDK types stay here                    | ai-core, shared                       |
-| `@ai-desktop/storage`       | persistence; the only Prisma consumer (PR8)             | ai-core, shared                       |
+| `@ai-desktop/storage`       | persistence (PR8) & secrets store (PR9)                 | ai-core, shared                       |
 | `@ai-desktop/permissions`   | PermissionManager mediation (PR7)                       | ai-core, storage, shared              |
 | `@ai-desktop/mcp`           | MCP host; SDK types stay here                           | ai-core, storage, permissions, shared |
 | `@ai-desktop/skills`        | skill loader                                            | ai-core, storage, shared              |

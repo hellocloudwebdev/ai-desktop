@@ -22,7 +22,9 @@
   "dependencies": {
     "@ai-desktop/ai-core": "workspace:*",
     "@ai-desktop/shared": "workspace:*",
-    "@prisma/client": "6.4.1"
+    "@napi-rs/keyring": "2.0.0",
+    "@prisma/client": "6.4.1",
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "eslint": "^10.10.0",

@@ -1,10 +1,10 @@
 # Phase 0 — What Exists and What Does Not
 
 This document prevents the repository (and its documentation) from claiming functionality
-that does not exist. It reflects the state after **PR8 (storage foundation)** and is
-updated as each PR lands.
+that does not exist. It reflects the state after **PR9 (secrets abstraction & OS keychain store)**
+and is updated as each PR lands.
 
-## Implemented (as of PR8)
+## Implemented (as of PR9)
 
 - Repository foundation: pnpm workspace + Turborepo task graph (`build`, `dev`,
   `typecheck`, `lint`, `test`).
@@ -97,6 +97,19 @@ updated as each PR lands.
     - Restart recovery: events survive full database close/re-open cycles.
     - Zero update or delete APIs for historical events; historical records remain immutable.
   - 9 focused unit tests in `packages/storage/src/__tests__/*.test.ts`; builds `.js` and declarations to `dist/`.
+- Secrets abstraction & OS keychain storage (`@ai-desktop/storage`, PR9):
+  - `SecretRef` contract (`src/secrets/secret-ref.ts`): strongly branded, validated reference
+    (`app/provider/<id>/api-key`, `ai-desktop/test/<id>`), strictly rejecting whitespace, `=`,
+    uppercase characters, or embedded secret values.
+  - `SecretStore` interface (`src/secrets/secret-store.ts`): `set`, `get`, `delete`, `has`
+    with `SecretBackendError` keeping missing credentials (`null`) and backend failures distinguishable.
+  - `OSKeychainSecretStore` (`src/secrets/os-secret-store.ts`): uses native `@napi-rs/keyring`
+    (2.0.0, Node 24 + Windows Credential Manager / macOS Keychain / Linux Secret Service).
+  - Hard security boundaries enforced:
+    - Zero raw secrets in SQLite, events, logs, error messages, or IPC payloads.
+    - Zero OAuth/UI logic; provider code never directly imports the native keychain library.
+    - Idempotent deletion and safe replacement semantics.
+  - 14 focused contract and live platform integration unit tests in `src/__tests__/secrets.test.ts`.
 - All remaining canonical packages stay **empty shells** (`package.json`, `tsconfig.json`,
   `src/index.ts` placeholder) — deliberately no premature domain functionality inside them.
 - Toolchain: TypeScript 5.9.3, ESLint 10.10.0, Vitest 4.1.10, Vite 8.1.0, Prettier 3.9.6,
@@ -105,8 +118,8 @@ updated as each PR lands.
 
 ## Not yet implemented
 
-- `providers` (Anthropic adapter, capability models) — PR9.
-- `mcp` (MCP client/server integration) — PR10/PR11.
+- `providers` (Anthropic adapter, capability models) — PR10.
+- `mcp` (MCP client/server integration) — PR11.
 - Electron shell (`BrowserWindow`, preload, main process) — PR12.
 - Typed IPC — PR13; `ActiveStreamRegistry` — PR14; IPC batching — PR15.
 - First end-to-end conversation — PR16.

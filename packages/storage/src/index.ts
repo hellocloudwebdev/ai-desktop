@@ -12,3 +12,6 @@ export {
   StorageError,
   DuplicateSequenceError,
 } from "./events/prisma-event-repository.js";
+
+// PR9: Secrets abstraction & OS keychain implementation
+export * from "./secrets/index.js";
