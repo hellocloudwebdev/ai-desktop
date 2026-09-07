@@ -11,11 +11,13 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { app, BrowserWindow } from "electron";
+import { IpcRegistry, registerIpcHandlers } from "./ipc/index.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Global reference prevents window from being garbage collected
 let mainWindow: BrowserWindow | null = null;
+let ipcRegistry: IpcRegistry | null = null;
 
 export function getSecureWebPreferences(preloadPath: string): Electron.WebPreferences {
   return {
@@ -60,8 +62,17 @@ export async function createMainWindow(): Promise<BrowserWindow> {
 // Application Lifecycle
 // ---------------------------------------------------------------------------
 
+export function initIpc(): IpcRegistry {
+  if (!ipcRegistry) {
+    ipcRegistry = new IpcRegistry();
+    registerIpcHandlers(ipcRegistry);
+  }
+  return ipcRegistry;
+}
+
 if (app) {
   app.whenReady().then(async () => {
+    initIpc();
     await createMainWindow();
 
     app.on("activate", async () => {
@@ -74,6 +85,10 @@ if (app) {
   app.on("window-all-closed", () => {
     // Respect platform conventions: macOS applications typically stay open until Cmd+Q
     if (process.platform !== "darwin") {
+      if (ipcRegistry) {
+        ipcRegistry.destroy();
+        ipcRegistry = null;
+      }
       app.quit();
     }
   });

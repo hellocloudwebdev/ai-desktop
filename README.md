@@ -1,13 +1,13 @@
 # ai-desktop
 
-A desktop AI assistant. This repository is currently at **PR12 — Electron desktop shell**:
+A desktop AI assistant. This repository is currently at **PR13 — typed Electron IPC**:
 shared primitives, canonical AI domain contracts, projections, in-process EventBus,
 permission checkpoint, SQLite WAL event repository, OS-backed credential store, canonical
-provider contracts, concrete `AnthropicAdapter`, and the Electron 44 desktop application
-shell with a secure React 19 / Tailwind 4 renderer are implemented. Future packages remain
-empty shells awaiting their respective implementation PRs — see
-[docs/architecture/phase-0.md](docs/architecture/phase-0.md) for the honest list of what
-is and is not implemented.
+provider contracts, concrete `AnthropicAdapter`, Electron 44 desktop application shell,
+and the typed Electron IPC boundary (Zod main validation, preload `window.api`, subscription
+lifecycle) are implemented. Future packages remain empty shells awaiting their respective
+implementation PRs — see [docs/architecture/phase-0.md](docs/architecture/phase-0.md) for
+the honest list of what is and is not implemented.
 
 ## Toolchain
 
@@ -65,7 +65,7 @@ mechanically enforced by `scripts/validate-dependencies.mjs` and `eslint-plugin-
 | `@ai-desktop/agent-runtime` | in-process EventBus (PR6); orchestration (later)         | all of the above                      |
 | `@ai-desktop/workspace`     | workspace UI                                             | (later PRs)                           |
 | `@ai-desktop/plugins`       | plugin infrastructure                                    | (not yet defined)                     |
-| `@ai-desktop/desktop`       | Electron shell & React renderer (PR12)                   | agent-runtime                         |
+| `@ai-desktop/desktop`       | Electron shell, React renderer, typed IPC (PR12/PR13)    | agent-runtime, shared                 |
 
 ## Repository layout
 

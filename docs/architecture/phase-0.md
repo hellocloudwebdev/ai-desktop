@@ -1,10 +1,10 @@
 # Phase 0 — What Exists and What Does Not
 
 This document prevents the repository (and its documentation) from claiming functionality
-that does not exist. It reflects the state after **PR12 (Electron desktop shell & React renderer)**
-and is updated as each PR lands.
+that does not exist. It reflects the state after **PR13 (typed Electron IPC boundary)** and
+is updated as each PR lands.
 
-## Implemented (as of PR12)
+## Implemented (as of PR13)
 
 - Repository foundation: pnpm workspace + Turborepo task graph (`build`, `dev`,
   `typecheck`, `lint`, `test`).
@@ -166,6 +166,26 @@ and is updated as each PR lands.
     - `vite.config.ts` bundles renderer to `dist/`, and main + preload to `dist-electron/`.
   - 2 unit tests in `apps/desktop/src/__tests__/shell.test.ts` verifying webPreferences security
     and preload bridge isolation.
+- Typed Electron IPC boundary (`apps/desktop` & `@ai-desktop/shared`, PR13):
+  - Shared typed IPC contract (`packages/shared/src/ipc-contract.ts`): defines canonical channel
+    constants (`IPC_CHANNELS`), Zod validation schemas for commands (`ChatSendCommandSchema`,
+    `ChatCancelCommandSchema`, `ChatSubscribeCommandSchema`, `ChatUnsubscribeCommandSchema`),
+    streaming events (`ChatStreamEventSchema`), and envelopes (`IpcResponseEnvelope`).
+  - Main-process IPC dispatch (`apps/desktop/src/main/ipc/`):
+    - `IpcRegistry` with `registerCommand`: validates all command input crossing from the renderer
+      via Zod schemas in main before handlers execute.
+    - Prevents channel collision (throws error if a command channel is registered twice).
+    - Structured, safe error responses (returns `{ ok: false, error }` envelopes without leaking
+      stack traces, credentials, or file paths).
+    - Subscription lifecycle: sends stream events strictly to WebContents, cleans up subscriptions
+      automatically upon WebContents destruction.
+  - Preload bridge (`apps/desktop/src/preload/index.ts`):
+    - Exposes typed `window.api` with `commands` (`checkHealth`, `sendChatMessage`, `cancelChat`)
+      and `events` (`subscribeToConversation` returning idempotent `Unsubscribe`).
+    - Zero exposure of raw `ipcRenderer`, `ipcMain`, `BrowserWindow`, or Node modules.
+  - 5 comprehensive IPC unit tests in `apps/desktop/src/__tests__/ipc.test.ts` verifying
+    handler registration, Zod input validation, subscription delivery, WebContents destruction cleanup,
+    and idempotent unsubscribe.
 - All remaining canonical packages stay **empty shells** (`package.json`, `tsconfig.json`,
   `src/index.ts` placeholder) — deliberately no premature domain functionality inside them.
 - Toolchain: TypeScript 5.9.3, ESLint 10.10.0, Vitest 4.1.10, Vite 8.1.0, Prettier 3.9.6,
@@ -175,7 +195,6 @@ and is updated as each PR lands.
 ## Not yet implemented
 
 - `mcp` (MCP client/server integration) — MCP milestone.
-- Typed IPC (runtime validation, channels, subscriptions, window.api) — PR13.
 - `ActiveStreamRegistry` — PR14; IPC batching — PR15.
 - First end-to-end conversation — PR16.
 

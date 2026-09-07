@@ -76,7 +76,7 @@
   "applications": {
     "desktop": {
       "directory": "apps/desktop",
-      "internalDependencies": ["agent-runtime"],
+      "internalDependencies": ["agent-runtime", "shared"],
       "note": "Privileged application assembly node. Additional direct edges are added by the implementation PR that first requires them (updating this graph and dependency-graph.md together). Electron may only be imported/declared here."
     }
   },

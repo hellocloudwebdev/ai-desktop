@@ -3,14 +3,26 @@ import React, { useState, useEffect } from "react";
 export function App(): React.ReactElement {
   const [platform, setPlatform] = useState<string>("detecting...");
   const [pingStatus, setPingStatus] = useState<string>("waiting...");
+  const [healthStatus, setHealthStatus] = useState<string>("checking...");
 
   useEffect(() => {
     if (typeof window !== "undefined" && window.api) {
       setPlatform(window.api.platform);
       setPingStatus(window.api.ping());
+      window.api.commands
+        .checkHealth()
+        .then((res) => {
+          if (res.ok) {
+            setHealthStatus(`healthy (${res.value.status})`);
+          } else {
+            setHealthStatus(`error: ${res.error.message}`);
+          }
+        })
+        .catch(() => setHealthStatus("health check failed"));
     } else {
       setPlatform("browser/web");
       setPingStatus("preload bridge unavailable in browser preview");
+      setHealthStatus("unavailable");
     }
   }, []);
 
@@ -38,13 +50,17 @@ export function App(): React.ReactElement {
             <span className="font-mono text-emerald-400 font-medium">{pingStatus}</span>
           </div>
           <div className="flex justify-between text-xs">
+            <span className="text-slate-500">Typed IPC:</span>
+            <span className="font-mono text-cyan-400 font-medium">{healthStatus}</span>
+          </div>
+          <div className="flex justify-between text-xs">
             <span className="text-slate-500">Node Integration:</span>
             <span className="font-mono text-slate-400">Disabled (contextIsolation active)</span>
           </div>
         </section>
 
         <footer className="mt-8 pt-4 border-t border-slate-800 text-center text-xs text-slate-500">
-          PR12 — Electron Shell Milestone
+          PR13 — Typed IPC Milestone
         </footer>
       </div>
     </main>
