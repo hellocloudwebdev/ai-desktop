@@ -87,6 +87,7 @@ Do **NOT** "helpfully" upgrade package versions without a verified toolchain com
 | **Zod**                      | `4.4.3`                    | Schema validation at process and contract boundaries                                        |
 | **Prisma**                   | `6.4.1`                    | SQLite persistence with WAL mode strictly inside `storage`                                  |
 | **@napi-rs/keyring**         | `2.0.0`                    | Native OS keychain binding (Windows Credential Manager / macOS / Linux) inside `storage`    |
+| **@anthropic-ai/sdk**        | `0.124.0`                  | Official Anthropic SDK strictly inside `packages/providers`                                 |
 | **Electron**                 | `44.0.0`                   | Locked for PR12 (not yet installed)                                                         |
 
 ---
@@ -105,9 +106,10 @@ Do **NOT** "helpfully" upgrade package versions without a verified toolchain com
 | **PR8**     | `pr8-storage` (`bc27f6b`)                | Complete | Prisma SQLite WAL mode, `PrismaEventRepository` append-only storage                          |
 | **PR9**     | `pr9-secrets`                            | Complete | `SecretStore`, `SecretRef`, `@napi-rs/keyring` OS keychain integration, 14 unit tests        |
 | **PR10**    | `pr10-providers`                         | Complete | Canonical `ProviderAdapter` contract, capabilities, `ChatRequest`, error boundary, 9 tests   |
-| **PR11**    | `pr11-anthropic`                         | **NEXT** | Concrete Anthropic provider adapter, streaming translation, cancellation, 47 unit tests      |
-| **PR12**    | —                                        | Deferred | Electron 44.0.0 application shell                                                            |
-| **PR13–15** | —                                        | Deferred | Typed IPC, `ActiveStreamRegistry`, 32ms event batching                                       |
+| **PR11**    | `pr11-anthropic`                         | Complete | Anthropic concrete adapter, request/stream/error translation, cancellation, 26 unit tests    |
+| **PR12**    | `pr12-mcp`                               | **NEXT** | MCP split packages (`@modelcontextprotocol/client` and `server`)                             |
+| **PR13**    | —                                        | Deferred | Electron 44.0.0 application shell                                                            |
+| **PR14–15** | —                                        | Deferred | Typed IPC, `ActiveStreamRegistry`, 32ms event batching                                       |
 | **PR16**    | —                                        | Deferred | First vertical end-to-end conversation slice                                                 |
 
 ---

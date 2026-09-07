@@ -1,10 +1,10 @@
 # Phase 0 — What Exists and What Does Not
 
 This document prevents the repository (and its documentation) from claiming functionality
-that does not exist. It reflects the state after **PR10 (canonical provider contract)** and
+that does not exist. It reflects the state after **PR11 (Anthropic concrete adapter)** and
 is updated as each PR lands.
 
-## Implemented (as of PR10)
+## Implemented (as of PR11)
 
 - Repository foundation: pnpm workspace + Turborepo task graph (`build`, `dev`,
   `typecheck`, `lint`, `test`).
@@ -130,6 +130,23 @@ is updated as each PR lands.
       `ProviderRequestError` without leaking third-party SDK error types.
   - 9 focused contract tests in `packages/providers/src/__tests__/*.test.ts` verifying
     initialization, config validation, capability detection, streaming, cancellation, and error handling.
+- Concrete Anthropic provider adapter (`@ai-desktop/providers`, PR11):
+  - `@anthropic-ai/sdk` (0.124.0) encapsulated strictly inside `packages/providers`.
+  - Canonical model definitions (`src/anthropic/anthropic-models.ts`): Claude 3.5 Sonnet,
+    Claude 3.5 Haiku, Claude 3 Opus with capability ownership.
+  - Request translation boundary (`src/anthropic/translate-request.ts`): converts canonical
+    `ChatRequest` to native streaming `MessageCreateParams` with multimodal parts, tool definitions,
+    thinking budgets, and explicit rejection of unsupported capabilities.
+  - Stream translation boundary (`src/anthropic/translate-stream.ts`): converts native chunk
+    events to canonical `AIEvent`s (`message.started`, `message.delta`, `tool.call.requested`,
+    `message.completed`).
+  - Error translation boundary (`src/anthropic/translate-error.ts`): maps native SDK exceptions
+    (401 Auth, 429 RateLimit, 400 BadRequest, 500 InternalServer, AbortError) to canonical
+    `ProviderError` subclasses without leaking vendor types.
+  - `AnthropicAdapter` (`src/anthropic/anthropic-adapter.ts`): implements `ProviderAdapter`,
+    cooperative cancellation via standard `AbortSignal`, credential resolution via SecretRef.
+  - Opt-in live smoke test (`ANTHROPIC_SMOKE_TEST=1`).
+  - 17 unit tests across request translation, stream translation, error translation, and adapter lifecycle.
 - All remaining canonical packages stay **empty shells** (`package.json`, `tsconfig.json`,
   `src/index.ts` placeholder) — deliberately no premature domain functionality inside them.
 - Toolchain: TypeScript 5.9.3, ESLint 10.10.0, Vitest 4.1.10, Vite 8.1.0, Prettier 3.9.6,
@@ -138,8 +155,7 @@ is updated as each PR lands.
 
 ## Not yet implemented
 
-- `providers` (Anthropic concrete adapter) — PR11.
-- `mcp` (MCP client/server integration) — PR11/PR12.
+- `mcp` (MCP client/server integration) — PR12 (MCP phase).
 - Electron shell (`BrowserWindow`, preload, main process) — PR12.
 - Typed IPC — PR13; `ActiveStreamRegistry` — PR14; IPC batching — PR15.
 - First end-to-end conversation — PR16.
@@ -153,7 +169,7 @@ pnpm install && pnpm typecheck && pnpm lint && pnpm test && pnpm build
 ```
 
 All five succeed across the shared, ai-core, agent-runtime (EventBus), permissions, storage, and providers packages,
-while future packages remain shells. A repository search finds no `@anthropic-ai/sdk`,
-`@modelcontextprotocol`, `dockerode`, Electron implementations (`BrowserWindow`, `ipcMain`, `ipcRenderer`),
-or future runtime classes (`ToolExecutor`, `MCPHost`, `ExecutionManager`, `MemoryStore`,
-`AgentLoop`, `AnthropicAdapter`) anywhere in implementation files.
+while future packages remain shells. A repository search finds no `@modelcontextprotocol`,
+`dockerode`, Electron implementations (`BrowserWindow`, `ipcMain`, `ipcRenderer`), or future runtime
+classes (`ToolExecutor`, `MCPHost`, `ExecutionManager`, `MemoryStore`, `AgentLoop`) anywhere in
+implementation files. `@anthropic-ai/sdk` is strictly isolated within `packages/providers`.

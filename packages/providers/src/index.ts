@@ -1,7 +1,6 @@
-// PR10: packages/providers — Public API Surface
+// PR11: packages/providers — Public API Surface
 //
-// Canonical provider contracts and domain errors.
-// Concrete provider implementations (Anthropic in PR11) reside in subdirectories.
+// Canonical provider contracts and the concrete AnthropicAdapter.
 // Provider SDK types never escape this package boundary.
 
 export type { ProviderAdapter } from "./core/provider-adapter.js";
@@ -14,3 +13,15 @@ export {
   ModelNotFoundError,
   ProviderRequestError,
 } from "./core/provider-errors.js";
+
+// Anthropic provider implementation
+export type { AnthropicAdapterOptions } from "./anthropic/anthropic-adapter.js";
+export { AnthropicAdapter } from "./anthropic/anthropic-adapter.js";
+export {
+  ANTHROPIC_PROVIDER_ID,
+  ANTHROPIC_MODELS,
+  ANTHROPIC_MODEL_MAP,
+} from "./anthropic/anthropic-models.js";
+export { translateChatRequest } from "./anthropic/translate-request.js";
+export { translateAnthropicStream } from "./anthropic/translate-stream.js";
+export { translateAnthropicError } from "./anthropic/translate-error.js";
