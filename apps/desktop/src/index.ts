@@ -3,6 +3,6 @@
 // Re-exports main process and preload application contracts.
 // Electron imports strictly confined to this package.
 
-export { createMainWindow, getSecureWebPreferences } from "./main/index.js";
+export { createMainWindow, getSecureWebPreferences, ActiveStreamRegistry } from "./main/index.js";
 export type { DesktopApplicationApi } from "./preload/index.js";
 export { desktopApi } from "./preload/index.js";

@@ -111,8 +111,8 @@ Do **NOT** "helpfully" upgrade package versions without a verified toolchain com
 | **PR11**  | `pr11-anthropic`                         | Complete | Anthropic concrete adapter, request/stream/error translation, cancellation, 26 unit tests        |
 | **PR12**  | `pr12-desktop-shell`                     | Complete | Electron 44 shell, secure BrowserWindow, preload bridge, React 19 / Tailwind 4 renderer, 2 tests |
 | **PR13**  | `pr13-typed-ipc`                         | Complete | Typed IPC commands/subscriptions, Zod main validation, preload `window.api`, 7 tests             |
-| **PR14**  | `pr14-active-stream-registry`            | **NEXT** | `ActiveStreamRegistry` mapping MessageId to AbortController, stream cancellation lifecycle       |
-| **PR15**  | `pr15-ipc-batcher`                       | Deferred | 32ms event batching buffer, immediate terminal flush, WebContents destruction cleanup            |
+| **PR14**  | `pr14-active-stream-registry`            | Complete | `ActiveStreamRegistry` mapping MessageId to AbortController, stream cancellation, 11 tests       |
+| **PR15**  | `pr15-ipc-batcher`                       | **NEXT** | 32ms event batching buffer, immediate terminal flush, WebContents destruction cleanup            |
 | **PR16**  | —                                        | Deferred | First vertical end-to-end conversation slice                                                     |
 
 ---

@@ -11,13 +11,24 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { app, BrowserWindow } from "electron";
+import { ActiveStreamRegistry } from "./chat/index.js";
 import { IpcRegistry, registerIpcHandlers } from "./ipc/index.js";
+
+export { ActiveStreamRegistry } from "./chat/index.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Global reference prevents window from being garbage collected
 let mainWindow: BrowserWindow | null = null;
 let ipcRegistry: IpcRegistry | null = null;
+let activeStreamRegistry: ActiveStreamRegistry | null = null;
+
+export function getActiveStreamRegistry(): ActiveStreamRegistry {
+  if (!activeStreamRegistry) {
+    activeStreamRegistry = new ActiveStreamRegistry();
+  }
+  return activeStreamRegistry;
+}
 
 export function getSecureWebPreferences(preloadPath: string): Electron.WebPreferences {
   return {
@@ -62,10 +73,11 @@ export async function createMainWindow(): Promise<BrowserWindow> {
 // Application Lifecycle
 // ---------------------------------------------------------------------------
 
-export function initIpc(): IpcRegistry {
+export function initIpc(options?: { activeStreamRegistry?: ActiveStreamRegistry }): IpcRegistry {
   if (!ipcRegistry) {
     ipcRegistry = new IpcRegistry();
-    registerIpcHandlers(ipcRegistry);
+    const streamRegistry = options?.activeStreamRegistry ?? getActiveStreamRegistry();
+    registerIpcHandlers(ipcRegistry, { streamRegistry });
   }
   return ipcRegistry;
 }
@@ -85,6 +97,10 @@ if (app) {
   app.on("window-all-closed", () => {
     // Respect platform conventions: macOS applications typically stay open until Cmd+Q
     if (process.platform !== "darwin") {
+      if (activeStreamRegistry) {
+        activeStreamRegistry.clear();
+        activeStreamRegistry = null;
+      }
       if (ipcRegistry) {
         ipcRegistry.destroy();
         ipcRegistry = null;

@@ -21,6 +21,7 @@ import {
   type ChatStreamEvent,
   type IpcResponseEnvelope,
 } from "@ai-desktop/shared";
+import type { ActiveStreamRegistry } from "../chat/index.js";
 
 export type CommandHandler<TInput, TOutput> = (
   input: TInput,
@@ -32,8 +33,17 @@ export interface RegisteredCommands {
   onChatCancel?: CommandHandler<ChatCancelCommand, { cancelled: boolean }>;
 }
 
+export interface RegisterIpcOptions {
+  callbacks?: RegisteredCommands;
+  streamRegistry?: ActiveStreamRegistry;
+}
+
 export class IpcRegistry {
   private readonly _registeredChannels = new Set<string>();
+  private readonly _handlers = new Map<
+    string,
+    (rawInput: unknown, event: IpcMainInvokeEvent) => Promise<IpcResponseEnvelope<unknown>>
+  >();
   private readonly _subscriptions = new Map<string, Set<WebContents>>();
 
   /**
@@ -57,57 +67,76 @@ export class IpcRegistry {
 
     this._registeredChannels.add(channel);
 
+    const dispatcher = async (
+      rawInput: unknown,
+      event: IpcMainInvokeEvent,
+    ): Promise<IpcResponseEnvelope<TOutput>> => {
+      const requestId =
+        rawInput && typeof rawInput === "object" && "requestId" in rawInput
+          ? String((rawInput as { requestId: unknown }).requestId)
+          : "unknown";
+
+      // 1. Zod runtime validation in main process
+      const parseResult = schema.safeParse(rawInput);
+      if (!parseResult.success) {
+        const issues = parseResult.error?.issues ?? [];
+        const message = issues.map((i) => `${i.path.join(".") || "root"}: ${i.message}`).join("; ");
+
+        return {
+          requestId,
+          ok: false,
+          error: {
+            code: "VALIDATION_ERROR",
+            message: `Invalid command payload: ${message}`,
+          },
+        };
+      }
+
+      // 2. Execute privileged handler safely
+      try {
+        const output = await handler(parseResult.data as TInput, event);
+        return {
+          requestId,
+          ok: true,
+          value: output,
+        };
+      } catch (err: unknown) {
+        return {
+          requestId,
+          ok: false,
+          error: {
+            code: "HANDLER_ERROR",
+            message: err instanceof Error ? err.message : String(err),
+          },
+        };
+      }
+    };
+
+    this._handlers.set(channel, dispatcher);
+
     if (ipcMain && typeof ipcMain.handle === "function") {
-      ipcMain.handle(
-        channel,
-        async (
-          event: IpcMainInvokeEvent,
-          rawInput: unknown,
-        ): Promise<IpcResponseEnvelope<TOutput>> => {
-          const requestId =
-            rawInput && typeof rawInput === "object" && "requestId" in rawInput
-              ? String((rawInput as { requestId: unknown }).requestId)
-              : "unknown";
-
-          // 1. Zod runtime validation in main process
-          const parseResult = schema.safeParse(rawInput);
-          if (!parseResult.success) {
-            const issues = parseResult.error?.issues ?? [];
-            const message = issues
-              .map((i) => `${i.path.join(".") || "root"}: ${i.message}`)
-              .join("; ");
-
-            return {
-              requestId,
-              ok: false,
-              error: {
-                code: "VALIDATION_ERROR",
-                message: `Invalid command payload: ${message}`,
-              },
-            };
-          }
-
-          // 2. Execute privileged handler safely
-          try {
-            const output = await handler(parseResult.data as TInput, event);
-            return {
-              requestId,
-              ok: true,
-              value: output,
-            };
-          } catch (err: unknown) {
-            return {
-              requestId,
-              ok: false,
-              error: {
-                code: "HANDLER_ERROR",
-                message: err instanceof Error ? err.message : String(err),
-              },
-            };
-          }
-        },
+      ipcMain.handle(channel, async (event: IpcMainInvokeEvent, rawInput: unknown) =>
+        dispatcher(rawInput, event),
       );
     }
+  }
+
+  /**
+   * Invokes a registered command in-process (useful for direct dispatch and unit testing).
+   */
+  async invokeCommand<TOutput = unknown>(
+    channel: string,
+    rawInput: unknown,
+    event?: Partial<IpcMainInvokeEvent>,
+  ): Promise<IpcResponseEnvelope<TOutput>> {
+    const handler = this._handlers.get(channel);
+    if (!handler) {
+      throw new Error(`No handler registered for channel "${channel}"`);
+    }
+    return (await handler(
+      rawInput,
+      (event ?? {}) as IpcMainInvokeEvent,
+    )) as IpcResponseEnvelope<TOutput>;
   }
 
   /**
@@ -172,6 +201,7 @@ export class IpcRegistry {
       }
     }
     this._registeredChannels.clear();
+    this._handlers.clear();
     this._subscriptions.clear();
   }
 
@@ -187,7 +217,19 @@ export class IpcRegistry {
 /**
  * Initializes and registers all application IPC command handlers.
  */
-export function registerIpcHandlers(registry: IpcRegistry, callbacks?: RegisteredCommands): void {
+export function registerIpcHandlers(
+  registry: IpcRegistry,
+  options?: RegisteredCommands | RegisterIpcOptions,
+): void {
+  const callbacks: RegisteredCommands | undefined =
+    options && "callbacks" in options
+      ? options.callbacks
+      : !options || "streamRegistry" in options
+        ? undefined
+        : (options as RegisteredCommands);
+  const streamRegistry: ActiveStreamRegistry | undefined =
+    options && "streamRegistry" in options ? options.streamRegistry : undefined;
+
   // 1. Health check command
   registry.registerCommand(
     IPC_CHANNELS.APP_HEALTH_CHECK,
@@ -210,6 +252,10 @@ export function registerIpcHandlers(registry: IpcRegistry, callbacks?: Registere
     async (input, event) => {
       if (callbacks?.onChatCancel) {
         return callbacks.onChatCancel(input, event);
+      }
+      if (streamRegistry && input.messageId) {
+        const cancelled = streamRegistry.abort(input.messageId);
+        return { cancelled };
       }
       return { cancelled: true };
     },

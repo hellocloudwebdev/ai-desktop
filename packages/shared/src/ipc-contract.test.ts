@@ -71,8 +71,10 @@ describe("ipc-contract: ChatCancelCommand Validation", () => {
   it("validates a well-formed ChatCancelCommand", () => {
     const convId = createConversationId();
     const taskId = createTaskId();
+    const msgId = createMessageId();
     const input = {
       conversationId: convId,
+      messageId: msgId,
       taskId,
       reason: "User cancelled generation",
     };
@@ -84,6 +86,7 @@ describe("ipc-contract: ChatCancelCommand Validation", () => {
     expect(validated.ok).toBe(true);
     if (validated.ok) {
       expect(validated.value.conversationId).toBe(convId);
+      expect(validated.value.messageId).toBe(msgId);
       expect(validated.value.taskId).toBe(taskId);
       expect(validated.value.reason).toBe("User cancelled generation");
     }

@@ -1,10 +1,10 @@
 # Phase 0 — What Exists and What Does Not
 
 This document prevents the repository (and its documentation) from claiming functionality
-that does not exist. It reflects the state after **PR13 (typed Electron IPC boundary)** and
+that does not exist. It reflects the state after **PR14 (ActiveStreamRegistry cancellation)** and
 is updated as each PR lands.
 
-## Implemented (as of PR13)
+## Implemented (as of PR14)
 
 - Repository foundation: pnpm workspace + Turborepo task graph (`build`, `dev`,
   `typecheck`, `lint`, `test`).
@@ -186,6 +186,21 @@ is updated as each PR lands.
   - 5 comprehensive IPC unit tests in `apps/desktop/src/__tests__/ipc.test.ts` verifying
     handler registration, Zod input validation, subscription delivery, WebContents destruction cleanup,
     and idempotent unsubscribe.
+- Active streaming cancellation registry (`apps/desktop/src/main/chat/active-stream-registry.ts`, PR14):
+  - Registry owning the runtime relationship `MessageId -> AbortController` in the Electron main
+    chat-service layer.
+  - Invariants enforced:
+    - Strictly in-memory runtime state: controllers are NEVER persisted to SQLite, events, or disk.
+    - Zero imports of `EventBus`, `@prisma/client`, `storage`, or `providers` in the registry.
+    - Cooperative cancellation via standard `AbortController` and `AbortSignal`.
+    - Duplicate registration for the same `MessageId` is rejected with `ConflictError`.
+    - Idempotent operations: aborting or removing unknown or already-aborted streams is safe and no-op.
+    - Stream isolation: aborting one active stream has zero impact on concurrent streams.
+    - IPC command integration: wired into `registerIpcHandlers` for `CHAT_CANCEL` command dispatch.
+    - Application lifecycle integration: cleared and aborted on application/window teardown.
+  - 11 unit and integration tests in `apps/desktop/src/__tests__/active-stream-registry.test.ts`
+    verifying registration, rejection of duplicate IDs, abort idempotency, multi-stream isolation,
+    async generator cancellation, try/finally cleanup, bulk clear, and typed IPC cancellation dispatch.
 - All remaining canonical packages stay **empty shells** (`package.json`, `tsconfig.json`,
   `src/index.ts` placeholder) — deliberately no premature domain functionality inside them.
 - Toolchain: TypeScript 5.9.3, ESLint 10.10.0, Vitest 4.1.10, Vite 8.1.0, Prettier 3.9.6,
@@ -195,8 +210,8 @@ is updated as each PR lands.
 ## Not yet implemented
 
 - `mcp` (MCP client/server integration) — MCP milestone.
-- `ActiveStreamRegistry` — PR14; IPC batching — PR15.
-- First end-to-end conversation — PR16.
+- IPC event batching (32ms animation frame throttling) — PR15.
+- First end-to-end conversation vertical slice — PR16.
 
 ## Verification
 

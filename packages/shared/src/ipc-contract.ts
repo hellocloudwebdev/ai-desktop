@@ -83,6 +83,7 @@ export type ChatSendCommand = z.infer<typeof ChatSendCommandSchema>;
  */
 export const ChatCancelCommandSchema = z.object({
   conversationId: ConversationIdSchema,
+  messageId: MessageIdSchema.optional(),
   taskId: TaskIdSchema.optional(),
   reason: z.string().max(500).optional(),
 });

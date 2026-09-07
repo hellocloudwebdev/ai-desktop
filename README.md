@@ -1,11 +1,11 @@
 # ai-desktop
 
-A desktop AI assistant. This repository is currently at **PR13 — typed Electron IPC**:
+A desktop AI assistant. This repository is currently at **PR14 — ActiveStreamRegistry**:
 shared primitives, canonical AI domain contracts, projections, in-process EventBus,
 permission checkpoint, SQLite WAL event repository, OS-backed credential store, canonical
 provider contracts, concrete `AnthropicAdapter`, Electron 44 desktop application shell,
-and the typed Electron IPC boundary (Zod main validation, preload `window.api`, subscription
-lifecycle) are implemented. Future packages remain empty shells awaiting their respective
+typed Electron IPC boundary, and the `ActiveStreamRegistry` main chat cancellation registry
+are implemented. Future packages remain empty shells awaiting their respective
 implementation PRs — see [docs/architecture/phase-0.md](docs/architecture/phase-0.md) for
 the honest list of what is and is not implemented.
 
