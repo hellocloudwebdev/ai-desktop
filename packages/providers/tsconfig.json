@@ -1,4 +1,10 @@
 {
   "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@ai-desktop/shared": ["../shared/src/index.ts"],
+      "@ai-desktop/ai-core": ["../ai-core/src/index.ts"]
+    }
+  },
   "include": ["src"]
 }

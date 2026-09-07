@@ -1,10 +1,10 @@
 # Phase 0 — What Exists and What Does Not
 
 This document prevents the repository (and its documentation) from claiming functionality
-that does not exist. It reflects the state after **PR9 (secrets abstraction & OS keychain store)**
-and is updated as each PR lands.
+that does not exist. It reflects the state after **PR10 (canonical provider contract)** and
+is updated as each PR lands.
 
-## Implemented (as of PR9)
+## Implemented (as of PR10)
 
 - Repository foundation: pnpm workspace + Turborepo task graph (`build`, `dev`,
   `typecheck`, `lint`, `test`).
@@ -110,6 +110,26 @@ and is updated as each PR lands.
     - Zero OAuth/UI logic; provider code never directly imports the native keychain library.
     - Idempotent deletion and safe replacement semantics.
   - 14 focused contract and live platform integration unit tests in `src/__tests__/secrets.test.ts`.
+- Canonical provider contract (`@ai-desktop/providers`, PR10):
+  - Canonical domain additions in `ai-core` (`src/models.ts` & `src/identifiers.ts`):
+    - Branded IDs: `ProviderId`, `ModelId`.
+    - Canonical model capabilities: `ModelCapabilitySchema` (`text_generation`, `streaming`,
+      `vision`, `audio`, `video`, `tool_use`, `thinking`, `structured_output`).
+    - `ModelDefinition`: owns capability declarations, context window, output tokens, pricing.
+    - Canonical `ChatRequest`: provider-neutral chat input with `ChatMessageInput` and `ChatRequestOptions`.
+  - Canonical adapter interface (`src/core/provider-adapter.ts`):
+    - `ProviderAdapter` with `initialize`, `listModels`, `getModel`, `validateConfig`, `supports`,
+      and streaming `chat(request, signal): AsyncIterable<AIEvent>`.
+    - Invariants enforced: Provider and Model are separate; ModelDefinition owns capabilities;
+      cancellation uses standard `AbortSignal`; provider SDK types never escape the adapter boundary;
+      OpenAI-compatible APIs are NOT the internal abstraction.
+  - Configuration & Errors (`src/core/provider-config.ts` & `src/core/provider-errors.ts`):
+    - `ProviderConfig`: references credentials strictly via non-secret `credentialRef` (SecretRef);
+      zero raw secrets in provider definitions.
+    - `ProviderError`, `ProviderConfigError`, `UnsupportedCapabilityError`, `ModelNotFoundError`,
+      `ProviderRequestError` without leaking third-party SDK error types.
+  - 9 focused contract tests in `packages/providers/src/__tests__/*.test.ts` verifying
+    initialization, config validation, capability detection, streaming, cancellation, and error handling.
 - All remaining canonical packages stay **empty shells** (`package.json`, `tsconfig.json`,
   `src/index.ts` placeholder) — deliberately no premature domain functionality inside them.
 - Toolchain: TypeScript 5.9.3, ESLint 10.10.0, Vitest 4.1.10, Vite 8.1.0, Prettier 3.9.6,
@@ -118,8 +138,8 @@ and is updated as each PR lands.
 
 ## Not yet implemented
 
-- `providers` (Anthropic adapter, capability models) — PR10.
-- `mcp` (MCP client/server integration) — PR11.
+- `providers` (Anthropic concrete adapter) — PR11.
+- `mcp` (MCP client/server integration) — PR11/PR12.
 - Electron shell (`BrowserWindow`, preload, main process) — PR12.
 - Typed IPC — PR13; `ActiveStreamRegistry` — PR14; IPC batching — PR15.
 - First end-to-end conversation — PR16.
@@ -132,8 +152,8 @@ The claims above are checkable:
 pnpm install && pnpm typecheck && pnpm lint && pnpm test && pnpm build
 ```
 
-All five succeed across the shared, ai-core, agent-runtime (EventBus), permissions, and storage packages,
-while future packages remain shells. A repository search finds no `@modelcontextprotocol`,
-`dockerode`, `@anthropic-ai`, Electron implementations (`BrowserWindow`, `ipcMain`, `ipcRenderer`),
+All five succeed across the shared, ai-core, agent-runtime (EventBus), permissions, storage, and providers packages,
+while future packages remain shells. A repository search finds no `@anthropic-ai/sdk`,
+`@modelcontextprotocol`, `dockerode`, Electron implementations (`BrowserWindow`, `ipcMain`, `ipcRenderer`),
 or future runtime classes (`ToolExecutor`, `MCPHost`, `ExecutionManager`, `MemoryStore`,
 `AgentLoop`, `AnthropicAdapter`) anywhere in implementation files.

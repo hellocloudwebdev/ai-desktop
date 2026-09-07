@@ -104,8 +104,8 @@ Do **NOT** "helpfully" upgrade package versions without a verified toolchain com
 | **PR7**     | `pr7-permissions` (`0d3e2c1`)            | Complete | `PermissionManager` interface, 5-dimension check, `AllowAllPermissionManager`                |
 | **PR8**     | `pr8-storage` (`bc27f6b`)                | Complete | Prisma SQLite WAL mode, `PrismaEventRepository` append-only storage                          |
 | **PR9**     | `pr9-secrets`                            | Complete | `SecretStore`, `SecretRef`, `@napi-rs/keyring` OS keychain integration, 14 unit tests        |
-| **PR10**    | `pr10-providers`                         | **NEXT** | Anthropic adapter, capability models, OS keychain credential references                      |
-| **PR11**    | —                                        | Deferred | MCP split packages (`@modelcontextprotocol/client` and `server`)                             |
+| **PR10**    | `pr10-providers`                         | Complete | Canonical `ProviderAdapter` contract, capabilities, `ChatRequest`, error boundary, 9 tests   |
+| **PR11**    | `pr11-anthropic`                         | **NEXT** | Concrete Anthropic provider adapter, streaming translation, cancellation, 47 unit tests      |
 | **PR12**    | —                                        | Deferred | Electron 44.0.0 application shell                                                            |
 | **PR13–15** | —                                        | Deferred | Typed IPC, `ActiveStreamRegistry`, 32ms event batching                                       |
 | **PR16**    | —                                        | Deferred | First vertical end-to-end conversation slice                                                 |
