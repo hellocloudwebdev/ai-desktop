@@ -97,7 +97,7 @@ export function definePackageConfig(configFileUrl) {
 
   return tseslint.config(
     {
-      ignores: ["node_modules/**", "dist/**", "coverage/**", ".turbo/**"],
+      ignores: ["node_modules/**", "dist/**", "dist-electron/**", "coverage/**", ".turbo/**"],
     },
     ...tseslint.configs.recommended,
     {

@@ -1,12 +1,13 @@
 # ai-desktop
 
-A desktop AI assistant. This repository is currently at **PR11 — Anthropic provider
-adapter**: shared primitives, canonical AI domain contracts, projections, in-process
-EventBus, permission checkpoint, SQLite WAL event repository, OS-backed credential store,
-canonical provider/model contracts, and the concrete `AnthropicAdapter` with streaming
-translation are implemented. Future packages remain empty shells awaiting their respective
-implementation PRs — see [docs/architecture/phase-0.md](docs/architecture/phase-0.md) for
-the honest list of what is and is not implemented.
+A desktop AI assistant. This repository is currently at **PR12 — Electron desktop shell**:
+shared primitives, canonical AI domain contracts, projections, in-process EventBus,
+permission checkpoint, SQLite WAL event repository, OS-backed credential store, canonical
+provider contracts, concrete `AnthropicAdapter`, and the Electron 44 desktop application
+shell with a secure React 19 / Tailwind 4 renderer are implemented. Future packages remain
+empty shells awaiting their respective implementation PRs — see
+[docs/architecture/phase-0.md](docs/architecture/phase-0.md) for the honest list of what
+is and is not implemented.
 
 ## Toolchain
 
@@ -23,10 +24,12 @@ the honest list of what is and is not implemented.
 | @anthropic-ai/sdk        | 0.124.0                                  | used strictly inside `@ai-desktop/providers`                       |
 | Vitest                   | 4.1.10                                   | root test runner for repository tooling                            |
 | Vite                     | 8.1.0                                    | locked peer foundation for Vitest                                  |
+| Electron                 | 44.0.0                                   | desktop shell strictly inside `apps/desktop`                       |
+| React                    | 19.2.8                                   | UI renderer strictly inside `apps/desktop`                         |
+| Tailwind CSS             | 4.3.3                                    | UI styling via `@tailwindcss/vite` in `apps/desktop`               |
 
-Electron is **not** a dependency of this repository yet (locked architecturally, pinned in
-PR12). The same applies to the MCP SDK, provider SDKs, and Docker tooling — none
-of them may be installed before their own implementation PR.
+The MCP SDK and Docker tooling are intentionally **not** dependencies of this repository
+yet — neither of them may be installed before their own implementation PR.
 
 ## Quickstart
 
@@ -36,7 +39,7 @@ pnpm typecheck            # tsc --noEmit in every package
 pnpm lint                 # eslint in every package + boundaries enforcement
 pnpm architecture:check   # validate declarations, graph edges, and Electron boundary
 pnpm test                 # vitest unit tests + package tests via Turbo
-pnpm build                # compiles shared, ai-core, agent-runtime, permissions, storage, providers; others stay shells
+pnpm build                # compiles packages and builds desktop shell artifacts
 pnpm format               # prettier --write .
 pnpm format:check
 ```
@@ -62,12 +65,12 @@ mechanically enforced by `scripts/validate-dependencies.mjs` and `eslint-plugin-
 | `@ai-desktop/agent-runtime` | in-process EventBus (PR6); orchestration (later)         | all of the above                      |
 | `@ai-desktop/workspace`     | workspace UI                                             | (later PRs)                           |
 | `@ai-desktop/plugins`       | plugin infrastructure                                    | (not yet defined)                     |
-| `@ai-desktop/desktop`       | Electron shell app (PR12)                                | agent-runtime                         |
+| `@ai-desktop/desktop`       | Electron shell & React renderer (PR12)                   | agent-runtime                         |
 
 ## Repository layout
 
 ```
-apps/desktop/     desktop application shell (Electron arrives in PR12)
+apps/desktop/     desktop application shell (Electron main, preload, React renderer)
 packages/         the twelve domain packages above
 prisma/           canonical location for the Prisma schema (schema arrives in PR8)
 docs/architecture/  CONSTITUTION.md, dependency-graph.md, phase-0.md

@@ -1,5 +1,6 @@
 node_modules/
 dist/
+dist-electron/
 coverage/
 .turbo/
 pnpm-lock.yaml

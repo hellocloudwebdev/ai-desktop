@@ -1,4 +1,8 @@
-// Package shell - @ai-desktop/desktop.
-// Deliberately unimplemented in PR1 (repository foundation).
-// See docs/architecture/phase-0.md for what exists and what is deferred.
-export {};
+// PR12: apps/desktop — Package Entrypoint
+//
+// Re-exports main process and preload application contracts.
+// Electron imports strictly confined to this package.
+
+export { createMainWindow, getSecureWebPreferences } from "./main/index.js";
+export type { DesktopApplicationApi } from "./preload/index.js";
+export { desktopApi } from "./preload/index.js";

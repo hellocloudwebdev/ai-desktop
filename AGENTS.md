@@ -88,29 +88,31 @@ Do **NOT** "helpfully" upgrade package versions without a verified toolchain com
 | **Prisma**                   | `6.4.1`                    | SQLite persistence with WAL mode strictly inside `storage`                                  |
 | **@napi-rs/keyring**         | `2.0.0`                    | Native OS keychain binding (Windows Credential Manager / macOS / Linux) inside `storage`    |
 | **@anthropic-ai/sdk**        | `0.124.0`                  | Official Anthropic SDK strictly inside `packages/providers`                                 |
-| **Electron**                 | `44.0.0`                   | Locked for PR12 (not yet installed)                                                         |
+| **Electron**                 | `44.0.0`                   | Desktop application shell strictly inside `apps/desktop`                                    |
+| **React**                    | `19.2.8`                   | Frontend UI library strictly inside `apps/desktop`                                          |
+| **Tailwind CSS**             | `4.3.3`                    | Utility-first CSS styling via `@tailwindcss/vite` in `apps/desktop`                         |
 
 ---
 
 ## 5. Milestone Implementation Status
 
-| Milestone   | Branch                                   | Status   | Deliverables                                                                                 |
-| :---------- | :--------------------------------------- | :------- | :------------------------------------------------------------------------------------------- |
-| **PR1**     | `main` (`49a99af`)                       | Complete | Workspace foundation, Turbo, docs, package shells                                            |
-| **PR2**     | `pr2-dependency-enforcement` (`d2a2335`) | Complete | Machine-readable dependency graph, ESLint boundaries, validator                              |
-| **PR3**     | `pr3-shared-contracts` (`7c93c6a`)       | Complete | Branded ULIDs, Result, BaseError, Timestamp, typed IPC schemas                               |
-| **PR4**     | `pr4-ai-core` (`bb07eaf`)                | Complete | Multimodal ContentPart, Message, ToolSource != ToolRuntime, AIEvent union                    |
-| **PR5**     | `pr5-projections` (`6b929f5`)            | Complete | Pure deterministic projections: `projectMessages`, `projectConversation`, `projectTaskGraph` |
-| **PR6**     | `pr6-event-bus` (`9f8fc47`)              | Complete | Thin in-process EventBus, FIFO ordering, re-entrancy queue, error isolation                  |
-| **PR7**     | `pr7-permissions` (`0d3e2c1`)            | Complete | `PermissionManager` interface, 5-dimension check, `AllowAllPermissionManager`                |
-| **PR8**     | `pr8-storage` (`bc27f6b`)                | Complete | Prisma SQLite WAL mode, `PrismaEventRepository` append-only storage                          |
-| **PR9**     | `pr9-secrets`                            | Complete | `SecretStore`, `SecretRef`, `@napi-rs/keyring` OS keychain integration, 14 unit tests        |
-| **PR10**    | `pr10-providers`                         | Complete | Canonical `ProviderAdapter` contract, capabilities, `ChatRequest`, error boundary, 9 tests   |
-| **PR11**    | `pr11-anthropic`                         | Complete | Anthropic concrete adapter, request/stream/error translation, cancellation, 26 unit tests    |
-| **PR12**    | `pr12-mcp`                               | **NEXT** | MCP split packages (`@modelcontextprotocol/client` and `server`)                             |
-| **PR13**    | —                                        | Deferred | Electron 44.0.0 application shell                                                            |
-| **PR14–15** | —                                        | Deferred | Typed IPC, `ActiveStreamRegistry`, 32ms event batching                                       |
-| **PR16**    | —                                        | Deferred | First vertical end-to-end conversation slice                                                 |
+| Milestone   | Branch                                   | Status   | Deliverables                                                                                     |
+| :---------- | :--------------------------------------- | :------- | :----------------------------------------------------------------------------------------------- |
+| **PR1**     | `main` (`49a99af`)                       | Complete | Workspace foundation, Turbo, docs, package shells                                                |
+| **PR2**     | `pr2-dependency-enforcement` (`d2a2335`) | Complete | Machine-readable dependency graph, ESLint boundaries, validator                                  |
+| **PR3**     | `pr3-shared-contracts` (`7c93c6a`)       | Complete | Branded ULIDs, Result, BaseError, Timestamp, typed IPC schemas                                   |
+| **PR4**     | `pr4-ai-core` (`bb07eaf`)                | Complete | Multimodal ContentPart, Message, ToolSource != ToolRuntime, AIEvent union                        |
+| **PR5**     | `pr5-projections` (`6b929f5`)            | Complete | Pure deterministic projections: `projectMessages`, `projectConversation`, `projectTaskGraph`     |
+| **PR6**     | `pr6-event-bus` (`9f8fc47`)              | Complete | Thin in-process EventBus, FIFO ordering, re-entrancy queue, error isolation                      |
+| **PR7**     | `pr7-permissions` (`0d3e2c1`)            | Complete | `PermissionManager` interface, 5-dimension check, `AllowAllPermissionManager`                    |
+| **PR8**     | `pr8-storage` (`bc27f6b`)                | Complete | Prisma SQLite WAL mode, `PrismaEventRepository` append-only storage                              |
+| **PR9**     | `pr9-secrets`                            | Complete | `SecretStore`, `SecretRef`, `@napi-rs/keyring` OS keychain integration, 14 unit tests            |
+| **PR10**    | `pr10-providers`                         | Complete | Canonical `ProviderAdapter` contract, capabilities, `ChatRequest`, error boundary, 9 tests       |
+| **PR11**    | `pr11-anthropic`                         | Complete | Anthropic concrete adapter, request/stream/error translation, cancellation, 26 unit tests        |
+| **PR12**    | `pr12-desktop-shell`                     | Complete | Electron 44 shell, secure BrowserWindow, preload bridge, React 19 / Tailwind 4 renderer, 2 tests |
+| **PR13**    | `pr13-typed-ipc`                         | **NEXT** | Typed IPC channels, runtime validation, ipcMain/ipcRenderer invoke/handle, window.api            |
+| **PR14–15** | —                                        | Deferred | `ActiveStreamRegistry`, 32ms event batching                                                      |
+| **PR16**    | —                                        | Deferred | First vertical end-to-end conversation slice                                                     |
 
 ---
 

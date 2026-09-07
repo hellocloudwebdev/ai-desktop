@@ -24,7 +24,15 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const SOURCE_EXTENSIONS = new Set([".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"]);
-const IGNORED_DIRECTORIES = new Set(["node_modules", "dist", "coverage", ".turbo", "out", "build"]);
+const IGNORED_DIRECTORIES = new Set([
+  "node_modules",
+  "dist",
+  "dist-electron",
+  "coverage",
+  ".turbo",
+  "out",
+  "build",
+]);
 // Tooling config files are lint/test runner harness, not runtime package source.
 const TOOLING_CONFIG_FILES = /(^|[/\\])(eslint|vitest)\.config\.[cm]?[jt]sx?$/;
 // Mirrors pnpm-workspace.yaml ("packages/*", "apps/*"). If the workspace globs

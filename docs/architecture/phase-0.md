@@ -1,10 +1,10 @@
 # Phase 0 — What Exists and What Does Not
 
 This document prevents the repository (and its documentation) from claiming functionality
-that does not exist. It reflects the state after **PR11 (Anthropic concrete adapter)** and
-is updated as each PR lands.
+that does not exist. It reflects the state after **PR12 (Electron desktop shell & React renderer)**
+and is updated as each PR lands.
 
-## Implemented (as of PR11)
+## Implemented (as of PR12)
 
 - Repository foundation: pnpm workspace + Turborepo task graph (`build`, `dev`,
   `typecheck`, `lint`, `test`).
@@ -147,6 +147,25 @@ is updated as each PR lands.
     cooperative cancellation via standard `AbortSignal`, credential resolution via SecretRef.
   - Opt-in live smoke test (`ANTHROPIC_SMOKE_TEST=1`).
   - 17 unit tests across request translation, stream translation, error translation, and adapter lifecycle.
+- Electron desktop application shell (`apps/desktop`, PR12):
+  - Electron 44.0.0 main process (`src/main/index.ts`):
+    - Creates single `BrowserWindow` with strictly enforced security settings:
+      `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`, `webSecurity: true`.
+    - Handles standard application lifecycle: `app.whenReady()`, single window activation on macOS,
+      `window-all-closed` quit on non-macOS platforms.
+    - Dual development/production loading: loads Vite dev server when `VITE_DEV_SERVER_URL` is set;
+      loads built local `dist/index.html` in production.
+  - Preload bridge (`src/preload/index.ts`):
+    - Controlled bridge exposing narrow `window.api` (`DesktopApplicationApi`): platform info and ping.
+    - Zero exposure of raw `ipcRenderer`, `ipcMain`, `BrowserWindow`, `shell`, `app`, `process`, or `fs`.
+  - React 19.2.8 renderer (`src/renderer/`):
+    - `main.tsx` and `App.tsx` styled with Tailwind CSS 4.3.3.
+    - Pure browser context: zero Node or Electron imports in renderer code.
+    - Strict Content Security Policy configured in `index.html`.
+  - Vite 8.1.0 build integration:
+    - `vite.config.ts` bundles renderer to `dist/`, and main + preload to `dist-electron/`.
+  - 2 unit tests in `apps/desktop/src/__tests__/shell.test.ts` verifying webPreferences security
+    and preload bridge isolation.
 - All remaining canonical packages stay **empty shells** (`package.json`, `tsconfig.json`,
   `src/index.ts` placeholder) — deliberately no premature domain functionality inside them.
 - Toolchain: TypeScript 5.9.3, ESLint 10.10.0, Vitest 4.1.10, Vite 8.1.0, Prettier 3.9.6,
@@ -155,9 +174,9 @@ is updated as each PR lands.
 
 ## Not yet implemented
 
-- `mcp` (MCP client/server integration) — PR12 (MCP phase).
-- Electron shell (`BrowserWindow`, preload, main process) — PR12.
-- Typed IPC — PR13; `ActiveStreamRegistry` — PR14; IPC batching — PR15.
+- `mcp` (MCP client/server integration) — MCP milestone.
+- Typed IPC (runtime validation, channels, subscriptions, window.api) — PR13.
+- `ActiveStreamRegistry` — PR14; IPC batching — PR15.
 - First end-to-end conversation — PR16.
 
 ## Verification
@@ -168,8 +187,7 @@ The claims above are checkable:
 pnpm install && pnpm typecheck && pnpm lint && pnpm test && pnpm build
 ```
 
-All five succeed across the shared, ai-core, agent-runtime (EventBus), permissions, storage, and providers packages,
-while future packages remain shells. A repository search finds no `@modelcontextprotocol`,
-`dockerode`, Electron implementations (`BrowserWindow`, `ipcMain`, `ipcRenderer`), or future runtime
-classes (`ToolExecutor`, `MCPHost`, `ExecutionManager`, `MemoryStore`, `AgentLoop`) anywhere in
-implementation files. `@anthropic-ai/sdk` is strictly isolated within `packages/providers`.
+All five succeed across the shared, ai-core, agent-runtime (EventBus), permissions, storage, providers, and desktop packages,
+while future packages remain shells. A repository search finds no `@modelcontextprotocol`, `dockerode`, or future runtime
+classes (`ToolExecutor`, `MCPHost`, `ExecutionManager`, `MemoryStore`, `AgentLoop`) anywhere in implementation files.
+`@anthropic-ai/sdk` is strictly isolated within `packages/providers`; `electron` is strictly isolated within `apps/desktop`.
