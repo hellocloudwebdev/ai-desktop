@@ -25,6 +25,7 @@ export const IPC_CHANNELS = {
   CHAT_SUBSCRIBE: "chat:subscribe",
   CHAT_UNSUBSCRIBE: "chat:unsubscribe",
   CHAT_STREAM_EVENT: "chat:stream-event",
+  CHAT_STREAM_BATCH: "chat:stream-batch",
 
   // Application lifecycle & health
   APP_HEALTH_CHECK: "app:health-check",

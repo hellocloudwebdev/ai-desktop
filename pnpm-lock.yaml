@@ -48,6 +48,9 @@ importers:
 
   apps/desktop:
     dependencies:
+      '@ai-desktop/ai-core':
+        specifier: workspace:*
+        version: link:../../packages/ai-core
       '@ai-desktop/shared':
         specifier: workspace:*
         version: link:../../packages/shared

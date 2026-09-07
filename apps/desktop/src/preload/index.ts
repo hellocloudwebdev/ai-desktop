@@ -1,20 +1,23 @@
-// PR13: apps/desktop — Preload Typed Application Bridge
+// PR13/PR15: apps/desktop — Preload Typed Application Bridge
 //
-// Invariants (Step 36):
+// Invariants (Step 36 / Step 38):
 //   1. Exposes window.api as a typed application bridge.
 //   2. Commands use invoke with typed inputs/outputs.
 //   3. Subscriptions return an idempotent Unsubscribe function.
 //   4. NEVER exposes ipcRenderer, ipcMain, BrowserWindow, app, shell, fs, or process.
 //   5. Pure application-owned interface.
+//   6. Stream events cross the IPC boundary in ~32 ms batches (terminal events
+//      flush immediately) and are unpacked here before reaching the renderer.
 
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
 import {
   IPC_CHANNELS,
   type ChatCancelCommand,
   type ChatSendCommand,
-  type ChatStreamEvent,
   type IpcResponseEnvelope,
 } from "@ai-desktop/shared";
+import type { AIEvent } from "@ai-desktop/ai-core";
+import type { ChatStreamBatch } from "../main/ipc/batcher.js";
 
 export type Unsubscribe = () => void;
 
@@ -38,12 +41,13 @@ export interface DesktopApplicationApi {
   };
 
   /**
-   * Subscriptions (Main -> Renderer event streams)
+   * Subscriptions (Main -> Renderer event streams).
+   * Canonical AIEvents are transported in batches and delivered individually.
    */
   events: {
     subscribeToConversation(
       conversationId: string,
-      listener: (event: ChatStreamEvent) => void,
+      listener: (event: AIEvent) => void,
     ): Promise<Unsubscribe>;
   };
 }
@@ -69,26 +73,29 @@ export function createDesktopApi(): DesktopApplicationApi {
     events: {
       async subscribeToConversation(
         conversationId: string,
-        listener: (event: ChatStreamEvent) => void,
+        listener: (event: AIEvent) => void,
       ): Promise<Unsubscribe> {
         // 1. Tell main process to register this WebContents for conversation events
         await ipcRenderer.invoke(IPC_CHANNELS.CHAT_SUBSCRIBE, { conversationId });
 
-        // 2. Attach filtered listener
-        const ipcListener = (_event: IpcRendererEvent, streamEvent: ChatStreamEvent) => {
-          if (streamEvent.conversationId === conversationId) {
-            listener(streamEvent);
+        // 2. Attach batch listener: unpack the batch and deliver each canonical
+        //    event individually, preserving batch order.
+        const ipcListener = (_event: IpcRendererEvent, batch: ChatStreamBatch) => {
+          if (batch.conversationId === conversationId) {
+            for (const event of batch.events) {
+              listener(event);
+            }
           }
         };
 
-        ipcRenderer.on(IPC_CHANNELS.CHAT_STREAM_EVENT, ipcListener);
+        ipcRenderer.on(IPC_CHANNELS.CHAT_STREAM_BATCH, ipcListener);
 
         // 3. Return idempotent unsubscribe function
         let unsubscribed = false;
         return () => {
           if (!unsubscribed) {
             unsubscribed = true;
-            ipcRenderer.removeListener(IPC_CHANNELS.CHAT_STREAM_EVENT, ipcListener);
+            ipcRenderer.removeListener(IPC_CHANNELS.CHAT_STREAM_BATCH, ipcListener);
             void ipcRenderer.invoke(IPC_CHANNELS.CHAT_UNSUBSCRIBE, { conversationId });
           }
         };

@@ -21,7 +21,9 @@ import {
   type ChatStreamEvent,
   type IpcResponseEnvelope,
 } from "@ai-desktop/shared";
+import type { AIEvent } from "@ai-desktop/ai-core";
 import type { ActiveStreamRegistry } from "../chat/index.js";
+import type { IpcBatcher } from "./batcher.js";
 
 export type CommandHandler<TInput, TOutput> = (
   input: TInput,
@@ -36,6 +38,7 @@ export interface RegisteredCommands {
 export interface RegisterIpcOptions {
   callbacks?: RegisteredCommands;
   streamRegistry?: ActiveStreamRegistry;
+  batcher?: IpcBatcher;
 }
 
 export class IpcRegistry {
@@ -45,6 +48,28 @@ export class IpcRegistry {
     (rawInput: unknown, event: IpcMainInvokeEvent) => Promise<IpcResponseEnvelope<unknown>>
   >();
   private readonly _subscriptions = new Map<string, Set<WebContents>>();
+  private _batcher: IpcBatcher | null = null;
+
+  /**
+   * Attaches the IPC event batcher (PR15). Once attached, `publishEvent`
+   * routes canonical AIEvents through batched renderer delivery, and
+   * `destroy()` tears the batcher down with the registry.
+   */
+  attachBatcher(batcher: IpcBatcher): void {
+    this._batcher = batcher;
+  }
+
+  get batcher(): IpcBatcher | null {
+    return this._batcher;
+  }
+
+  /**
+   * Canonical event publication path: enqueues an AIEvent for batched delivery
+   * to subscribed renderers (~32 ms window, terminal events flush immediately).
+   */
+  publishEvent(event: Readonly<AIEvent>): void {
+    this._batcher?.enqueue(event);
+  }
 
   /**
    * Registers a typed command with Zod schema validation.
@@ -192,7 +217,7 @@ export class IpcRegistry {
   }
 
   /**
-   * Cleans up all registered handlers and subscriptions.
+   * Cleans up all registered handlers, subscriptions, and the attached batcher.
    */
   destroy(): void {
     if (ipcMain && typeof ipcMain.removeHandler === "function") {
@@ -203,6 +228,8 @@ export class IpcRegistry {
     this._registeredChannels.clear();
     this._handlers.clear();
     this._subscriptions.clear();
+    this._batcher?.destroy();
+    this._batcher = null;
   }
 
   get registeredChannels(): ReadonlySet<string> {
@@ -229,6 +256,11 @@ export function registerIpcHandlers(
         : (options as RegisteredCommands);
   const streamRegistry: ActiveStreamRegistry | undefined =
     options && "streamRegistry" in options ? options.streamRegistry : undefined;
+  const batcher: IpcBatcher | undefined =
+    options && "batcher" in options ? options.batcher : undefined;
+  if (batcher) {
+    registry.attachBatcher(batcher);
+  }
 
   // 1. Health check command
   registry.registerCommand(
@@ -267,6 +299,7 @@ export function registerIpcHandlers(
     ChatSubscribeCommandSchema,
     (input, event) => {
       registry.subscribe(input.conversationId, event.sender);
+      batcher?.subscribe(input.conversationId, event.sender);
       return { subscribed: true, conversationId: input.conversationId };
     },
   );
@@ -277,6 +310,7 @@ export function registerIpcHandlers(
     ChatUnsubscribeCommandSchema,
     (input, event) => {
       registry.unsubscribe(input.conversationId, event.sender);
+      batcher?.unsubscribe(input.conversationId, event.sender);
       return { unsubscribed: true, conversationId: input.conversationId };
     },
   );

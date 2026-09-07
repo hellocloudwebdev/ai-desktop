@@ -12,9 +12,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { app, BrowserWindow } from "electron";
 import { ActiveStreamRegistry } from "./chat/index.js";
+import { IpcBatcher } from "./ipc/batcher.js";
 import { IpcRegistry, registerIpcHandlers } from "./ipc/index.js";
 
 export { ActiveStreamRegistry } from "./chat/index.js";
+export { IpcBatcher, type ChatStreamBatch } from "./ipc/batcher.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -22,12 +24,20 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 let mainWindow: BrowserWindow | null = null;
 let ipcRegistry: IpcRegistry | null = null;
 let activeStreamRegistry: ActiveStreamRegistry | null = null;
+let ipcBatcher: IpcBatcher | null = null;
 
 export function getActiveStreamRegistry(): ActiveStreamRegistry {
   if (!activeStreamRegistry) {
     activeStreamRegistry = new ActiveStreamRegistry();
   }
   return activeStreamRegistry;
+}
+
+export function getIpcBatcher(): IpcBatcher {
+  if (!ipcBatcher) {
+    ipcBatcher = new IpcBatcher();
+  }
+  return ipcBatcher;
 }
 
 export function getSecureWebPreferences(preloadPath: string): Electron.WebPreferences {
@@ -73,11 +83,15 @@ export async function createMainWindow(): Promise<BrowserWindow> {
 // Application Lifecycle
 // ---------------------------------------------------------------------------
 
-export function initIpc(options?: { activeStreamRegistry?: ActiveStreamRegistry }): IpcRegistry {
+export function initIpc(options?: {
+  activeStreamRegistry?: ActiveStreamRegistry;
+  batcher?: IpcBatcher;
+}): IpcRegistry {
   if (!ipcRegistry) {
     ipcRegistry = new IpcRegistry();
     const streamRegistry = options?.activeStreamRegistry ?? getActiveStreamRegistry();
-    registerIpcHandlers(ipcRegistry, { streamRegistry });
+    const batcher = options?.batcher ?? getIpcBatcher();
+    registerIpcHandlers(ipcRegistry, { streamRegistry, batcher });
   }
   return ipcRegistry;
 }
@@ -102,9 +116,11 @@ if (app) {
         activeStreamRegistry = null;
       }
       if (ipcRegistry) {
+        // Also destroys the attached IPC batcher and its timers.
         ipcRegistry.destroy();
         ipcRegistry = null;
       }
+      ipcBatcher = null;
       app.quit();
     }
   });

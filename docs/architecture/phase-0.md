@@ -1,10 +1,10 @@
 # Phase 0 — What Exists and What Does Not
 
 This document prevents the repository (and its documentation) from claiming functionality
-that does not exist. It reflects the state after **PR14 (ActiveStreamRegistry cancellation)** and
+that does not exist. It reflects the state after **PR15 (IPC event batching)** and
 is updated as each PR lands.
 
-## Implemented (as of PR14)
+## Implemented (as of PR15)
 
 - Repository foundation: pnpm workspace + Turborepo task graph (`build`, `dev`,
   `typecheck`, `lint`, `test`).
@@ -201,6 +201,37 @@ is updated as each PR lands.
   - 11 unit and integration tests in `apps/desktop/src/__tests__/active-stream-registry.test.ts`
     verifying registration, rejection of duplicate IDs, abort idempotency, multi-stream isolation,
     async generator cancellation, try/finally cleanup, bulk clear, and typed IPC cancellation dispatch.
+- IPC event batcher (`apps/desktop/src/main/ipc/batcher.ts`, PR15):
+  - Transport optimization between the internal fine-grained event stream and the renderer:
+    canonical `AIEvent`s cross the Electron IPC boundary batched inside a ~32 ms window
+    (configurable locally, never exported as a cross-package constant).
+  - Terminal events (`message.completed`/`failed`/`cancelled`, `tool.call.completed`/`failed`,
+    `execution.completed`/`failed`, `task.completed`/`failed`/`cancelled`) flush immediately,
+    carrying all pending conversation events with them in order.
+  - Invariants enforced:
+    - Transports events untouched: `eventId`, `sequence`, `schemaVersion`, and payloads pass
+      through by reference; no merging, sorting, or rewriting (projections own interpretation).
+    - One timer per pending conversation batch context; a timer exists only while events are
+      pending — no timer-per-event, no global interval.
+    - Snapshot-then-clear before send: events enqueued during delivery start the next batch,
+      never appended to the in-flight one.
+    - Empty flush is a no-op (never sends an empty batch); racing terminal + scheduled flush
+      delivers exactly once.
+    - WebContents destruction cleans up all its subscriptions, pending batches, and timers.
+    - Failed sends never crash the main process; the affected subscription is cleaned up
+      without retry loops, dead-letter queues, or persistence.
+    - Scoped delivery per the subscription model: events for conversations without subscribers
+      are dropped at enqueue time (bounded state; the event storage layer stays authoritative).
+  - Integration: `IpcRegistry.attachBatcher` / `publishEvent` as the canonical publication path;
+    `CHAT_SUBSCRIBE` / `CHAT_UNSUBSCRIBE` commands wire batcher subscriptions; the preload bridge
+    unpacks `chat:stream-batch` envelopes and delivers individual canonical events to the renderer;
+    batcher is destroyed with the IPC registry on application teardown.
+  - No domain batch event types were added to `ai-core`; the `ChatStreamBatch` envelope is a
+    plain transport wrapper living inside apps/desktop.
+  - 20 unit and integration tests in `apps/desktop/src/__tests__/ipc-batcher.test.ts` covering
+    basic batching, timer boundaries, terminal flush, double flush, empty flush, ordering,
+    transport fidelity, renderer isolation, destruction cleanup, send failure, re-entrant events,
+    and bounded pending state (Vitest fake timers).
 - All remaining canonical packages stay **empty shells** (`package.json`, `tsconfig.json`,
   `src/index.ts` placeholder) — deliberately no premature domain functionality inside them.
 - Toolchain: TypeScript 5.9.3, ESLint 10.10.0, Vitest 4.1.10, Vite 8.1.0, Prettier 3.9.6,
@@ -210,7 +241,6 @@ is updated as each PR lands.
 ## Not yet implemented
 
 - `mcp` (MCP client/server integration) — MCP milestone.
-- IPC event batching (32ms animation frame throttling) — PR15.
 - First end-to-end conversation vertical slice — PR16.
 
 ## Verification
