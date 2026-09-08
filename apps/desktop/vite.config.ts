@@ -16,7 +16,13 @@ export default defineConfig({
           build: {
             outDir: "dist-electron",
             rollupOptions: {
-              external: ["electron"],
+              external: [
+                "electron",
+                "@prisma/client",
+                "@napi-rs/keyring",
+                /@napi-rs\/keyring/,
+                /\.node$/,
+              ],
               output: {
                 entryFileNames: "main.js",
               },

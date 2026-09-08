@@ -26,6 +26,7 @@ export const IPC_CHANNELS = {
   CHAT_UNSUBSCRIBE: "chat:unsubscribe",
   CHAT_STREAM_EVENT: "chat:stream-event",
   CHAT_STREAM_BATCH: "chat:stream-batch",
+  CONVERSATION_LOAD: "conversation:load",
 
   // Application lifecycle & health
   APP_HEALTH_CHECK: "app:health-check",
@@ -73,11 +74,21 @@ export const ChatSendCommandSchema = z.object({
   conversationId: ConversationIdSchema,
   content: z.string().min(1, "Message content cannot be empty"),
   clientMessageId: MessageIdSchema.optional(),
+  modelId: z.string().min(1).max(64).optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
   timestamp: TimestampStringSchema.optional(),
 });
 
 export type ChatSendCommand = z.infer<typeof ChatSendCommandSchema>;
+
+/**
+ * Command to load a persisted conversation and its messages.
+ */
+export const ConversationLoadCommandSchema = z.object({
+  conversationId: ConversationIdSchema,
+});
+
+export type ConversationLoadCommand = z.infer<typeof ConversationLoadCommandSchema>;
 
 /**
  * Command to cancel an active streaming operation or task.

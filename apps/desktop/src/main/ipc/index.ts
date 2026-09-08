@@ -16,13 +16,15 @@ import {
   ChatSendCommandSchema,
   ChatSubscribeCommandSchema,
   ChatUnsubscribeCommandSchema,
+  ConversationLoadCommandSchema,
   type ChatCancelCommand,
   type ChatSendCommand,
   type ChatStreamEvent,
+  type ConversationLoadCommand,
   type IpcResponseEnvelope,
 } from "@ai-desktop/shared";
 import type { AIEvent } from "@ai-desktop/ai-core";
-import type { ActiveStreamRegistry } from "../chat/index.js";
+import type { ActiveStreamRegistry, ChatService } from "../chat/index.js";
 import type { IpcBatcher } from "./batcher.js";
 
 export type CommandHandler<TInput, TOutput> = (
@@ -31,14 +33,19 @@ export type CommandHandler<TInput, TOutput> = (
 ) => Promise<TOutput> | TOutput;
 
 export interface RegisteredCommands {
-  onChatSend?: CommandHandler<ChatSendCommand, { accepted: boolean; messageId?: string }>;
+  onChatSend?: CommandHandler<
+    ChatSendCommand,
+    { accepted: boolean; messageId?: string; conversationId?: string }
+  >;
   onChatCancel?: CommandHandler<ChatCancelCommand, { cancelled: boolean }>;
+  onConversationLoad?: CommandHandler<ConversationLoadCommand, { conversation: unknown }>;
 }
 
 export interface RegisterIpcOptions {
   callbacks?: RegisteredCommands;
   streamRegistry?: ActiveStreamRegistry;
   batcher?: IpcBatcher;
+  chatService?: ChatService;
 }
 
 export class IpcRegistry {
@@ -258,6 +265,8 @@ export function registerIpcHandlers(
     options && "streamRegistry" in options ? options.streamRegistry : undefined;
   const batcher: IpcBatcher | undefined =
     options && "batcher" in options ? options.batcher : undefined;
+  const chatService: ChatService | undefined =
+    options && "chatService" in options ? options.chatService : undefined;
   if (batcher) {
     registry.attachBatcher(batcher);
   }
@@ -274,7 +283,24 @@ export function registerIpcHandlers(
     if (callbacks?.onChatSend) {
       return callbacks.onChatSend(input, event);
     }
-    return { accepted: true, messageId: input.clientMessageId };
+    if (chatService) {
+      const res = await chatService.sendMessage({
+        conversationId: input.conversationId,
+        content: input.content,
+        clientMessageId: input.clientMessageId,
+        modelId: input.modelId,
+      });
+      return {
+        accepted: true,
+        messageId: res.assistantMessageId,
+        conversationId: res.conversationId,
+      };
+    }
+    return {
+      accepted: true,
+      messageId: input.clientMessageId,
+      conversationId: input.conversationId,
+    };
   });
 
   // 3. Chat Cancel command
@@ -284,6 +310,10 @@ export function registerIpcHandlers(
     async (input, event) => {
       if (callbacks?.onChatCancel) {
         return callbacks.onChatCancel(input, event);
+      }
+      if (chatService && input.messageId) {
+        const cancelled = chatService.cancel(input.messageId);
+        return { cancelled };
       }
       if (streamRegistry && input.messageId) {
         const cancelled = streamRegistry.abort(input.messageId);
@@ -312,6 +342,31 @@ export function registerIpcHandlers(
       registry.unsubscribe(input.conversationId, event.sender);
       batcher?.unsubscribe(input.conversationId, event.sender);
       return { unsubscribed: true, conversationId: input.conversationId };
+    },
+  );
+
+  // 6. Conversation Load command (§39.37, §39.38)
+  registry.registerCommand(
+    IPC_CHANNELS.CONVERSATION_LOAD,
+    ConversationLoadCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onConversationLoad) {
+        return callbacks.onConversationLoad(input, event);
+      }
+      if (chatService) {
+        const conv = await chatService.getConversation(input.conversationId);
+        return { conversation: conv };
+      }
+      return {
+        conversation: {
+          id: input.conversationId,
+          status: "active",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          messages: [],
+          lastSequence: 0,
+        },
+      };
     },
   );
 }

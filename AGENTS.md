@@ -113,7 +113,8 @@ Do **NOT** "helpfully" upgrade package versions without a verified toolchain com
 | **PR13**  | `pr13-typed-ipc`                         | Complete | Typed IPC commands/subscriptions, Zod main validation, preload `window.api`, 7 tests             |
 | **PR14**  | `pr14-active-stream-registry`            | Complete | `ActiveStreamRegistry` mapping MessageId to AbortController, stream cancellation, 11 tests       |
 | **PR15**  | `pr15-ipc-batcher`                       | Complete | `IpcBatcher` ~32 ms batching, terminal immediate flush, WebContents cleanup, 20 tests            |
-| **PR16**  | —                                        | **NEXT** | First vertical end-to-end conversation slice                                                     |
+| **PR16**  | `pr16-first-conversation`                | Complete | First vertical conversation slice, ChatService, streaming UI, SQLite restart recovery, 49 tests  |
+| **PR17+** | —                                        | Deferred | Tool Execution, MCP, Multi-turn Agent Loop                                                       |
 
 ---
 

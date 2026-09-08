@@ -48,12 +48,21 @@ importers:
 
   apps/desktop:
     dependencies:
+      '@ai-desktop/agent-runtime':
+        specifier: workspace:*
+        version: link:../../packages/agent-runtime
       '@ai-desktop/ai-core':
         specifier: workspace:*
         version: link:../../packages/ai-core
+      '@ai-desktop/providers':
+        specifier: workspace:*
+        version: link:../../packages/providers
       '@ai-desktop/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@ai-desktop/storage':
+        specifier: workspace:*
+        version: link:../../packages/storage
       react:
         specifier: 19.2.8
         version: 19.2.8

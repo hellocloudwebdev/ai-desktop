@@ -14,9 +14,10 @@ import {
   IPC_CHANNELS,
   type ChatCancelCommand,
   type ChatSendCommand,
+  type ConversationLoadCommand,
   type IpcResponseEnvelope,
 } from "@ai-desktop/shared";
-import type { AIEvent } from "@ai-desktop/ai-core";
+import type { AIEvent, Conversation } from "@ai-desktop/ai-core";
 import type { ChatStreamBatch } from "../main/ipc/batcher.js";
 
 export type Unsubscribe = () => void;
@@ -36,8 +37,13 @@ export interface DesktopApplicationApi {
     checkHealth(): Promise<IpcResponseEnvelope<{ status: string; timestamp: string }>>;
     sendChatMessage(
       command: ChatSendCommand,
-    ): Promise<IpcResponseEnvelope<{ accepted: boolean; messageId?: string }>>;
+    ): Promise<
+      IpcResponseEnvelope<{ accepted: boolean; messageId?: string; conversationId?: string }>
+    >;
     cancelChat(command: ChatCancelCommand): Promise<IpcResponseEnvelope<{ cancelled: boolean }>>;
+    loadConversation(
+      command: ConversationLoadCommand,
+    ): Promise<IpcResponseEnvelope<{ conversation: Conversation }>>;
   };
 
   /**
@@ -67,6 +73,9 @@ export function createDesktopApi(): DesktopApplicationApi {
       },
       async cancelChat(command: ChatCancelCommand) {
         return ipcRenderer.invoke(IPC_CHANNELS.CHAT_CANCEL, command);
+      },
+      async loadConversation(command: ConversationLoadCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.CONVERSATION_LOAD, command);
       },
     },
 

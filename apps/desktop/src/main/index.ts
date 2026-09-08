@@ -11,20 +11,27 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { app, BrowserWindow } from "electron";
-import { ActiveStreamRegistry } from "./chat/index.js";
+import { EventBus } from "@ai-desktop/agent-runtime";
+import { AnthropicAdapter, type ProviderAdapter } from "@ai-desktop/providers";
+import { StorageDatabase, PrismaEventRepository, type EventRepository } from "@ai-desktop/storage";
+import { ActiveStreamRegistry, ChatService } from "./chat/index.js";
 import { IpcBatcher } from "./ipc/batcher.js";
 import { IpcRegistry, registerIpcHandlers } from "./ipc/index.js";
 
-export { ActiveStreamRegistry } from "./chat/index.js";
+export { ActiveStreamRegistry, ChatService } from "./chat/index.js";
 export { IpcBatcher, type ChatStreamBatch } from "./ipc/batcher.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Global reference prevents window from being garbage collected
+// Global references prevent resources from being garbage collected
 let mainWindow: BrowserWindow | null = null;
 let ipcRegistry: IpcRegistry | null = null;
 let activeStreamRegistry: ActiveStreamRegistry | null = null;
 let ipcBatcher: IpcBatcher | null = null;
+let eventBus: EventBus | null = null;
+let storage: EventRepository | null = null;
+let database: StorageDatabase | null = null;
+let chatService: ChatService | null = null;
 
 export function getActiveStreamRegistry(): ActiveStreamRegistry {
   if (!activeStreamRegistry) {
@@ -38,6 +45,52 @@ export function getIpcBatcher(): IpcBatcher {
     ipcBatcher = new IpcBatcher();
   }
   return ipcBatcher;
+}
+
+export function getEventBus(): EventBus {
+  if (!eventBus) {
+    eventBus = new EventBus();
+    const batcher = getIpcBatcher();
+    // Wire EventBus -> IPC Batcher (§39.1, §39.3, §39.28)
+    eventBus.subscribe((event) => {
+      batcher.enqueue(event);
+    });
+  }
+  return eventBus;
+}
+
+export function getChatService(options?: {
+  provider?: ProviderAdapter;
+  storage?: EventRepository;
+  eventBus?: EventBus;
+  streamRegistry?: ActiveStreamRegistry;
+}): ChatService {
+  if (!chatService || options) {
+    const bus = options?.eventBus ?? getEventBus();
+    const store =
+      options?.storage ??
+      (() => {
+        if (!storage) {
+          database = new StorageDatabase();
+          storage = new PrismaEventRepository(database);
+        }
+        return storage;
+      })();
+    const registry = options?.streamRegistry ?? getActiveStreamRegistry();
+    const provider = options?.provider ?? new AnthropicAdapter();
+
+    const service = new ChatService({
+      provider,
+      streamRegistry: registry,
+      eventBus: bus,
+      storage: store,
+    });
+    if (!options) {
+      chatService = service;
+    }
+    return service;
+  }
+  return chatService;
 }
 
 export function getSecureWebPreferences(preloadPath: string): Electron.WebPreferences {
@@ -86,12 +139,14 @@ export async function createMainWindow(): Promise<BrowserWindow> {
 export function initIpc(options?: {
   activeStreamRegistry?: ActiveStreamRegistry;
   batcher?: IpcBatcher;
+  chatService?: ChatService;
 }): IpcRegistry {
   if (!ipcRegistry) {
     ipcRegistry = new IpcRegistry();
     const streamRegistry = options?.activeStreamRegistry ?? getActiveStreamRegistry();
     const batcher = options?.batcher ?? getIpcBatcher();
-    registerIpcHandlers(ipcRegistry, { streamRegistry, batcher });
+    const chat = options?.chatService ?? getChatService({ streamRegistry });
+    registerIpcHandlers(ipcRegistry, { streamRegistry, batcher, chatService: chat });
   }
   return ipcRegistry;
 }
@@ -120,7 +175,14 @@ if (app) {
         ipcRegistry.destroy();
         ipcRegistry = null;
       }
+      if (database) {
+        void database.close();
+        database = null;
+      }
       ipcBatcher = null;
+      chatService = null;
+      eventBus = null;
+      storage = null;
       app.quit();
     }
   });

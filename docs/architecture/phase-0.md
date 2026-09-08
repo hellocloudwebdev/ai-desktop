@@ -1,10 +1,10 @@
 # Phase 0 — What Exists and What Does Not
 
 This document prevents the repository (and its documentation) from claiming functionality
-that does not exist. It reflects the state after **PR15 (IPC event batching)** and
+that does not exist. It reflects the state after **PR16 (First conversation integration)** and
 is updated as each PR lands.
 
-## Implemented (as of PR15)
+## Implemented (as of PR16)
 
 - Repository foundation: pnpm workspace + Turborepo task graph (`build`, `dev`,
   `typecheck`, `lint`, `test`).
@@ -232,6 +232,32 @@ is updated as each PR lands.
     basic batching, timer boundaries, terminal flush, double flush, empty flush, ordering,
     transport fidelity, renderer isolation, destruction cleanup, send failure, re-entrant events,
     and bounded pending state (Vitest fake timers).
+- First end-to-end conversation vertical slice (`apps/desktop`, PR16):
+  - Proven complete end-to-end pipe:
+    React UI → window.api → typed Electron IPC → Main Chat Service → ActiveStreamRegistry → AnthropicAdapter → canonical AIEvents → EventBus (storage + IPC Batcher) → preload / window.api → React Renderer.
+  - Main `ChatService` (`apps/desktop/src/main/chat/chat-service.ts`):
+    - Reconstructs authoritative conversation context from persisted events (`projectConversation`).
+    - Validates requested `ModelId` against provider catalog (`ModelNotFoundError`).
+    - Emits and persists canonical user message event (`message.created`).
+    - Registers stream in `ActiveStreamRegistry` before calling provider; passes `AbortSignal` for cooperative cancellation.
+    - Streams assistant response, publishes canonical events (`message.started`, `message.delta`, `message.completed`, `message.cancelled`, `message.failed`) through `EventBus` and `EventRepository`.
+    - Enforces strict sequence monotonicity (`sequence: 0, 1, 2, ...`) without duplicate positions.
+    - Guaranteed stream cleanup (`registry.remove`) in `finally`.
+    - Distinguishes cancellation from ordinary provider failure.
+    - Guarantees exactly one terminal lifecycle event per stream (no duplicate completion/cancellation).
+  - Storage & SQLite WAL recovery:
+    - Every event is durably committed to SQLite in WAL mode (`PRAGMA journal_mode = wal`).
+    - Application restart recovery: conversation reconstructed from persisted events via `getConversation` / `projectConversation`.
+  - Typed IPC & Preload bridge:
+    - `CHAT_SEND` (`chat:send`) with Zod validation rejecting malformed input before ChatService runs.
+    - `CHAT_CANCEL` (`chat:cancel`) triggering real provider request abort via `ActiveStreamRegistry`. Idempotent.
+    - `CONVERSATION_LOAD` (`conversation:load`) loading persisted conversations for restart recovery.
+  - React Streaming UI (`apps/desktop/src/renderer/App.tsx`):
+    - Message list displaying user, streaming assistant, completed, cancelled, and failed messages.
+    - Incremental streaming projection: updates text on token deltas without waiting for complete.
+    - Cancellation button active during streaming; partial transcript preserved upon cancel.
+    - Input and send button with double-submission prevention.
+  - 49 unit and integration tests in `apps/desktop` covering ChatService, stream lifecycle, cancellation, partial transcript preservation, SQLite WAL restart recovery, IPC malformed input rejection, and EventBus -> IPC Batcher -> WebContents delivery.
 - All remaining canonical packages stay **empty shells** (`package.json`, `tsconfig.json`,
   `src/index.ts` placeholder) — deliberately no premature domain functionality inside them.
 - Toolchain: TypeScript 5.9.3, ESLint 10.10.0, Vitest 4.1.10, Vite 8.1.0, Prettier 3.9.6,
@@ -241,7 +267,8 @@ is updated as each PR lands.
 ## Not yet implemented
 
 - `mcp` (MCP client/server integration) — MCP milestone.
-- First end-to-end conversation vertical slice — PR16.
+- Autonomous multi-step Agent loop / tools orchestration — Agent Runtime milestone.
+- Full workspace multi-column layout — Workspace milestone.
 
 ## Verification
 
