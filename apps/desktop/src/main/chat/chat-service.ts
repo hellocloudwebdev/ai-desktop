@@ -257,10 +257,14 @@ export class ChatService {
             messageId: assistantMessageId,
             reason: "Request cancelled by user",
           };
-          await this._storage.append(cancelEvent);
+          try {
+            await this._storage.append(cancelEvent);
+          } catch {
+            // If storage is faulted, still notify EventBus/renderer
+          }
           await this._eventBus.publish(cancelEvent);
         } else {
-          // Ordinary failure: distinct from cancellation (§39.24)
+          // Ordinary failure or storage failure: distinct from cancellation (§39.24, §40.15)
           const failEvent: MessageFailedEvent = {
             eventId: createEventId(),
             conversationId,
@@ -272,7 +276,11 @@ export class ChatService {
             messageId: assistantMessageId,
             error: err instanceof Error ? err.message : String(err),
           };
-          await this._storage.append(failEvent);
+          try {
+            await this._storage.append(failEvent);
+          } catch {
+            // If storage is faulted, still notify EventBus/renderer
+          }
           await this._eventBus.publish(failEvent);
         }
       }
@@ -292,7 +300,11 @@ export class ChatService {
             messageId: assistantMessageId,
             reason: "Request cancelled by user",
           };
-          await this._storage.append(cancelEvent);
+          try {
+            await this._storage.append(cancelEvent);
+          } catch {
+            // If storage is faulted, still notify EventBus/renderer
+          }
           await this._eventBus.publish(cancelEvent);
         } else {
           const completeEvent: MessageCompletedEvent = {
@@ -306,7 +318,11 @@ export class ChatService {
             messageId: assistantMessageId,
             finishReason: "end_turn",
           };
-          await this._storage.append(completeEvent);
+          try {
+            await this._storage.append(completeEvent);
+          } catch {
+            // If storage is faulted, still notify EventBus/renderer
+          }
           await this._eventBus.publish(completeEvent);
         }
       }

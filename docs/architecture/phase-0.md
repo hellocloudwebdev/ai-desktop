@@ -1,10 +1,10 @@
 # Phase 0 — What Exists and What Does Not
 
 This document prevents the repository (and its documentation) from claiming functionality
-that does not exist. It reflects the state after **PR16 (First conversation integration)** and
+that does not exist. It reflects the state after **PR17 (Persistence integration & SQLite WAL durability)** and
 is updated as each PR lands.
 
-## Implemented (as of PR16)
+## Implemented (as of PR17)
 
 - Repository foundation: pnpm workspace + Turborepo task graph (`build`, `dev`,
   `typecheck`, `lint`, `test`).
@@ -258,6 +258,22 @@ is updated as each PR lands.
     - Cancellation button active during streaming; partial transcript preserved upon cancel.
     - Input and send button with double-submission prevention.
   - 49 unit and integration tests in `apps/desktop` covering ChatService, stream lifecycle, cancellation, partial transcript preservation, SQLite WAL restart recovery, IPC malformed input rejection, and EventBus -> IPC Batcher -> WebContents delivery.
+- Persistence integration & SQLite WAL durability (`apps/desktop` & `@ai-desktop/storage`, PR17):
+  - Explicit storage consumer on EventBus (`attachStorageConsumer`):
+    - Subscribes `EventRepository` to `EventBus`, automatically persisting all published canonical `AIEvent`s.
+    - Handles producer persistence-before-delivery deduplication gracefully (`DuplicateSequenceError`).
+  - Strict sequence monotonicity & continuity:
+    - Sequence allocator ensures strictly ordered sequences `0, 1, 2, ...` per conversation.
+    - Application restart reads highest existing sequence from SQLite and continues monotonically at `max(sequence) + 1`, preventing sequence collisions.
+    - Database constraint `UNIQUE(conversationId, sequence)` rejects accidental duplicate sequence writes while permitting identical sequences across independent conversations.
+  - Lifecycle durability & failure handling:
+    - Canonical events persisted throughout stream lifecycle (started, deltas, terminal events) into SQLite in WAL mode (`PRAGMA journal_mode = wal`).
+    - Storage faults are observable and deterministic: storage failures reject user commands immediately or emit `message.failed` without pretending state was persisted.
+    - Safe teardown: database connections closed cleanly on application exit through the storage abstraction.
+  - Restart recovery & projection equivalence:
+    - Replay of persisted events through `projectConversation` perfectly reconstructs multi-turn conversations, including partial transcripts from cancelled streams.
+    - Live streaming incremental projection and bulk replay projection verified structurally equivalent.
+  - 10 comprehensive persistence integration tests in `apps/desktop/src/__tests__/persistence-integration.test.ts` verifying full stream persistence, cancellation replay, failure recovery, ordered reads, constraint rejection, cross-conversation isolation, schemaVersion/payload round-trip, restart recovery, storage failure handling, and EventBus storage consumer integration.
 - All remaining canonical packages stay **empty shells** (`package.json`, `tsconfig.json`,
   `src/index.ts` placeholder) — deliberately no premature domain functionality inside them.
 - Toolchain: TypeScript 5.9.3, ESLint 10.10.0, Vitest 4.1.10, Vite 8.1.0, Prettier 3.9.6,

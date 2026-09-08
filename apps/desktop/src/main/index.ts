@@ -12,8 +12,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { app, BrowserWindow } from "electron";
 import { EventBus } from "@ai-desktop/agent-runtime";
+import type { AIEvent } from "@ai-desktop/ai-core";
 import { AnthropicAdapter, type ProviderAdapter } from "@ai-desktop/providers";
-import { StorageDatabase, PrismaEventRepository, type EventRepository } from "@ai-desktop/storage";
+import {
+  DuplicateSequenceError,
+  StorageDatabase,
+  PrismaEventRepository,
+  type EventRepository,
+} from "@ai-desktop/storage";
 import { ActiveStreamRegistry, ChatService } from "./chat/index.js";
 import { IpcBatcher } from "./ipc/batcher.js";
 import { IpcRegistry, registerIpcHandlers } from "./ipc/index.js";
@@ -47,14 +53,47 @@ export function getIpcBatcher(): IpcBatcher {
   return ipcBatcher;
 }
 
+export function getStorage(): { database: StorageDatabase; repository: EventRepository } {
+  if (!database || !storage) {
+    database = new StorageDatabase();
+    storage = new PrismaEventRepository(database);
+  }
+  return { database, repository: storage };
+}
+
+/**
+ * Attaches storage as a consumer on EventBus (§40.6, §40.18).
+ * Ensures any canonical events published to EventBus are durably stored in SQLite WAL.
+ */
+export function attachStorageConsumer(
+  bus: EventBus,
+  eventStorage: EventRepository,
+  options?: { onError?: (err: unknown, event: Readonly<AIEvent>) => void },
+): () => void {
+  return bus.subscribe(async (event) => {
+    try {
+      await eventStorage.append(event);
+    } catch (err: unknown) {
+      if (err instanceof DuplicateSequenceError) {
+        // Event was already appended by producer (persistence-before-delivery §40.16)
+        return;
+      }
+      options?.onError?.(err, event);
+    }
+  });
+}
+
 export function getEventBus(): EventBus {
   if (!eventBus) {
     eventBus = new EventBus();
     const batcher = getIpcBatcher();
-    // Wire EventBus -> IPC Batcher (§39.1, §39.3, §39.28)
+    // 1. Wire EventBus -> IPC Batcher (§39.1, §39.3, §39.28)
     eventBus.subscribe((event) => {
       batcher.enqueue(event);
     });
+    // 2. Wire EventBus -> Storage (§40.1, §40.6, §40.18)
+    const { repository } = getStorage();
+    attachStorageConsumer(eventBus, repository);
   }
   return eventBus;
 }
@@ -67,15 +106,7 @@ export function getChatService(options?: {
 }): ChatService {
   if (!chatService || options) {
     const bus = options?.eventBus ?? getEventBus();
-    const store =
-      options?.storage ??
-      (() => {
-        if (!storage) {
-          database = new StorageDatabase();
-          storage = new PrismaEventRepository(database);
-        }
-        return storage;
-      })();
+    const store = options?.storage ?? getStorage().repository;
     const registry = options?.streamRegistry ?? getActiveStreamRegistry();
     const provider = options?.provider ?? new AnthropicAdapter();
 

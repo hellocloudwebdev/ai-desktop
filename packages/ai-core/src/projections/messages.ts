@@ -170,6 +170,20 @@ export function applyEventToMessages(
           error: event.error,
           ...(event.code ? { code: event.code } : {}),
         };
+      } else {
+        messageMap.set(event.messageId, {
+          id: event.messageId,
+          conversationId: event.conversationId,
+          role: "assistant",
+          content: [],
+          status: "failed",
+          createdAt: ts,
+          updatedAt: ts,
+          metadata: {
+            error: event.error,
+            ...(event.code ? { code: event.code } : {}),
+          },
+        });
       }
       break;
     }
@@ -189,6 +203,17 @@ export function applyEventToMessages(
             cancellationReason: event.reason,
           };
         }
+      } else {
+        messageMap.set(event.messageId, {
+          id: event.messageId,
+          conversationId: event.conversationId,
+          role: "assistant",
+          content: [],
+          status: "cancelled",
+          createdAt: ts,
+          updatedAt: ts,
+          metadata: event.reason ? { cancellationReason: event.reason } : undefined,
+        });
       }
       break;
     }

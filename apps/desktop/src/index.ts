@@ -9,6 +9,8 @@ export {
   ActiveStreamRegistry,
   ChatService,
   IpcBatcher,
+  attachStorageConsumer,
+  getStorage,
 } from "./main/index.js";
 export type { DesktopApplicationApi } from "./preload/index.js";
 export { desktopApi } from "./preload/index.js";

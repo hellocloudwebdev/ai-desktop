@@ -114,7 +114,8 @@ Do **NOT** "helpfully" upgrade package versions without a verified toolchain com
 | **PR14**  | `pr14-active-stream-registry`            | Complete | `ActiveStreamRegistry` mapping MessageId to AbortController, stream cancellation, 11 tests       |
 | **PR15**  | `pr15-ipc-batcher`                       | Complete | `IpcBatcher` ~32 ms batching, terminal immediate flush, WebContents cleanup, 20 tests            |
 | **PR16**  | `pr16-first-conversation`                | Complete | First vertical conversation slice, ChatService, streaming UI, SQLite restart recovery, 49 tests  |
-| **PR17+** | —                                        | Deferred | Tool Execution, MCP, Multi-turn Agent Loop                                                       |
+| **PR17**  | `pr17-persistence-integration`           | Complete | EventBus storage consumer, sequence continuity, SQLite WAL recovery & replay, 59 tests           |
+| **PR18+** | —                                        | **NEXT** | Phase 1 Acceptance Gate, Tool Execution, MCP, Multi-turn Agent Loop                              |
 
 ---
 
