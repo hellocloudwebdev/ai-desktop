@@ -48,7 +48,7 @@ is forbidden.
 | `memory`        | `ai-core`, `storage`, `providers`, `shared`                                                                               |
 | `agent-runtime` | `ai-core`, `providers`, `permissions`, `mcp`, `skills`, `execution`, `memory`, `storage`, `shared`                        |
 | `workspace`     | not yet defined — edges are added in later PRs as workspace UI dependencies are locked                                    |
-| `desktop`       | `agent-runtime`, `ai-core`, `providers`, `shared`, `storage` (and, transitively, everything above)                        |
+| `desktop`       | `agent-runtime`, `ai-core`, `permissions`, `providers`, `shared`, `storage` (and, transitively, everything above)         |
 | `plugins`       | not yet defined — the plugin architecture is a later decision; no dependency edges are locked for this package in Phase 0 |
 
 ## Deliberate, non-obvious edges

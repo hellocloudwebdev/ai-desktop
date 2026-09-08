@@ -1,10 +1,10 @@
 # Phase 0 — What Exists and What Does Not
 
 This document prevents the repository (and its documentation) from claiming functionality
-that does not exist. It reflects the state after **PR17 (Persistence integration & SQLite WAL durability)** and
+that does not exist. It reflects the state after **PR18 (Phase 1 acceptance gate)** and
 is updated as each PR lands.
 
-## Implemented (as of PR17)
+## Implemented (as of PR18)
 
 - Repository foundation: pnpm workspace + Turborepo task graph (`build`, `dev`,
   `typecheck`, `lint`, `test`).
@@ -274,6 +274,15 @@ is updated as each PR lands.
     - Replay of persisted events through `projectConversation` perfectly reconstructs multi-turn conversations, including partial transcripts from cancelled streams.
     - Live streaming incremental projection and bulk replay projection verified structurally equivalent.
   - 10 comprehensive persistence integration tests in `apps/desktop/src/__tests__/persistence-integration.test.ts` verifying full stream persistence, cancellation replay, failure recovery, ordered reads, constraint rejection, cross-conversation isolation, schemaVersion/payload round-trip, restart recovery, storage failure handling, and EventBus storage consumer integration.
+- Phase 1 acceptance gate (`docs/architecture/phase-1-acceptance.md` & `apps/desktop`, PR18):
+  - Formal verification proving that the foundations implemented across PR1–PR17 satisfy all
+    12 canonical Phase-1 acceptance requirements.
+  - 11 dedicated acceptance tests in `apps/desktop/src/__tests__/phase-1-acceptance.test.ts`
+    verifying streaming, real provider abort, prompt cancellation delivery, partial transcript
+    survival, restart recovery, cancellation idempotency, malformed IPC rejection in main,
+    sequence monotonicity, replay determinism, active SQLite WAL mode, and permission checkpoint.
+  - Complete auditable gate report documented in `docs/architecture/phase-1-acceptance.md`.
+  - Confirms Phase 1 is complete and verified with zero architectural shortcuts.
 - All remaining canonical packages stay **empty shells** (`package.json`, `tsconfig.json`,
   `src/index.ts` placeholder) — deliberately no premature domain functionality inside them.
 - Toolchain: TypeScript 5.9.3, ESLint 10.10.0, Vitest 4.1.10, Vite 8.1.0, Prettier 3.9.6,

@@ -54,6 +54,9 @@ importers:
       '@ai-desktop/ai-core':
         specifier: workspace:*
         version: link:../../packages/ai-core
+      '@ai-desktop/permissions':
+        specifier: workspace:*
+        version: link:../../packages/permissions
       '@ai-desktop/providers':
         specifier: workspace:*
         version: link:../../packages/providers
