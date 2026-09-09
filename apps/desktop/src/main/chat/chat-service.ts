@@ -42,6 +42,7 @@ import type { EventBus } from "@ai-desktop/agent-runtime";
 import type { EventRepository } from "@ai-desktop/storage";
 import { isTerminalEvent } from "../ipc/batcher.js";
 import type { ActiveStreamRegistry } from "./active-stream-registry.js";
+import type { ModelSelectionService } from "./model-selection-service.js";
 
 export interface SendMessageInput {
   conversationId?: string;
@@ -58,7 +59,8 @@ export interface SendMessageResult {
 }
 
 export interface ChatServiceDependencies {
-  provider: ProviderAdapter;
+  provider?: ProviderAdapter;
+  modelSelectionService?: ModelSelectionService;
   streamRegistry: ActiveStreamRegistry;
   eventBus: EventBus;
   storage: EventRepository;
@@ -66,7 +68,8 @@ export interface ChatServiceDependencies {
 }
 
 export class ChatService {
-  private readonly _provider: ProviderAdapter;
+  private readonly _provider?: ProviderAdapter;
+  private readonly _modelSelectionService?: ModelSelectionService;
   private readonly _streamRegistry: ActiveStreamRegistry;
   private readonly _eventBus: EventBus;
   private readonly _storage: EventRepository;
@@ -74,6 +77,7 @@ export class ChatService {
 
   constructor(deps: ChatServiceDependencies) {
     this._provider = deps.provider;
+    this._modelSelectionService = deps.modelSelectionService;
     this._streamRegistry = deps.streamRegistry;
     this._eventBus = deps.eventBus;
     this._storage = deps.storage;
@@ -81,7 +85,20 @@ export class ChatService {
   }
 
   get provider(): ProviderAdapter {
-    return this._provider;
+    if (this._provider) {
+      return this._provider;
+    }
+    if (this._modelSelectionService) {
+      const providers = this._modelSelectionService.registry.listProviders();
+      if (providers.length > 0) {
+        return providers[0].adapter;
+      }
+    }
+    throw new Error("No provider adapter available in ChatService");
+  }
+
+  get modelSelectionService(): ModelSelectionService | undefined {
+    return this._modelSelectionService;
   }
 
   get streamRegistry(): ActiveStreamRegistry {
@@ -130,12 +147,26 @@ export class ChatService {
     const userMessageId: MessageId = createMessageId();
     const assistantMessageId: MessageId = (input.clientMessageId ?? createMessageId()) as MessageId;
 
-    const modelId = (input.modelId ?? this._defaultModelId) as ModelId;
+    // 1. Model & Provider resolution (§42 / PR22.8)
+    let adapter: ProviderAdapter;
+    let modelId: ModelId;
 
-    // 1. Model ID verification against provider catalog (§39.46)
-    const modelDef = await this._provider.getModel(modelId);
-    if (!modelDef) {
-      throw new ModelNotFoundError(modelId, { providerId: this._provider.providerId });
+    if (this._modelSelectionService) {
+      const route = await this._modelSelectionService.resolveForConversation(
+        conversationId,
+        input.modelId,
+      );
+      adapter = route.adapter;
+      modelId = route.model.id;
+    } else if (this._provider) {
+      modelId = (input.modelId ?? this._defaultModelId) as ModelId;
+      const modelDef = await this._provider.getModel(modelId);
+      if (!modelDef) {
+        throw new ModelNotFoundError(modelId, { providerId: this._provider.providerId });
+      }
+      adapter = this._provider;
+    } else {
+      throw new Error("ChatService requires either provider or modelSelectionService");
     }
 
     // 2. Load historical events to maintain monotonic sequence ordering (§39.21)
@@ -185,6 +216,7 @@ export class ChatService {
       assistantMessageId,
       chatRequest,
       signal,
+      adapter,
       startSequence: nextSequence,
     });
 
@@ -201,14 +233,15 @@ export class ChatService {
     assistantMessageId: MessageId;
     chatRequest: ChatRequest;
     signal: AbortSignal;
+    adapter: ProviderAdapter;
     startSequence: number;
   }): Promise<void> {
-    const { conversationId, assistantMessageId, chatRequest, signal } = options;
+    const { conversationId, assistantMessageId, chatRequest, signal, adapter } = options;
     let sequence = options.startSequence;
     let terminalEmitted = false;
 
     try {
-      const stream = this._provider.chat(chatRequest, signal);
+      const stream = adapter.chat(chatRequest, signal);
 
       for await (const chunk of stream) {
         if (signal.aborted && chunk.type !== "message.cancelled") {

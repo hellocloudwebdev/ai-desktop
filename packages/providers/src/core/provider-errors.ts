@@ -67,3 +67,13 @@ export class ProviderRequestError extends ProviderError {
     this.statusCode = options?.statusCode;
   }
 }
+
+export class ModelSelectionError extends ProviderError {
+  readonly modelId?: string;
+
+  constructor(message: string, providerId?: string, modelId?: string, options?: ErrorOptions) {
+    super("MODEL_SELECTION_ERROR", message, { ...options, providerId });
+    this.name = "ModelSelectionError";
+    this.modelId = modelId;
+  }
+}

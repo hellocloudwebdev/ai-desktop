@@ -11,6 +11,7 @@ export {
   ProviderConfigError,
   UnsupportedCapabilityError,
   ModelNotFoundError,
+  ModelSelectionError,
   ProviderRequestError,
 } from "./core/provider-errors.js";
 
@@ -21,6 +22,13 @@ export {
   providerConfigValidator,
   validateProviderConfig,
 } from "./core/provider-config-validator.js";
+
+// Provider profile and model selection contracts (PR22)
+export type { ProviderProfile, CreateProfileInput } from "./core/provider-profile.js";
+export { ProviderProfileSchema, CreateProfileInputSchema } from "./core/provider-profile.js";
+export type { ModelSelection } from "./core/model-selection.js";
+export { validateModelSelection } from "./core/model-selection.js";
+export { validateProviderProfile } from "./core/provider-profile-validator.js";
 
 // Anthropic provider implementation
 export type { AnthropicAdapterOptions } from "./anthropic/anthropic-adapter.js";

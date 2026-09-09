@@ -31,6 +31,15 @@ export const IPC_CHANNELS = {
   // Application lifecycle & health
   APP_HEALTH_CHECK: "app:health-check",
   APP_GET_VERSION: "app:get-version",
+
+  // Provider profile & model operations (PR22)
+  PROVIDER_PROFILES_LIST: "provider:profiles-list",
+  PROVIDER_PROFILE_CREATE: "provider:profile-create",
+  PROVIDER_PROFILE_UPDATE: "provider:profile-update",
+  PROVIDER_PROFILE_DELETE: "provider:profile-delete",
+  PROVIDER_MODELS_LIST: "provider:models-list",
+  CONVERSATION_MODEL_SET: "conversation:model-set",
+  CONVERSATION_MODEL_GET: "conversation:model-get",
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];
@@ -119,6 +128,80 @@ export const ChatUnsubscribeCommandSchema = z.object({
 });
 
 export type ChatUnsubscribeCommand = z.infer<typeof ChatUnsubscribeCommandSchema>;
+
+/**
+ * Command to list all saved provider profiles (PR22).
+ */
+export const ProviderProfilesListCommandSchema = z.object({}).optional().default({});
+
+export type ProviderProfilesListCommand = z.infer<typeof ProviderProfilesListCommandSchema>;
+
+/**
+ * Command to create a new provider profile (PR22).
+ */
+export const ProviderProfileCreateCommandSchema = z.object({
+  providerId: z.string().trim().min(1).max(64),
+  name: z.string().trim().min(1).max(200),
+  credentialRef: z.string().trim().min(1).optional(),
+  endpointUrl: z.string().url().optional(),
+  organizationId: z.string().trim().min(1).optional(),
+  defaultModelId: z.string().trim().min(1).max(64).optional(),
+  enabled: z.boolean().default(true),
+});
+
+export type ProviderProfileCreateCommand = z.infer<typeof ProviderProfileCreateCommandSchema>;
+
+/**
+ * Command to update an existing provider profile (PR22).
+ */
+export const ProviderProfileUpdateCommandSchema = z.object({
+  id: z.string().trim().min(1),
+  name: z.string().trim().min(1).max(200).optional(),
+  credentialRef: z.string().trim().min(1).nullable().optional(),
+  endpointUrl: z.string().url().nullable().optional(),
+  organizationId: z.string().trim().min(1).nullable().optional(),
+  defaultModelId: z.string().trim().min(1).max(64).nullable().optional(),
+  enabled: z.boolean().optional(),
+});
+
+export type ProviderProfileUpdateCommand = z.infer<typeof ProviderProfileUpdateCommandSchema>;
+
+/**
+ * Command to delete a provider profile (PR22).
+ */
+export const ProviderProfileDeleteCommandSchema = z.object({
+  id: z.string().trim().min(1),
+});
+
+export type ProviderProfileDeleteCommand = z.infer<typeof ProviderProfileDeleteCommandSchema>;
+
+/**
+ * Command to list all available models across registered providers (PR22).
+ */
+export const ProviderModelsListCommandSchema = z.object({}).optional().default({});
+
+export type ProviderModelsListCommand = z.infer<typeof ProviderModelsListCommandSchema>;
+
+/**
+ * Command to set the provider/model selection for a conversation (PR22).
+ */
+export const ConversationModelSetCommandSchema = z.object({
+  conversationId: ConversationIdSchema,
+  providerId: z.string().trim().min(1).max(64),
+  modelId: z.string().trim().min(1).max(64),
+  profileId: z.string().trim().min(1).optional(),
+});
+
+export type ConversationModelSetCommand = z.infer<typeof ConversationModelSetCommandSchema>;
+
+/**
+ * Command to get the persisted provider/model selection for a conversation (PR22).
+ */
+export const ConversationModelGetCommandSchema = z.object({
+  conversationId: ConversationIdSchema,
+});
+
+export type ConversationModelGetCommand = z.infer<typeof ConversationModelGetCommandSchema>;
 
 // ---------------------------------------------------------------------------
 // Event Contracts (Main Process -> Renderer)

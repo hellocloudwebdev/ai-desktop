@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import type { ConversationId, MessageId, Timestamp } from "@ai-desktop/shared";
-import type { AIEvent, Message, ContentPart } from "@ai-desktop/ai-core";
+import type { AIEvent, Message, ContentPart, ModelDefinition } from "@ai-desktop/ai-core";
 
 const DEFAULT_CONVERSATION_ID = "01JM0000000000000000000001";
 
@@ -12,6 +12,8 @@ export function App(): React.ReactElement {
   const [activeMessageId, setActiveMessageId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [healthStatus, setHealthStatus] = useState<string>("checking...");
+  const [availableModels, setAvailableModels] = useState<ModelDefinition[]>([]);
+  const [selectedModelId, setSelectedModelId] = useState<string>("");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   // Auto-scroll to latest message
@@ -172,6 +174,26 @@ export function App(): React.ReactElement {
       setHealthStatus(res.ok ? "healthy" : "offline");
     });
 
+    // PR22: Load available models across providers
+    window.api.commands.listProviderModels().then((res) => {
+      if (res.ok && res.value.models) {
+        setAvailableModels(res.value.models);
+        if (res.value.models.length > 0 && !selectedModelId) {
+          setSelectedModelId(res.value.models[0].id);
+        }
+      }
+    });
+
+    // PR22: Load persisted conversation model
+    window.api.commands
+      .getConversationModel({ conversationId: conversationId as ConversationId })
+      .then((res) => {
+        if (res.ok && res.value.modelSelection) {
+          const selection = res.value.modelSelection as { modelId: string };
+          setSelectedModelId(selection.modelId);
+        }
+      });
+
     // 1. Restart recovery: reload historical conversation state from SQLite WAL events
     window.api.commands
       .loadConversation({ conversationId: conversationId as ConversationId })
@@ -195,9 +217,29 @@ export function App(): React.ReactElement {
         unsubscribeFn();
       }
     };
-  }, [conversationId, handleStreamEvent]);
+  }, [conversationId, handleStreamEvent, selectedModelId]);
 
-  // Send message handler (§39.7, §39.35)
+  // Model selection change handler (§42 / PR22.10)
+  const handleModelChange = async (newModelId: string) => {
+    setSelectedModelId(newModelId);
+    if (!window.api) {
+      return;
+    }
+    const model = availableModels.find((m) => m.id === newModelId);
+    if (model) {
+      try {
+        await window.api.commands.setConversationModel({
+          conversationId: conversationId as ConversationId,
+          providerId: model.providerId,
+          modelId: model.id,
+        });
+      } catch (err) {
+        console.warn("Failed to set conversation model:", err);
+      }
+    }
+  };
+
+  // Send message handler (§39.7, §39.35, §42)
   const handleSend = async (e?: React.FormEvent) => {
     if (e) {
       e.preventDefault();
@@ -214,6 +256,7 @@ export function App(): React.ReactElement {
       const res = await window.api.commands.sendChatMessage({
         conversationId: conversationId as ConversationId,
         content: text,
+        modelId: selectedModelId || undefined,
       });
 
       if (!res.ok) {
@@ -253,18 +296,41 @@ export function App(): React.ReactElement {
       <header className="flex h-14 items-center justify-between border-b border-slate-800 bg-slate-900/60 px-6 backdrop-blur-sm">
         <div className="flex items-center space-x-3">
           <div className="h-3 w-3 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50" />
-          <h1 className="text-base font-semibold text-white">AI Desktop — First Conversation</h1>
+          <h1 className="text-base font-semibold text-white">AI Desktop</h1>
           <span className="rounded-full bg-slate-800 px-2.5 py-0.5 text-xs text-slate-400 font-mono">
             {conversationId.slice(0, 10)}…
           </span>
         </div>
-        <div className="flex items-center space-x-3 text-xs text-slate-400 font-mono">
-          <span>IPC: {healthStatus}</span>
-          {isStreaming && (
-            <span className="inline-flex items-center text-amber-400 animate-pulse">
-              ● streaming
-            </span>
-          )}
+
+        <div className="flex items-center space-x-4">
+          {/* Provider & Model Selector (PR22.10) */}
+          <div className="flex items-center space-x-2">
+            <label htmlFor="model-select" className="text-xs text-slate-400 font-medium">
+              Model:
+            </label>
+            <select
+              id="model-select"
+              value={selectedModelId}
+              onChange={(e) => handleModelChange(e.target.value)}
+              disabled={isStreaming}
+              className="rounded-lg bg-slate-800 border border-slate-700 px-2.5 py-1 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50 cursor-pointer"
+            >
+              {availableModels.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.displayName} ({m.providerId})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center space-x-3 text-xs text-slate-400 font-mono">
+            <span>IPC: {healthStatus}</span>
+            {isStreaming && (
+              <span className="inline-flex items-center text-amber-400 animate-pulse">
+                ● streaming
+              </span>
+            )}
+          </div>
         </div>
       </header>
 

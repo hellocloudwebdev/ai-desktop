@@ -17,14 +17,28 @@ import {
   ChatSubscribeCommandSchema,
   ChatUnsubscribeCommandSchema,
   ConversationLoadCommandSchema,
+  ProviderProfilesListCommandSchema,
+  ProviderProfileCreateCommandSchema,
+  ProviderProfileUpdateCommandSchema,
+  ProviderProfileDeleteCommandSchema,
+  ProviderModelsListCommandSchema,
+  ConversationModelSetCommandSchema,
+  ConversationModelGetCommandSchema,
   type ChatCancelCommand,
   type ChatSendCommand,
   type ChatStreamEvent,
   type ConversationLoadCommand,
+  type ProviderProfilesListCommand,
+  type ProviderProfileCreateCommand,
+  type ProviderProfileUpdateCommand,
+  type ProviderProfileDeleteCommand,
+  type ProviderModelsListCommand,
+  type ConversationModelSetCommand,
+  type ConversationModelGetCommand,
   type IpcResponseEnvelope,
 } from "@ai-desktop/shared";
-import type { AIEvent } from "@ai-desktop/ai-core";
-import type { ActiveStreamRegistry, ChatService } from "../chat/index.js";
+import { asModelId, asProviderId, type AIEvent } from "@ai-desktop/ai-core";
+import type { ActiveStreamRegistry, ChatService, ModelSelectionService } from "../chat/index.js";
 import type { IpcBatcher } from "./batcher.js";
 
 export type CommandHandler<TInput, TOutput> = (
@@ -39,6 +53,16 @@ export interface RegisteredCommands {
   >;
   onChatCancel?: CommandHandler<ChatCancelCommand, { cancelled: boolean }>;
   onConversationLoad?: CommandHandler<ConversationLoadCommand, { conversation: unknown }>;
+  onProviderProfilesList?: CommandHandler<ProviderProfilesListCommand, { profiles: unknown[] }>;
+  onProviderProfileCreate?: CommandHandler<ProviderProfileCreateCommand, { profile: unknown }>;
+  onProviderProfileUpdate?: CommandHandler<ProviderProfileUpdateCommand, { profile: unknown }>;
+  onProviderProfileDelete?: CommandHandler<
+    ProviderProfileDeleteCommand,
+    { deleted: boolean; id: string }
+  >;
+  onProviderModelsList?: CommandHandler<ProviderModelsListCommand, { models: unknown[] }>;
+  onConversationModelSet?: CommandHandler<ConversationModelSetCommand, { modelSelection: unknown }>;
+  onConversationModelGet?: CommandHandler<ConversationModelGetCommand, { modelSelection: unknown }>;
 }
 
 export interface RegisterIpcOptions {
@@ -46,6 +70,7 @@ export interface RegisterIpcOptions {
   streamRegistry?: ActiveStreamRegistry;
   batcher?: IpcBatcher;
   chatService?: ChatService;
+  modelSelectionService?: ModelSelectionService;
 }
 
 export class IpcRegistry {
@@ -267,6 +292,10 @@ export function registerIpcHandlers(
     options && "batcher" in options ? options.batcher : undefined;
   const chatService: ChatService | undefined =
     options && "chatService" in options ? options.chatService : undefined;
+  const modelSelectionService: ModelSelectionService | undefined =
+    options && "modelSelectionService" in options
+      ? options.modelSelectionService
+      : chatService?.modelSelectionService;
   if (batcher) {
     registry.attachBatcher(batcher);
   }
@@ -367,6 +396,143 @@ export function registerIpcHandlers(
           lastSequence: 0,
         },
       };
+    },
+  );
+
+  // 7. Provider Profiles List command (PR22)
+  registry.registerCommand(
+    IPC_CHANNELS.PROVIDER_PROFILES_LIST,
+    ProviderProfilesListCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onProviderProfilesList) {
+        return callbacks.onProviderProfilesList(input, event);
+      }
+      if (modelSelectionService) {
+        const profiles = await modelSelectionService.listProfiles();
+        return { profiles };
+      }
+      return { profiles: [] };
+    },
+  );
+
+  // 8. Provider Profile Create command (PR22)
+  registry.registerCommand(
+    IPC_CHANNELS.PROVIDER_PROFILE_CREATE,
+    ProviderProfileCreateCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onProviderProfileCreate) {
+        return callbacks.onProviderProfileCreate(input, event);
+      }
+      if (modelSelectionService) {
+        const profile = await modelSelectionService.createProfile({
+          providerId: asProviderId(input.providerId),
+          name: input.name,
+          credentialRef: input.credentialRef,
+          endpointUrl: input.endpointUrl,
+          organizationId: input.organizationId,
+          defaultModelId: input.defaultModelId ? asModelId(input.defaultModelId) : undefined,
+          enabled: input.enabled,
+        });
+        return { profile };
+      }
+      throw new Error("ModelSelectionService is not available");
+    },
+  );
+
+  // 9. Provider Profile Update command (PR22)
+  registry.registerCommand(
+    IPC_CHANNELS.PROVIDER_PROFILE_UPDATE,
+    ProviderProfileUpdateCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onProviderProfileUpdate) {
+        return callbacks.onProviderProfileUpdate(input, event);
+      }
+      if (modelSelectionService) {
+        const profile = await modelSelectionService.updateProfile(input.id, {
+          name: input.name,
+          credentialRef: input.credentialRef,
+          endpointUrl: input.endpointUrl,
+          organizationId: input.organizationId,
+          defaultModelId: input.defaultModelId ? asModelId(input.defaultModelId) : undefined,
+          enabled: input.enabled,
+          updatedAt: Date.now(),
+        });
+        return { profile };
+      }
+      throw new Error("ModelSelectionService is not available");
+    },
+  );
+
+  // 10. Provider Profile Delete command (PR22)
+  registry.registerCommand(
+    IPC_CHANNELS.PROVIDER_PROFILE_DELETE,
+    ProviderProfileDeleteCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onProviderProfileDelete) {
+        return callbacks.onProviderProfileDelete(input, event);
+      }
+      if (modelSelectionService) {
+        await modelSelectionService.deleteProfile(input.id);
+        return { deleted: true, id: input.id };
+      }
+      return { deleted: true, id: input.id };
+    },
+  );
+
+  // 11. Provider Models List command (PR22)
+  registry.registerCommand(
+    IPC_CHANNELS.PROVIDER_MODELS_LIST,
+    ProviderModelsListCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onProviderModelsList) {
+        return callbacks.onProviderModelsList(input, event);
+      }
+      if (modelSelectionService) {
+        const models = modelSelectionService.listAvailableModels();
+        return { models };
+      }
+      return { models: [] };
+    },
+  );
+
+  // 12. Conversation Model Set command (PR22)
+  registry.registerCommand(
+    IPC_CHANNELS.CONVERSATION_MODEL_SET,
+    ConversationModelSetCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onConversationModelSet) {
+        return callbacks.onConversationModelSet(input, event);
+      }
+      if (modelSelectionService) {
+        const modelSelection = await modelSelectionService.setConversationModel(
+          input.conversationId,
+          {
+            providerId: asProviderId(input.providerId),
+            modelId: asModelId(input.modelId),
+          },
+          input.profileId,
+        );
+        return { modelSelection };
+      }
+      throw new Error("ModelSelectionService is not available");
+    },
+  );
+
+  // 13. Conversation Model Get command (PR22)
+  registry.registerCommand(
+    IPC_CHANNELS.CONVERSATION_MODEL_GET,
+    ConversationModelGetCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onConversationModelGet) {
+        return callbacks.onConversationModelGet(input, event);
+      }
+      if (modelSelectionService) {
+        const modelSelection = await modelSelectionService.getConversationModel(
+          input.conversationId,
+        );
+        return { modelSelection };
+      }
+      return { modelSelection: null };
     },
   );
 }

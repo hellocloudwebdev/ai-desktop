@@ -31,3 +31,36 @@ model Event {
   @@index([taskId])
   @@map("events")
 }
+
+// PR22: Provider profile persistence
+// Stores user-configured provider instances. Raw credentials are never stored;
+// only credentialRef (a reference into the OS SecretStore) is persisted.
+model ProviderProfileRecord {
+  id             String   @id          // ULID
+  providerId     String                // canonical ProviderId (e.g. "anthropic", "gemini")
+  name           String                // user-facing display name
+  credentialRef  String?               // non-secret reference into OS keychain
+  endpointUrl    String?               // optional custom endpoint
+  organizationId String?               // optional org/workspace
+  defaultModelId String?               // canonical ModelId (e.g. "gemini:gemini-2.5-flash")
+  enabled        Boolean  @default(true)
+  createdAt      BigInt                // epoch milliseconds
+  updatedAt      BigInt                // epoch milliseconds
+
+  @@index([providerId])
+  @@map("provider_profiles")
+}
+
+// PR22: Conversation model selection persistence
+// Records which provider/model a conversation uses, decoupled from global defaults
+// so historical conversations retain their original model even if defaults change.
+model ConversationModelRecord {
+  conversationId String   @id          // canonical ConversationId
+  providerId     String                // canonical ProviderId
+  modelId        String                // canonical ModelId
+  profileId      String?               // optional ProviderProfile ULID
+  updatedAt      BigInt                // epoch milliseconds
+
+  @@index([providerId])
+  @@map("conversation_models")
+}
