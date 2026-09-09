@@ -1,15 +1,17 @@
 # ai-desktop
 
-A desktop AI assistant. This repository is currently at **PR21 — Second Provider Adapter (Google Gemini)**:
+A desktop AI assistant. This repository is currently at **PR22 — Model & Profile Selection**:
 shared primitives, canonical AI domain contracts, projections, in-process EventBus,
 permission checkpoint, SQLite WAL event repository, OS-backed credential store, canonical
 provider contracts, concrete `AnthropicAdapter`, concrete `GeminiAdapter`, Electron 44 desktop
 application shell, typed Electron IPC boundary, `ActiveStreamRegistry` main chat cancellation
 registry, the ~32 ms IPC event batcher with immediate terminal-event flush, the complete
 first vertical conversation slice, comprehensive persistence integration, the formal
-Phase 1 Acceptance Gate, runtime `ProviderRegistry`, and multi-provider capability integration
-(Anthropic Claude and Google Gemini 2.5 families) are implemented. Future packages remain
-empty shells awaiting their respective implementation PRs — see
+Phase 1 Acceptance Gate, runtime `ProviderRegistry`, validated provider configuration,
+multi-provider capability integration (Anthropic Claude and Google Gemini 2.5 families), and
+provider profiles with per-conversation model selection (`ModelSelectionService` multi-provider
+routing, typed profile/model IPC commands, renderer model selector) are implemented. Future
+packages remain empty shells awaiting their respective implementation PRs — see
 [docs/architecture/phase-0.md](docs/architecture/phase-0.md) for the honest list of what is
 and is not implemented.
 
@@ -26,6 +28,7 @@ and is not implemented.
 | eslint-plugin-boundaries | 7.2.0                                    | AST-level dependency boundaries in per-package lint                |
 | Prisma                   | 6.4.1                                    | used strictly inside `@ai-desktop/storage`                         |
 | @anthropic-ai/sdk        | 0.124.0                                  | used strictly inside `@ai-desktop/providers`                       |
+| @google/genai            | 2.21.0                                   | used strictly inside `@ai-desktop/providers`                       |
 | Vitest                   | 4.1.10                                   | root test runner for repository tooling                            |
 | Vite                     | 8.1.0                                    | locked peer foundation for Vitest                                  |
 | Electron                 | 44.0.0                                   | desktop shell strictly inside `apps/desktop`                       |
@@ -55,21 +58,21 @@ the rest remain intentionally empty shells. The dependency edges below are the l
 architecture from [docs/architecture/dependency-graph.md](docs/architecture/dependency-graph.md),
 mechanically enforced by `scripts/validate-dependencies.mjs` and `eslint-plugin-boundaries`.
 
-| Package                     | Role                                                     | May depend on                         |
-| --------------------------- | -------------------------------------------------------- | ------------------------------------- |
-| `@ai-desktop/shared`        | shared contracts & primitives (implemented in PR3)       | —                                     |
-| `@ai-desktop/ai-core`       | messages, content, events, tools, projections (PR4/PR5)  | shared                                |
-| `@ai-desktop/providers`     | ProviderAdapter contract & Anthropic adapter (PR10/PR11) | ai-core, shared                       |
-| `@ai-desktop/storage`       | persistence (PR8) & secrets store (PR9)                  | ai-core, shared                       |
-| `@ai-desktop/permissions`   | PermissionManager mediation (PR7)                        | ai-core, storage, shared              |
-| `@ai-desktop/mcp`           | MCP host; SDK types stay here                            | ai-core, storage, permissions, shared |
-| `@ai-desktop/skills`        | skill loader                                             | ai-core, storage, shared              |
-| `@ai-desktop/execution`     | tool/code/container execution                            | ai-core, permissions, storage, shared |
-| `@ai-desktop/memory`        | memory storage                                           | ai-core, storage, providers, shared   |
-| `@ai-desktop/agent-runtime` | in-process EventBus (PR6); orchestration (later)         | all of the above                      |
-| `@ai-desktop/workspace`     | workspace UI                                             | (later PRs)                           |
-| `@ai-desktop/plugins`       | plugin infrastructure                                    | (not yet defined)                     |
-| `@ai-desktop/desktop`       | Electron shell, React renderer, typed IPC (PR12/PR13)    | agent-runtime, shared                 |
+| Package                     | Role                                                                                                        | May depend on                         |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| `@ai-desktop/shared`        | shared contracts & primitives (implemented in PR3)                                                          | —                                     |
+| `@ai-desktop/ai-core`       | messages, content, events, tools, projections (PR4/PR5)                                                     | shared                                |
+| `@ai-desktop/providers`     | ProviderAdapter contract, Anthropic (PR11), Gemini (PR21), registry, profiles & model selection (PR19–PR22) | ai-core, shared                       |
+| `@ai-desktop/storage`       | persistence (PR8) & secrets store (PR9)                                                                     | ai-core, shared                       |
+| `@ai-desktop/permissions`   | PermissionManager mediation (PR7)                                                                           | ai-core, storage, shared              |
+| `@ai-desktop/mcp`           | MCP host; SDK types stay here                                                                               | ai-core, storage, permissions, shared |
+| `@ai-desktop/skills`        | skill loader                                                                                                | ai-core, storage, shared              |
+| `@ai-desktop/execution`     | tool/code/container execution                                                                               | ai-core, permissions, storage, shared |
+| `@ai-desktop/memory`        | memory storage                                                                                              | ai-core, storage, providers, shared   |
+| `@ai-desktop/agent-runtime` | in-process EventBus (PR6); orchestration (later)                                                            | all of the above                      |
+| `@ai-desktop/workspace`     | workspace UI                                                                                                | (later PRs)                           |
+| `@ai-desktop/plugins`       | plugin infrastructure                                                                                       | (not yet defined)                     |
+| `@ai-desktop/desktop`       | Electron shell, React renderer, typed IPC, chat + model selection (PR12–PR18, PR22)                         | agent-runtime, shared                 |
 
 ## Repository layout
 
@@ -91,7 +94,9 @@ scripts/          reserved for repository tooling (intentionally empty)
   there.
 - Each package owns the tools its own scripts execute: `typescript`, `eslint`,
   `typescript-eslint`.
-- No runtime dependencies exist anywhere yet. Every dependency added in a future PR must
+- Runtime dependencies exist only where their PR justified them (`storage`: Prisma +
+  `@napi-rs/keyring`; `providers`: `@anthropic-ai/sdk` + `@google/genai`;
+  `desktop`: Electron + React). Every dependency added in a future PR must
   be justified by that PR and land in the package that uses it — never at the root "for
   convenience".
 
