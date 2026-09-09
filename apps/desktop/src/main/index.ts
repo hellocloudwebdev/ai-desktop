@@ -13,18 +13,31 @@ import { fileURLToPath } from "node:url";
 import { app, BrowserWindow } from "electron";
 import { EventBus } from "@ai-desktop/agent-runtime";
 import type { AIEvent } from "@ai-desktop/ai-core";
-import { AnthropicAdapter, type ProviderAdapter } from "@ai-desktop/providers";
+import {
+  AnthropicAdapter,
+  ANTHROPIC_MODELS,
+  ANTHROPIC_PROVIDER_ID,
+  GeminiAdapter,
+  GEMINI_MODELS,
+  GEMINI_PROVIDER_ID,
+  ProviderRegistry,
+  type ProviderAdapter,
+} from "@ai-desktop/providers";
 import {
   DuplicateSequenceError,
   StorageDatabase,
   PrismaEventRepository,
+  PrismaProviderProfileRepository,
+  PrismaConversationModelRepository,
   type EventRepository,
+  type ProviderProfileRepository,
+  type ConversationModelRepository,
 } from "@ai-desktop/storage";
-import { ActiveStreamRegistry, ChatService } from "./chat/index.js";
+import { ActiveStreamRegistry, ChatService, ModelSelectionService } from "./chat/index.js";
 import { IpcBatcher } from "./ipc/batcher.js";
 import { IpcRegistry, registerIpcHandlers } from "./ipc/index.js";
 
-export { ActiveStreamRegistry, ChatService } from "./chat/index.js";
+export { ActiveStreamRegistry, ChatService, ModelSelectionService } from "./chat/index.js";
 export { IpcBatcher, type ChatStreamBatch } from "./ipc/batcher.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -38,6 +51,64 @@ let eventBus: EventBus | null = null;
 let storage: EventRepository | null = null;
 let database: StorageDatabase | null = null;
 let chatService: ChatService | null = null;
+let providerRegistry: ProviderRegistry | null = null;
+let profileRepository: ProviderProfileRepository | null = null;
+let conversationModelRepository: ConversationModelRepository | null = null;
+let modelSelectionService: ModelSelectionService | null = null;
+
+export function getProviderRegistry(): ProviderRegistry {
+  if (!providerRegistry) {
+    providerRegistry = new ProviderRegistry();
+    // Register Anthropic adapter & models
+    const anthropicAdapter = new AnthropicAdapter();
+    providerRegistry.registerProvider({
+      providerId: ANTHROPIC_PROVIDER_ID,
+      adapter: anthropicAdapter,
+    });
+    for (const model of ANTHROPIC_MODELS) {
+      providerRegistry.registerModel({ model });
+    }
+
+    // Register Gemini adapter & models
+    const geminiAdapter = new GeminiAdapter();
+    providerRegistry.registerProvider({
+      providerId: GEMINI_PROVIDER_ID,
+      adapter: geminiAdapter,
+    });
+    for (const model of GEMINI_MODELS) {
+      providerRegistry.registerModel({ model });
+    }
+  }
+  return providerRegistry;
+}
+
+export function getProfileRepository(): ProviderProfileRepository {
+  if (!profileRepository) {
+    const { database: db } = getStorage();
+    profileRepository = new PrismaProviderProfileRepository(db);
+  }
+  return profileRepository;
+}
+
+export function getConversationModelRepository(): ConversationModelRepository {
+  if (!conversationModelRepository) {
+    const { database: db } = getStorage();
+    conversationModelRepository = new PrismaConversationModelRepository(db);
+  }
+  return conversationModelRepository;
+}
+
+export function getModelSelectionService(): ModelSelectionService {
+  if (!modelSelectionService) {
+    modelSelectionService = new ModelSelectionService({
+      registry: getProviderRegistry(),
+      profileRepo: getProfileRepository(),
+      conversationModelRepo: getConversationModelRepository(),
+      defaultFallbackModelId: ANTHROPIC_MODELS[0].id,
+    });
+  }
+  return modelSelectionService;
+}
 
 export function getActiveStreamRegistry(): ActiveStreamRegistry {
   if (!activeStreamRegistry) {
@@ -100,6 +171,7 @@ export function getEventBus(): EventBus {
 
 export function getChatService(options?: {
   provider?: ProviderAdapter;
+  modelSelectionService?: ModelSelectionService;
   storage?: EventRepository;
   eventBus?: EventBus;
   streamRegistry?: ActiveStreamRegistry;
@@ -108,10 +180,13 @@ export function getChatService(options?: {
     const bus = options?.eventBus ?? getEventBus();
     const store = options?.storage ?? getStorage().repository;
     const registry = options?.streamRegistry ?? getActiveStreamRegistry();
-    const provider = options?.provider ?? new AnthropicAdapter();
+    const modelSelection =
+      options?.modelSelectionService ??
+      (options?.provider ? undefined : getModelSelectionService());
 
     const service = new ChatService({
-      provider,
+      provider: options?.provider,
+      modelSelectionService: modelSelection,
       streamRegistry: registry,
       eventBus: bus,
       storage: store,

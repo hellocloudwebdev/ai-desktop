@@ -15,9 +15,14 @@ import {
   type ChatCancelCommand,
   type ChatSendCommand,
   type ConversationLoadCommand,
+  type ProviderProfileCreateCommand,
+  type ProviderProfileUpdateCommand,
+  type ProviderProfileDeleteCommand,
+  type ConversationModelSetCommand,
+  type ConversationModelGetCommand,
   type IpcResponseEnvelope,
 } from "@ai-desktop/shared";
-import type { AIEvent, Conversation } from "@ai-desktop/ai-core";
+import type { AIEvent, Conversation, ModelDefinition } from "@ai-desktop/ai-core";
 import type { ChatStreamBatch } from "../main/ipc/batcher.js";
 
 export type Unsubscribe = () => void;
@@ -44,6 +49,25 @@ export interface DesktopApplicationApi {
     loadConversation(
       command: ConversationLoadCommand,
     ): Promise<IpcResponseEnvelope<{ conversation: Conversation }>>;
+
+    // PR22: Provider profile and model selection commands
+    listProviderProfiles(): Promise<IpcResponseEnvelope<{ profiles: unknown[] }>>;
+    createProviderProfile(
+      command: ProviderProfileCreateCommand,
+    ): Promise<IpcResponseEnvelope<{ profile: unknown }>>;
+    updateProviderProfile(
+      command: ProviderProfileUpdateCommand,
+    ): Promise<IpcResponseEnvelope<{ profile: unknown }>>;
+    deleteProviderProfile(
+      command: ProviderProfileDeleteCommand,
+    ): Promise<IpcResponseEnvelope<{ deleted: boolean; id: string }>>;
+    listProviderModels(): Promise<IpcResponseEnvelope<{ models: ModelDefinition[] }>>;
+    setConversationModel(
+      command: ConversationModelSetCommand,
+    ): Promise<IpcResponseEnvelope<{ modelSelection: unknown }>>;
+    getConversationModel(
+      command: ConversationModelGetCommand,
+    ): Promise<IpcResponseEnvelope<{ modelSelection: unknown }>>;
   };
 
   /**
@@ -76,6 +100,27 @@ export function createDesktopApi(): DesktopApplicationApi {
       },
       async loadConversation(command: ConversationLoadCommand) {
         return ipcRenderer.invoke(IPC_CHANNELS.CONVERSATION_LOAD, command);
+      },
+      async listProviderProfiles() {
+        return ipcRenderer.invoke(IPC_CHANNELS.PROVIDER_PROFILES_LIST, {});
+      },
+      async createProviderProfile(command: ProviderProfileCreateCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.PROVIDER_PROFILE_CREATE, command);
+      },
+      async updateProviderProfile(command: ProviderProfileUpdateCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.PROVIDER_PROFILE_UPDATE, command);
+      },
+      async deleteProviderProfile(command: ProviderProfileDeleteCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.PROVIDER_PROFILE_DELETE, command);
+      },
+      async listProviderModels() {
+        return ipcRenderer.invoke(IPC_CHANNELS.PROVIDER_MODELS_LIST, {});
+      },
+      async setConversationModel(command: ConversationModelSetCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.CONVERSATION_MODEL_SET, command);
+      },
+      async getConversationModel(command: ConversationModelGetCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.CONVERSATION_MODEL_GET, command);
       },
     },
 

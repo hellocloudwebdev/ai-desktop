@@ -15,3 +15,20 @@ export {
 
 // PR9: Secrets abstraction & OS keychain implementation
 export * from "./secrets/index.js";
+
+// PR22: Provider profile persistence
+export type {
+  ProviderProfileRepository,
+  StoredProviderProfile,
+  CreateProfileData,
+  UpdateProfileData,
+} from "./profiles/profile-repository.js";
+export { PrismaProviderProfileRepository } from "./profiles/prisma-profile-repository.js";
+
+// PR22: Conversation model selection persistence
+export type {
+  ConversationModelRepository,
+  StoredConversationModel,
+  SetConversationModelData,
+} from "./conversations/conversation-model-repository.js";
+export { PrismaConversationModelRepository } from "./conversations/prisma-conversation-model-repository.js";
