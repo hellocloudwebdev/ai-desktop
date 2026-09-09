@@ -23,6 +23,7 @@
     "@ai-desktop/ai-core": "workspace:*",
     "@ai-desktop/shared": "workspace:*",
     "@anthropic-ai/sdk": "0.124.0",
+    "@google/genai": "2.21.0",
     "zod": "4.4.3"
   },
   "devDependencies": {

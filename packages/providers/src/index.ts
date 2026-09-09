@@ -36,3 +36,6 @@ export { translateAnthropicError } from "./anthropic/translate-error.js";
 
 // Provider registry and model catalog (PR19)
 export * from "./registry/index.js";
+
+// Gemini provider models and catalog (PR21.2)
+export * from "./gemini/index.js";

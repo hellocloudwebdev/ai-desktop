@@ -78,6 +78,21 @@ export const MessageDeltaEventSchema = z.object({
   deltaText: z.string(),
 });
 
+export const ThinkingDeltaEventSchema = z.object({
+  ...BaseEventFields,
+  type: z.literal("thinking.delta"),
+  category: z.literal("core"),
+  messageId: MessageIdSchema,
+  thinkingText: z.string(),
+});
+
+export const ThinkingCompletedEventSchema = z.object({
+  ...BaseEventFields,
+  type: z.literal("thinking.completed"),
+  category: z.literal("core"),
+  messageId: MessageIdSchema,
+});
+
 export const MessageCompletedEventSchema = z.object({
   ...BaseEventFields,
   type: z.literal("message.completed"),
@@ -119,6 +134,8 @@ export const CoreEventSchema = z.discriminatedUnion("type", [
   MessageCreatedEventSchema,
   MessageStartedEventSchema,
   MessageDeltaEventSchema,
+  ThinkingDeltaEventSchema,
+  ThinkingCompletedEventSchema,
   MessageCompletedEventSchema,
   MessageFailedEventSchema,
   MessageCancelledEventSchema,
@@ -129,6 +146,8 @@ export type ConversationCreatedEvent = z.infer<typeof ConversationCreatedEventSc
 export type MessageCreatedEvent = z.infer<typeof MessageCreatedEventSchema>;
 export type MessageStartedEvent = z.infer<typeof MessageStartedEventSchema>;
 export type MessageDeltaEvent = z.infer<typeof MessageDeltaEventSchema>;
+export type ThinkingDeltaEvent = z.infer<typeof ThinkingDeltaEventSchema>;
+export type ThinkingCompletedEvent = z.infer<typeof ThinkingCompletedEventSchema>;
 export type MessageCompletedEvent = z.infer<typeof MessageCompletedEventSchema>;
 export type MessageFailedEvent = z.infer<typeof MessageFailedEventSchema>;
 export type MessageCancelledEvent = z.infer<typeof MessageCancelledEventSchema>;
@@ -433,6 +452,8 @@ export const AIEventTypeSchema = z.enum([
   "message.created",
   "message.started",
   "message.delta",
+  "thinking.delta",
+  "thinking.completed",
   "message.completed",
   "message.failed",
   "message.cancelled",
@@ -475,6 +496,8 @@ export const AIEventSchema = z.discriminatedUnion("type", [
   MessageCreatedEventSchema,
   MessageStartedEventSchema,
   MessageDeltaEventSchema,
+  ThinkingDeltaEventSchema,
+  ThinkingCompletedEventSchema,
   MessageCompletedEventSchema,
   MessageFailedEventSchema,
   MessageCancelledEventSchema,

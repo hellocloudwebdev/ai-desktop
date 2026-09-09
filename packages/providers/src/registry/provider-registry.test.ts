@@ -4,6 +4,7 @@ import { ok, type Result } from "@ai-desktop/shared";
 import type { ProviderAdapter } from "../core/provider-adapter.js";
 import type { ProviderConfigError } from "../core/provider-errors.js";
 import { ANTHROPIC_MODELS, ANTHROPIC_PROVIDER_ID } from "../anthropic/anthropic-models.js";
+import { GEMINI_MODELS, GEMINI_PROVIDER_ID } from "../gemini/gemini-models.js";
 import { ProviderRegistry } from "./provider-registry.js";
 
 class DummyAdapter implements ProviderAdapter {
@@ -239,5 +240,47 @@ describe("packages/providers: ProviderRegistry & Model Catalog (PR19)", () => {
     expect(registry.modelCount).toBe(0);
     expect(registry.listProviders()).toEqual([]);
     expect(registry.listModels()).toEqual([]);
+  });
+
+  it("registers both Anthropic and Gemini adapters and models concurrently (§PR21.7, §PR21.8)", () => {
+    const registry = new ProviderRegistry();
+    const anthropicAdapter = new DummyAdapter(ANTHROPIC_PROVIDER_ID);
+    const geminiAdapter = new DummyAdapter(GEMINI_PROVIDER_ID);
+
+    // 1. Register both providers
+    registry.registerProvider({ providerId: ANTHROPIC_PROVIDER_ID, adapter: anthropicAdapter });
+    registry.registerProvider({ providerId: GEMINI_PROVIDER_ID, adapter: geminiAdapter });
+
+    // 2. Register Anthropic models
+    for (const model of ANTHROPIC_MODELS) {
+      registry.registerModel({ model });
+    }
+
+    // 3. Register Gemini models
+    for (const model of GEMINI_MODELS) {
+      registry.registerModel({ model });
+    }
+
+    expect(registry.providerCount).toBe(2);
+    expect(registry.hasProvider(ANTHROPIC_PROVIDER_ID)).toBe(true);
+    expect(registry.hasProvider(GEMINI_PROVIDER_ID)).toBe(true);
+
+    const anthropicList = registry.listModelsForProvider(ANTHROPIC_PROVIDER_ID);
+    const geminiList = registry.listModelsForProvider(GEMINI_PROVIDER_ID);
+
+    expect(anthropicList).toHaveLength(ANTHROPIC_MODELS.length);
+    expect(geminiList).toHaveLength(GEMINI_MODELS.length);
+    expect(registry.modelCount).toBe(ANTHROPIC_MODELS.length + GEMINI_MODELS.length);
+
+    // 4. Model capability ownership verified across providers (§PR21.8)
+    const flash = registry.getModel(asModelId("gemini:gemini-2.5-flash"))!;
+    const flashLite = registry.getModel(asModelId("gemini:gemini-2.5-flash-lite"))!;
+    const sonnet = registry.getModel(asModelId("claude-3-5-sonnet-20241022"))!;
+    const haiku = registry.getModel(asModelId("claude-3-5-haiku-20241022"))!;
+
+    expect(flash.capabilities).toContain("thinking");
+    expect(flashLite.capabilities).not.toContain("thinking");
+    expect(sonnet.capabilities).toContain("thinking");
+    expect(haiku.capabilities).not.toContain("thinking");
   });
 });

@@ -1,10 +1,10 @@
 # Phase 0 — What Exists and What Does Not
 
 This document prevents the repository (and its documentation) from claiming functionality
-that does not exist. It reflects the state after **PR20 (Provider configuration & validation)** and
+that does not exist. It reflects the state after **PR21 (Second provider adapter: Google Gemini)** and
 is updated as each PR lands.
 
-## Implemented (as of PR20)
+## Implemented (as of PR21)
 
 - Repository foundation: pnpm workspace + Turborepo task graph (`build`, `dev`,
   `typecheck`, `lint`, `test`).
@@ -308,6 +308,16 @@ is updated as each PR lands.
     - Checks `timeoutMs` is a positive, finite integer.
   - `ProviderRegistry.validateConfig(config)`: resolves registered adapter and delegates validation cleanly.
   - 11 unit tests in `packages/providers/src/core/provider-config-validator.test.ts`.
+- Concrete Google Gemini provider adapter (`packages/providers/src/gemini/`, PR21):
+  - Second native provider implementation conforming to the canonical `ProviderAdapter` interface without relying on OpenAI-compatibility shims.
+  - `@google/genai` (2.21.0) strictly encapsulated within `packages/providers`.
+  - Canonical Gemini 2.5 model catalog (`gemini-models.ts`): Gemini 2.5 Flash, Gemini 2.5 Flash-Lite (conservative capability mapping: no thinking), and Gemini 2.5 Pro (1M/2M token context limits).
+  - Request translation boundary (`translate-request.ts`): converts canonical `ChatRequest` to native `GenerateContentParameters`, translating namespaced `gemini:gemini-2.5-flash` to native `gemini-2.5-flash`, mapping roles (`user`, `model`, `systemInstruction`), multimodal inline parts, tool definitions (`FunctionDeclaration`), thinking configuration, and structured JSON output.
+  - Streaming translation boundary (`translate-stream.ts`): converts native `GenerateContentResponse` async generator into canonical `AIEvents` (`message.started`, `message.delta`, `thinking.delta`, `thinking.completed`, `tool.call.requested`, `message.completed`), with usage mapping and Google finish reason translation.
+  - Error translation boundary (`translate-error.ts`): converts native `@google/genai` exceptions (`400`, `401`, `403`, `404`, `429`, `5xx`, connection/timeout) into canonical `ProviderError` subclasses (`ProviderRequestError`, `ModelNotFoundError`, `ProviderError("CANCELLED")`), sanitizing credentials and headers.
+  - `GeminiAdapter` (`gemini-adapter.ts`): implements `ProviderAdapter`, lifecycle `initialize`, `listModels`, `getModel`, `validateConfig`, `supports`, and streaming `chat(request, signal)` with cooperative `AbortSignal` cancellation forwarded to native request configuration.
+  - Multi-provider registration in `ProviderRegistry`: registers both Anthropic and Gemini adapters and all 6 models concurrently.
+  - 47 unit and integration tests across Gemini models, request translation, streaming translation, error translation, adapter lifecycle, and multi-provider registry integration.
 - All remaining canonical packages stay **empty shells** (`package.json`, `tsconfig.json`,
   `src/index.ts` placeholder) — deliberately no premature domain functionality inside them.
 - Toolchain: TypeScript 5.9.3, ESLint 10.10.0, Vitest 4.1.10, Vite 8.1.0, Prettier 3.9.6,

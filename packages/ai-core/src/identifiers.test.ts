@@ -9,6 +9,8 @@ import {
   EventIdSchema,
   ExecutionIdSchema,
   TaskNodeIdSchema,
+  ModelIdSchema,
+  ProviderIdSchema,
   type EventId,
   type ExecutionId,
   type TaskNodeId,
@@ -46,6 +48,9 @@ describe("ai-core identifiers: Branded ID Generation and Validation", () => {
     expect(TaskNodeIdSchema.safeParse(raw).success).toBe(true);
 
     expect(EventIdSchema.safeParse("too-short").success).toBe(false);
+
+    expect(ModelIdSchema.safeParse("gemini:gemini-2.5-flash").success).toBe(true);
+    expect(ProviderIdSchema.safeParse("gemini").success).toBe(true);
   });
 
   it("maintains compile-time type safety across branded identifiers", () => {

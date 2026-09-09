@@ -118,8 +118,9 @@ Do **NOT** "helpfully" upgrade package versions without a verified toolchain com
 | **PR18**  | `pr18-acceptance-gate`                   | Complete | Phase 1 Acceptance Gate, 12/12 criteria verified, auditable report, 70 tests                     |
 | **PR19**  | `pr19-provider-registry`                 | Complete | ProviderRegistry + Model Catalog foundation, capability ownership, lookup, 10 tests              |
 | **PR20**  | `pr20-provider-configuration`            | Complete | Provider configuration validation, validateConfig(), model checks, secret quarantine, 11 tests   |
-| **PR21**  | `pr21-second-provider`                   | **NEXT** | Second concrete provider adapter implementation (streaming, translation, cancellation)           |
-| **PR22+** | —                                        | Deferred | Model/profile selection, Multi-provider ChatService, Phase 2 Gate                                |
+| **PR21**  | `pr21-gemini-provider`                   | Complete | Concrete GeminiAdapter, Gemini 2.5 catalog, request/stream/error translation, 47 tests           |
+| **PR22**  | `pr22-model-profile-selection`           | **NEXT** | Model/profile selection, default model, per-conversation model choice, capability checks         |
+| **PR23+** | —                                        | Deferred | Multi-provider ChatService, Multi-provider persistence, Phase 2 Gate                             |
 
 ---
 

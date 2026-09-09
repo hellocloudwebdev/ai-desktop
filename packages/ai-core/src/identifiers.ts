@@ -35,9 +35,9 @@ export const EventIdSchema = UlidSchema.transform((val) => val.toUpperCase() as 
 export const ExecutionIdSchema = UlidSchema.transform((val) => val.toUpperCase() as ExecutionId);
 export const TaskNodeIdSchema = UlidSchema.transform((val) => val.toUpperCase() as TaskNodeId);
 
-// Provider and Model IDs are stable semantic identifiers (e.g. "anthropic", "claude-3-5-sonnet")
+// Provider and Model IDs are stable semantic identifiers (e.g. "anthropic", "claude-3-5-sonnet", "gemini:gemini-2.5-flash")
 // rather than random ULIDs, but are strongly branded to prevent string confusion.
-const SEMANTIC_ID_PATTERN = /^[a-z0-9][a-z0-9._-]*$/;
+const SEMANTIC_ID_PATTERN = /^[a-z0-9][a-z0-9._:-]*$/;
 
 export const ProviderIdSchema = z
   .string()
@@ -45,7 +45,7 @@ export const ProviderIdSchema = z
   .min(1)
   .max(64)
   .regex(SEMANTIC_ID_PATTERN, {
-    message: "ProviderId must be lowercase alphanumeric with optional dot/dash/underscore",
+    message: "ProviderId must be lowercase alphanumeric with optional dot/dash/underscore/colon",
   })
   .transform((val) => val.toLowerCase() as ProviderId);
 
@@ -55,7 +55,7 @@ export const ModelIdSchema = z
   .min(1)
   .max(128)
   .regex(SEMANTIC_ID_PATTERN, {
-    message: "ModelId must be lowercase alphanumeric with optional dot/dash/underscore",
+    message: "ModelId must be lowercase alphanumeric with optional dot/dash/underscore/colon",
   })
   .transform((val) => val.toLowerCase() as ModelId);
 
