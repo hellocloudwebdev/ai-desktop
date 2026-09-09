@@ -25,3 +25,6 @@ export {
 export { translateChatRequest } from "./anthropic/translate-request.js";
 export { translateAnthropicStream } from "./anthropic/translate-stream.js";
 export { translateAnthropicError } from "./anthropic/translate-error.js";
+
+// Provider registry and model catalog (PR19)
+export * from "./registry/index.js";

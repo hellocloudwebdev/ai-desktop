@@ -1,10 +1,10 @@
 # Phase 0 — What Exists and What Does Not
 
 This document prevents the repository (and its documentation) from claiming functionality
-that does not exist. It reflects the state after **PR18 (Phase 1 acceptance gate)** and
+that does not exist. It reflects the state after **PR19 (Provider registry & model catalog foundation)** and
 is updated as each PR lands.
 
-## Implemented (as of PR18)
+## Implemented (as of PR19)
 
 - Repository foundation: pnpm workspace + Turborepo task graph (`build`, `dev`,
   `typecheck`, `lint`, `test`).
@@ -283,6 +283,17 @@ is updated as each PR lands.
     sequence monotonicity, replay determinism, active SQLite WAL mode, and permission checkpoint.
   - Complete auditable gate report documented in `docs/architecture/phase-1-acceptance.md`.
   - Confirms Phase 1 is complete and verified with zero architectural shortcuts.
+- Provider registry & model catalog foundation (`packages/providers/src/registry/`, PR19):
+  - `ProviderRegistry`: runtime discovery and registration mechanism for multiple providers and models.
+  - Strict Provider vs. Model separation: `ProviderRegistration` registers the provider identity and its `ProviderAdapter`; `ModelRegistration` registers the `ModelDefinition`.
+  - ModelDefinition owns capabilities: capabilities (`text_generation`, `streaming`, `vision`, `tool_use`, etc.) belong exclusively to the model definition, not the provider.
+  - Registration invariants enforced:
+    - Duplicate provider ID registration rejected with descriptive Error.
+    - Duplicate model ID registration rejected with descriptive Error.
+    - Registering a model whose owning provider is not yet registered is strictly rejected.
+    - Unknown provider or model lookups return `undefined`.
+    - Pure in-memory runtime discovery: `listProviders()`, `listModels()`, `listModelsForProvider(providerId)`, `hasProvider()`, `hasModel()`.
+  - 10 unit tests in `packages/providers/src/registry/provider-registry.test.ts` verifying all registry invariants.
 - All remaining canonical packages stay **empty shells** (`package.json`, `tsconfig.json`,
   `src/index.ts` placeholder) — deliberately no premature domain functionality inside them.
 - Toolchain: TypeScript 5.9.3, ESLint 10.10.0, Vitest 4.1.10, Vite 8.1.0, Prettier 3.9.6,
