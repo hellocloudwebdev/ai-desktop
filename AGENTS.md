@@ -117,8 +117,9 @@ Do **NOT** "helpfully" upgrade package versions without a verified toolchain com
 | **PR17**  | `pr17-persistence-integration`           | Complete | EventBus storage consumer, sequence continuity, SQLite WAL recovery & replay, 59 tests           |
 | **PR18**  | `pr18-acceptance-gate`                   | Complete | Phase 1 Acceptance Gate, 12/12 criteria verified, auditable report, 70 tests                     |
 | **PR19**  | `pr19-provider-registry`                 | Complete | ProviderRegistry + Model Catalog foundation, capability ownership, lookup, 10 tests              |
-| **PR20**  | `pr20-provider-config`                   | **NEXT** | Provider configuration abstraction, validateConfig(), SecretRef credentials                      |
-| **PR21**  | —                                        | Deferred | Second provider adapter implementation                                                           |
+| **PR20**  | `pr20-provider-configuration`            | Complete | Provider configuration validation, validateConfig(), model checks, secret quarantine, 11 tests   |
+| **PR21**  | `pr21-second-provider`                   | **NEXT** | Second concrete provider adapter implementation (streaming, translation, cancellation)           |
+| **PR22+** | —                                        | Deferred | Model/profile selection, Multi-provider ChatService, Phase 2 Gate                                |
 
 ---
 

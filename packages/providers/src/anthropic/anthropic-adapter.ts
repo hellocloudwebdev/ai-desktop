@@ -10,13 +10,14 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { err, ok, type Result, createMessageId } from "@ai-desktop/shared";
-import type {
-  AIEvent,
-  ChatRequest,
-  ModelCapability,
-  ModelDefinition,
-  ModelId,
-  ProviderId,
+import {
+  asModelId,
+  type AIEvent,
+  type ChatRequest,
+  type ModelCapability,
+  type ModelDefinition,
+  type ModelId,
+  type ProviderId,
 } from "@ai-desktop/ai-core";
 import type { ProviderAdapter } from "../core/provider-adapter.js";
 import type { ProviderConfig } from "../core/provider-config.js";
@@ -92,15 +93,80 @@ export class AnthropicAdapter implements ProviderAdapter {
       );
     }
 
-    if (config.endpointUrl && !config.endpointUrl.startsWith("http")) {
+    if (config.providerId !== this.providerId) {
       return err(
         new ProviderConfigError(
-          `Invalid endpointUrl: "${config.endpointUrl}" must be a valid HTTP(S) URL`,
-          {
-            providerId: this.providerId,
-          },
+          `Provider ID mismatch: configuration specifies "${config.providerId}" but adapter is for "${this.providerId}"`,
+          { providerId: this.providerId },
         ),
       );
+    }
+
+    if (config.endpointUrl) {
+      try {
+        const url = new URL(config.endpointUrl);
+        if (url.protocol !== "http:" && url.protocol !== "https:") {
+          return err(
+            new ProviderConfigError(
+              `Invalid endpointUrl: "${config.endpointUrl}" must be an HTTP or HTTPS URL`,
+              { providerId: this.providerId },
+            ),
+          );
+        }
+      } catch {
+        return err(
+          new ProviderConfigError(
+            `Invalid endpointUrl: "${config.endpointUrl}" must be a valid URL`,
+            { providerId: this.providerId },
+          ),
+        );
+      }
+    }
+
+    if (config.credentialRef !== undefined) {
+      const trimmed = config.credentialRef.trim();
+      if (!trimmed) {
+        return err(
+          new ProviderConfigError("credentialRef cannot be empty", {
+            providerId: this.providerId,
+          }),
+        );
+      }
+      if (trimmed.startsWith("sk-ant") || trimmed.startsWith("sk-")) {
+        return err(
+          new ProviderConfigError(
+            "credentialRef appears to contain a raw API key instead of a secret reference",
+            { providerId: this.providerId },
+          ),
+        );
+      }
+    }
+
+    if (config.defaultModelId !== undefined) {
+      const model = this._models.get(asModelId(config.defaultModelId));
+      if (!model) {
+        return err(
+          new ProviderConfigError(
+            `Unsupported default model "${config.defaultModelId}" for provider "${this.providerId}"`,
+            { providerId: this.providerId },
+          ),
+        );
+      }
+    }
+
+    if (config.timeoutMs !== undefined) {
+      if (
+        typeof config.timeoutMs !== "number" ||
+        !Number.isInteger(config.timeoutMs) ||
+        config.timeoutMs <= 0 ||
+        !Number.isFinite(config.timeoutMs)
+      ) {
+        return err(
+          new ProviderConfigError("timeoutMs must be a positive integer", {
+            providerId: this.providerId,
+          }),
+        );
+      }
     }
 
     return ok(undefined);

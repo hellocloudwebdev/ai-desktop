@@ -1,17 +1,17 @@
 # ai-desktop
 
-A desktop AI assistant. This repository is currently at **PR19 — Provider Registry & Model Catalog Foundation**:
+A desktop AI assistant. This repository is currently at **PR20 — Provider Configuration + Validation**:
 shared primitives, canonical AI domain contracts, projections, in-process EventBus,
 permission checkpoint, SQLite WAL event repository, OS-backed credential store, canonical
 provider contracts, concrete `AnthropicAdapter`, Electron 44 desktop application shell,
 typed Electron IPC boundary, `ActiveStreamRegistry` main chat cancellation registry,
 the ~32 ms IPC event batcher with immediate terminal-event flush, the complete
 first vertical conversation slice, comprehensive persistence integration, the formal
-12-criteria Phase 1 Acceptance Gate (documented in `docs/architecture/phase-1-acceptance.md`),
-and the runtime `ProviderRegistry` + model catalog foundation are implemented. Future
-packages remain empty shells awaiting their respective implementation PRs — see
-[docs/architecture/phase-0.md](docs/architecture/phase-0.md) for the honest list of what is
-and is not implemented.
+Phase 1 Acceptance Gate, runtime `ProviderRegistry`, and validated provider configuration
+(`ProviderConfigValidator`, offline validation, model availability checks, secret quarantine)
+are implemented. Future packages remain empty shells awaiting their respective
+implementation PRs — see [docs/architecture/phase-0.md](docs/architecture/phase-0.md) for
+the honest list of what is and is not implemented.
 
 ## Toolchain
 

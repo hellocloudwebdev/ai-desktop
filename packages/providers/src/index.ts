@@ -14,6 +14,14 @@ export {
   ProviderRequestError,
 } from "./core/provider-errors.js";
 
+// Provider configuration validation (PR20)
+export type { ProviderConfigValidator } from "./core/provider-config-validator.js";
+export {
+  DefaultProviderConfigValidator,
+  providerConfigValidator,
+  validateProviderConfig,
+} from "./core/provider-config-validator.js";
+
 // Anthropic provider implementation
 export type { AnthropicAdapterOptions } from "./anthropic/anthropic-adapter.js";
 export { AnthropicAdapter } from "./anthropic/anthropic-adapter.js";

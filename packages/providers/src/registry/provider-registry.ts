@@ -9,8 +9,12 @@
 //   6. Provider SDK types never escape into the registry.
 //   7. No persistence, no SQLite, no network calls — pure in-memory runtime registry.
 
+import { err, type Result } from "@ai-desktop/shared";
 import type { ModelDefinition, ModelId, ProviderId } from "@ai-desktop/ai-core";
 import type { ProviderAdapter } from "../core/provider-adapter.js";
+import type { ProviderConfig } from "../core/provider-config.js";
+import { ProviderConfigError } from "../core/provider-errors.js";
+import { validateProviderConfig } from "../core/provider-config-validator.js";
 
 export interface ProviderRegistration {
   readonly providerId: ProviderId;
@@ -106,6 +110,32 @@ export class ProviderRegistry {
    */
   hasModel(modelId: ModelId): boolean {
     return this._models.has(modelId);
+  }
+
+  /**
+   * Validates a provider configuration against its registered adapter.
+   */
+  validateConfig(config: unknown): Result<ProviderConfig, ProviderConfigError> {
+    if (!config || typeof config !== "object") {
+      return err(new ProviderConfigError("Configuration must be a non-null object"));
+    }
+
+    const providerId = (config as { providerId?: ProviderId })?.providerId;
+    if (!providerId) {
+      return err(new ProviderConfigError("Configuration must specify a providerId"));
+    }
+
+    const registration = this.getProvider(providerId);
+    if (!registration) {
+      return err(
+        new ProviderConfigError(
+          `Cannot validate configuration: provider "${providerId}" is not registered`,
+          { providerId },
+        ),
+      );
+    }
+
+    return validateProviderConfig(config, registration.adapter);
   }
 
   /**

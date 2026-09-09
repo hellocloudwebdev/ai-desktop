@@ -8,15 +8,22 @@ import { z } from "zod";
 import type { ProviderId } from "@ai-desktop/ai-core";
 import { ProviderIdSchema } from "@ai-desktop/ai-core";
 
-export const ProviderConfigSchema = z.object({
-  providerId: ProviderIdSchema,
-  credentialRef: z.string().min(1).optional(),
-  endpointUrl: z.string().url().optional(),
-  organizationId: z.string().optional(),
-  defaultModelId: z.string().optional(),
-  timeoutMs: z.number().int().positive().optional(),
-  metadata: z.record(z.string(), z.unknown()).optional(),
-});
+export const ProviderConfigSchema = z
+  .object({
+    providerId: ProviderIdSchema,
+    credentialRef: z.string().trim().min(1, "credentialRef cannot be empty").optional(),
+    endpointUrl: z.string().url("endpointUrl must be a valid URL").optional(),
+    organizationId: z.string().trim().min(1).optional(),
+    defaultModelId: z.string().trim().min(1).optional(),
+    timeoutMs: z
+      .number()
+      .int("timeoutMs must be an integer")
+      .positive("timeoutMs must be a positive integer")
+      .finite("timeoutMs must be a finite number")
+      .optional(),
+    metadata: z.record(z.string(), z.unknown()).optional(),
+  })
+  .strict();
 
 export type ProviderConfig = {
   readonly providerId: ProviderId;

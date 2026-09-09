@@ -1,10 +1,10 @@
 # Phase 0 — What Exists and What Does Not
 
 This document prevents the repository (and its documentation) from claiming functionality
-that does not exist. It reflects the state after **PR19 (Provider registry & model catalog foundation)** and
+that does not exist. It reflects the state after **PR20 (Provider configuration & validation)** and
 is updated as each PR lands.
 
-## Implemented (as of PR19)
+## Implemented (as of PR20)
 
 - Repository foundation: pnpm workspace + Turborepo task graph (`build`, `dev`,
   `typecheck`, `lint`, `test`).
@@ -294,6 +294,20 @@ is updated as each PR lands.
     - Unknown provider or model lookups return `undefined`.
     - Pure in-memory runtime discovery: `listProviders()`, `listModels()`, `listModelsForProvider(providerId)`, `hasProvider()`, `hasModel()`.
   - 10 unit tests in `packages/providers/src/registry/provider-registry.test.ts` verifying all registry invariants.
+- Provider configuration & validation (`packages/providers/src/core/provider-config-validator.ts`, PR20):
+  - `ProviderConfigSchema`: structural validation rejecting empty credential references and strictly forbidding raw credentials (`apiKey`, `accessToken`, `refreshToken`, `password`, `secret`).
+  - `DefaultProviderConfigValidator` / `validateProviderConfig`:
+    - Orchestrates structural validation, converting raw Zod errors into canonical `ProviderConfigError` instances.
+    - Enforces provider ID consistency (`config.providerId === adapter.providerId`).
+    - Delegates semantic, provider-owned validation to `adapter.validateConfig(config)`.
+    - Pure synchronous/offline execution: zero network calls.
+  - Strengthened `AnthropicAdapter.validateConfig`:
+    - Verifies `endpointUrl` protocol (`http:` / `https:`).
+    - Checks `credentialRef` does not contain raw API keys.
+    - Checks `defaultModelId` against supported Anthropic model definitions.
+    - Checks `timeoutMs` is a positive, finite integer.
+  - `ProviderRegistry.validateConfig(config)`: resolves registered adapter and delegates validation cleanly.
+  - 11 unit tests in `packages/providers/src/core/provider-config-validator.test.ts`.
 - All remaining canonical packages stay **empty shells** (`package.json`, `tsconfig.json`,
   `src/index.ts` placeholder) — deliberately no premature domain functionality inside them.
 - Toolchain: TypeScript 5.9.3, ESLint 10.10.0, Vitest 4.1.10, Vite 8.1.0, Prettier 3.9.6,
