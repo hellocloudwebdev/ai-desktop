@@ -1,12 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  createConversationId,
-  createMessageId,
-  now,
-  ok,
-  type ConversationId,
-  type Result,
-} from "@ai-desktop/shared";
+import { createConversationId, createMessageId, now, ok, type Result } from "@ai-desktop/shared";
 import {
   createEventId,
   type AIEvent,
@@ -28,27 +21,8 @@ import {
   type ProviderConfigError,
 } from "@ai-desktop/providers";
 import { EventBus } from "@ai-desktop/agent-runtime";
-import type { EventRepository } from "@ai-desktop/storage";
 import { ActiveStreamRegistry } from "../main/chat/active-stream-registry.js";
-import { ChatService } from "../main/chat/chat-service.js";
-
-class InMemoryEventRepository implements EventRepository {
-  private readonly _events = new Map<ConversationId, AIEvent[]>();
-
-  async append(event: Readonly<AIEvent>): Promise<void> {
-    const list = this._events.get(event.conversationId) ?? [];
-    // Check sequence uniqueness constraint (§39.21)
-    if (list.some((e) => e.sequence === event.sequence)) {
-      throw new Error(`Duplicate sequence: ${event.sequence}`);
-    }
-    list.push(event as AIEvent);
-    this._events.set(event.conversationId, list);
-  }
-
-  async getByConversation(conversationId: ConversationId): Promise<AIEvent[]> {
-    return [...(this._events.get(conversationId) ?? [])];
-  }
-}
+import { InMemoryEventRepository, createTestChatService } from "./test-helpers.js";
 
 class FakeProviderAdapter implements ProviderAdapter {
   readonly providerId = ANTHROPIC_PROVIDER_ID;
@@ -127,7 +101,7 @@ describe("apps/desktop: ChatService (Unit Tests)", () => {
     const streamRegistry = new ActiveStreamRegistry();
     const eventBus = new EventBus();
     const storage = new InMemoryEventRepository();
-    const service = new ChatService({ provider, streamRegistry, eventBus, storage });
+    const service = createTestChatService({ provider, streamRegistry, eventBus, storage });
 
     await expect(
       service.sendMessage({
@@ -142,7 +116,7 @@ describe("apps/desktop: ChatService (Unit Tests)", () => {
     const streamRegistry = new ActiveStreamRegistry();
     const eventBus = new EventBus();
     const storage = new InMemoryEventRepository();
-    const service = new ChatService({ provider, streamRegistry, eventBus, storage });
+    const service = createTestChatService({ provider, streamRegistry, eventBus, storage });
 
     const clientMessageId = createMessageId();
 
@@ -166,7 +140,7 @@ describe("apps/desktop: ChatService (Unit Tests)", () => {
     const streamRegistry = new ActiveStreamRegistry();
     const eventBus = new EventBus();
     const storage = new InMemoryEventRepository();
-    const service = new ChatService({ provider, streamRegistry, eventBus, storage });
+    const service = createTestChatService({ provider, streamRegistry, eventBus, storage });
 
     const busEvents: AIEvent[] = [];
     eventBus.subscribe((e) => {
@@ -249,7 +223,7 @@ describe("apps/desktop: ChatService (Unit Tests)", () => {
     const streamRegistry = new ActiveStreamRegistry();
     const eventBus = new EventBus();
     const storage = new InMemoryEventRepository();
-    const service = new ChatService({ provider, streamRegistry, eventBus, storage });
+    const service = createTestChatService({ provider, streamRegistry, eventBus, storage });
 
     const conversationId = createConversationId();
     const result = await service.sendMessage({
@@ -299,7 +273,7 @@ describe("apps/desktop: ChatService (Unit Tests)", () => {
     const streamRegistry = new ActiveStreamRegistry();
     const eventBus = new EventBus();
     const storage = new InMemoryEventRepository();
-    const service = new ChatService({ provider, streamRegistry, eventBus, storage });
+    const service = createTestChatService({ provider, streamRegistry, eventBus, storage });
 
     const conversationId = createConversationId();
     const result = await service.sendMessage({
@@ -322,7 +296,7 @@ describe("apps/desktop: ChatService (Unit Tests)", () => {
     const streamRegistry = new ActiveStreamRegistry();
     const eventBus = new EventBus();
     const storage = new InMemoryEventRepository();
-    const service = new ChatService({ provider, streamRegistry, eventBus, storage });
+    const service = createTestChatService({ provider, streamRegistry, eventBus, storage });
 
     const conversationId = createConversationId();
     const result = await service.sendMessage({

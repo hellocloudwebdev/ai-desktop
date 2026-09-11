@@ -1,6 +1,6 @@
 # ai-desktop
 
-A desktop AI assistant. This repository is currently at **PR22 — Model & Profile Selection**:
+A desktop AI assistant. This repository is currently at **PR23 — Multi-provider Chat Service**:
 shared primitives, canonical AI domain contracts, projections, in-process EventBus,
 permission checkpoint, SQLite WAL event repository, OS-backed credential store, canonical
 provider contracts, concrete `AnthropicAdapter`, concrete `GeminiAdapter`, Electron 44 desktop
@@ -8,9 +8,11 @@ application shell, typed Electron IPC boundary, `ActiveStreamRegistry` main chat
 registry, the ~32 ms IPC event batcher with immediate terminal-event flush, the complete
 first vertical conversation slice, comprehensive persistence integration, the formal
 Phase 1 Acceptance Gate, runtime `ProviderRegistry`, validated provider configuration,
-multi-provider capability integration (Anthropic Claude and Google Gemini 2.5 families), and
-provider profiles with per-conversation model selection (`ModelSelectionService` multi-provider
-routing, typed profile/model IPC commands, renderer model selector) are implemented. Future
+multi-provider capability integration (Anthropic Claude and Google Gemini 2.5 families),
+provider profiles with per-conversation model selection (`ModelSelectionService`), and
+the definitive provider-neutral `ChatService` (dynamic multi-provider routing, concurrent
+cross-conversation isolation, sibling stream cancellation, pre-execution capability checks,
+idempotent cancellation, terminal-state audit) are implemented. Future
 packages remain empty shells awaiting their respective implementation PRs — see
 [docs/architecture/phase-0.md](docs/architecture/phase-0.md) for the honest list of what is
 and is not implemented.
@@ -72,7 +74,7 @@ mechanically enforced by `scripts/validate-dependencies.mjs` and `eslint-plugin-
 | `@ai-desktop/agent-runtime` | in-process EventBus (PR6); orchestration (later)                                                            | all of the above                      |
 | `@ai-desktop/workspace`     | workspace UI                                                                                                | (later PRs)                           |
 | `@ai-desktop/plugins`       | plugin infrastructure                                                                                       | (not yet defined)                     |
-| `@ai-desktop/desktop`       | Electron shell, React renderer, typed IPC, chat + model selection (PR12–PR18, PR22)                         | agent-runtime, shared                 |
+| `@ai-desktop/desktop`       | Electron shell, React renderer, typed IPC, multi-provider ChatService (PR12–PR18, PR22, PR23)               | agent-runtime, shared                 |
 
 ## Repository layout
 

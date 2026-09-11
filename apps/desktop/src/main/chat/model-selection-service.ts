@@ -73,16 +73,82 @@ export class ModelSelectionService {
   /**
    * Resolves the authoritative ModelSelection and corresponding ProviderAdapter
    * for a given conversation with strict precedence order:
-   *   1. Explicit request input (modelId)
-   *   2. Conversation's persisted model selection
-   *   3. Enabled profile's default model
-   *   4. Global fallback default model from registry
+   *   1. Explicit requestedProfileId
+   *   2. Explicit requestedModelId
+   *   3. Conversation's persisted model selection
+   *   4. Enabled profile's default model
+   *   5. Global fallback default model from registry
+   *   6. First registered model in registry
+   *
+   * Crucial invariant (PR23.9): If a conversation or profile specifies a provider
+   * that is unavailable/unregistered, this throws ModelSelectionError — it NEVER
+   * silently falls back or switches providers automatically.
    */
   async resolveForConversation(
     conversationId: string,
     requestedModelId?: string,
+    requestedProfileId?: string,
   ): Promise<ResolvedModelRoute> {
-    // 1. Explicit model request
+    // 1. Explicit profile request
+    if (requestedProfileId) {
+      const profile = await this._profileRepo.getById(requestedProfileId);
+      if (!profile) {
+        throw new ModelSelectionError(`Provider profile "${requestedProfileId}" not found`);
+      }
+      if (!profile.enabled) {
+        throw new ModelSelectionError(`Provider profile "${profile.name}" is disabled`);
+      }
+      const providerId = asModelId(
+        profile.providerId,
+      ) as unknown as import("@ai-desktop/ai-core").ProviderId;
+      const reg = this._registry.getProvider(providerId);
+      if (!reg) {
+        throw new ModelSelectionError(
+          `Provider "${profile.providerId}" for profile "${profile.name}" is not registered`,
+          profile.providerId,
+        );
+      }
+      const targetModelId = requestedModelId
+        ? asModelId(requestedModelId)
+        : profile.defaultModelId
+          ? asModelId(profile.defaultModelId)
+          : undefined;
+
+      if (targetModelId) {
+        const model = this._registry.getModel(targetModelId);
+        if (!model) {
+          throw new ModelNotFoundError(targetModelId, { providerId: profile.providerId });
+        }
+        if (model.providerId !== profile.providerId) {
+          throw new ModelSelectionError(
+            `Model "${targetModelId}" belongs to provider "${model.providerId}" but profile specified "${profile.providerId}"`,
+            profile.providerId,
+            targetModelId,
+          );
+        }
+        return {
+          selection: { providerId: model.providerId, modelId: model.id },
+          model,
+          adapter: reg.adapter,
+        };
+      }
+
+      const providerModels = this._registry.listModelsForProvider(providerId);
+      if (providerModels.length === 0) {
+        throw new ModelSelectionError(
+          `No models registered for provider "${profile.providerId}" in profile "${profile.name}"`,
+          profile.providerId,
+        );
+      }
+      const firstModel = providerModels[0];
+      return {
+        selection: { providerId: firstModel.providerId, modelId: firstModel.id },
+        model: firstModel,
+        adapter: reg.adapter,
+      };
+    }
+
+    // 2. Explicit model request
     if (requestedModelId) {
       const canonicalId = asModelId(requestedModelId);
       const model = this._registry.getModel(canonicalId);
@@ -104,43 +170,65 @@ export class ModelSelectionService {
       };
     }
 
-    // 2. Persisted conversation model selection
+    // 3. Persisted conversation model selection
     const persisted = await this._conversationModelRepo.getByConversationId(conversationId);
     if (persisted) {
       const canonicalId = asModelId(persisted.modelId);
       const model = this._registry.getModel(canonicalId);
-      if (model) {
-        const reg = this._registry.getProvider(model.providerId);
-        if (reg) {
-          return {
-            selection: { providerId: model.providerId, modelId: model.id },
-            model,
-            adapter: reg.adapter,
-          };
-        }
+      if (!model) {
+        throw new ModelNotFoundError(canonicalId, { providerId: persisted.providerId });
       }
+      const reg = this._registry.getProvider(model.providerId);
+      if (!reg) {
+        throw new ModelSelectionError(
+          `Provider "${model.providerId}" for conversation model "${canonicalId}" is not registered`,
+          model.providerId,
+          canonicalId,
+        );
+      }
+      return {
+        selection: { providerId: model.providerId, modelId: model.id },
+        model,
+        adapter: reg.adapter,
+      };
     }
 
-    // 3. Enabled profile default model
+    // 4. Enabled profile default model
     const enabledProfiles = await this._profileRepo.listEnabled();
-    for (const profile of enabledProfiles) {
+    if (enabledProfiles.length > 0) {
+      const profile = enabledProfiles[0];
+      const providerId = profile.providerId as import("@ai-desktop/ai-core").ProviderId;
+      const reg = this._registry.getProvider(providerId);
+      if (!reg) {
+        throw new ModelSelectionError(
+          `Provider "${profile.providerId}" for profile "${profile.name}" is not registered`,
+          profile.providerId,
+        );
+      }
       if (profile.defaultModelId) {
         const canonicalId = asModelId(profile.defaultModelId);
         const model = this._registry.getModel(canonicalId);
-        if (model) {
-          const reg = this._registry.getProvider(model.providerId);
-          if (reg) {
-            return {
-              selection: { providerId: model.providerId, modelId: model.id },
-              model,
-              adapter: reg.adapter,
-            };
-          }
+        if (!model) {
+          throw new ModelNotFoundError(canonicalId, { providerId: profile.providerId });
         }
+        return {
+          selection: { providerId: model.providerId, modelId: model.id },
+          model,
+          adapter: reg.adapter,
+        };
+      }
+      const providerModels = this._registry.listModelsForProvider(providerId);
+      if (providerModels.length > 0) {
+        const firstModel = providerModels[0];
+        return {
+          selection: { providerId: firstModel.providerId, modelId: firstModel.id },
+          model: firstModel,
+          adapter: reg.adapter,
+        };
       }
     }
 
-    // 4. Global fallback default model
+    // 5. Global fallback default model
     if (this._defaultFallbackModelId) {
       const model = this._registry.getModel(this._defaultFallbackModelId);
       if (model) {
@@ -155,7 +243,7 @@ export class ModelSelectionService {
       }
     }
 
-    // Fallback to first registered model
+    // 6. Fallback to first registered model
     const allModels = this._registry.listModels();
     if (allModels.length === 0) {
       throw new ModelSelectionError("No models are registered in ProviderRegistry");

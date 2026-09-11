@@ -45,7 +45,7 @@ import {
 } from "@ai-desktop/storage";
 import { AllowAllPermissionManager, type PermissionManager } from "@ai-desktop/permissions";
 import { ActiveStreamRegistry } from "../main/chat/active-stream-registry.js";
-import { ChatService } from "../main/chat/chat-service.js";
+import { createTestChatService } from "./test-helpers.js";
 import { IpcBatcher } from "../main/ipc/batcher.js";
 import { IpcRegistry, registerIpcHandlers } from "../main/ipc/index.js";
 
@@ -165,7 +165,7 @@ describe("PR18 — Phase 1 Acceptance Gate Suite (All 12 Canonical Criteria)", (
       batcher.enqueue(event);
     });
 
-    const chatService = new ChatService({ provider, streamRegistry, eventBus, storage });
+    const chatService = createTestChatService({ provider, streamRegistry, eventBus, storage });
     const conversationId = createConversationId();
 
     const deliveredBatches: Array<{ channel: string; data: { events: AIEvent[] } }> = [];
@@ -254,7 +254,7 @@ describe("PR18 — Phase 1 Acceptance Gate Suite (All 12 Canonical Criteria)", (
     const streamRegistry = new ActiveStreamRegistry();
     const eventBus = new EventBus();
     const provider = new AbortObservableProvider();
-    const chatService = new ChatService({ provider, streamRegistry, eventBus, storage });
+    const chatService = createTestChatService({ provider, streamRegistry, eventBus, storage });
 
     const conversationId = createConversationId();
     const result = await chatService.sendMessage({
@@ -380,7 +380,7 @@ describe("PR18 — Phase 1 Acceptance Gate Suite (All 12 Canonical Criteria)", (
     const streamRegistry = new ActiveStreamRegistry();
     const eventBus = new EventBus();
     const provider = new PartialStreamingProvider();
-    const chatService = new ChatService({ provider, streamRegistry, eventBus, storage });
+    const chatService = createTestChatService({ provider, streamRegistry, eventBus, storage });
 
     const conversationId = createConversationId();
     const res = await chatService.sendMessage({
@@ -398,7 +398,7 @@ describe("PR18 — Phase 1 Acceptance Gate Suite (All 12 Canonical Criteria)", (
     const db2 = new StorageDatabase({ url: `file:${tmpDbPath.replace(/\\/g, "/")}` });
     await db2.initialize();
     const storage2 = new PrismaEventRepository(db2);
-    const chatService2 = new ChatService({
+    const chatService2 = createTestChatService({
       provider,
       streamRegistry: new ActiveStreamRegistry(),
       eventBus: new EventBus(),
@@ -430,7 +430,7 @@ describe("PR18 — Phase 1 Acceptance Gate Suite (All 12 Canonical Criteria)", (
     // Session 1: Send two turns
     {
       const storage1 = new PrismaEventRepository(db1);
-      const chatService1 = new ChatService({
+      const chatService1 = createTestChatService({
         provider,
         streamRegistry: new ActiveStreamRegistry(),
         eventBus: new EventBus(),
@@ -450,7 +450,7 @@ describe("PR18 — Phase 1 Acceptance Gate Suite (All 12 Canonical Criteria)", (
       const db2 = new StorageDatabase({ url: `file:${tmpDbPath.replace(/\\/g, "/")}` });
       await db2.initialize();
       const storage2 = new PrismaEventRepository(db2);
-      const chatService2 = new ChatService({
+      const chatService2 = createTestChatService({
         provider,
         streamRegistry: new ActiveStreamRegistry(),
         eventBus: new EventBus(),
@@ -484,7 +484,7 @@ describe("PR18 — Phase 1 Acceptance Gate Suite (All 12 Canonical Criteria)", (
     const streamRegistry = new ActiveStreamRegistry();
     const eventBus = new EventBus();
     const provider = new AcceptanceMockProvider();
-    const chatService = new ChatService({ provider, streamRegistry, eventBus, storage });
+    const chatService = createTestChatService({ provider, streamRegistry, eventBus, storage });
 
     const conversationId = createConversationId();
     const res = await chatService.sendMessage({
@@ -531,7 +531,7 @@ describe("PR18 — Phase 1 Acceptance Gate Suite (All 12 Canonical Criteria)", (
       }
     })();
     const provider = new AcceptanceMockProvider();
-    const chatService = new ChatService({ provider, streamRegistry, eventBus, storage });
+    const chatService = createTestChatService({ provider, streamRegistry, eventBus, storage });
 
     registerIpcHandlers(ipcRegistry, { streamRegistry, chatService });
 
@@ -614,7 +614,7 @@ describe("PR18 — Phase 1 Acceptance Gate Suite (All 12 Canonical Criteria)", (
     const streamRegistry = new ActiveStreamRegistry();
     const eventBus = new EventBus();
     const provider = new AcceptanceMockProvider();
-    const chatService = new ChatService({ provider, streamRegistry, eventBus, storage });
+    const chatService = createTestChatService({ provider, streamRegistry, eventBus, storage });
 
     const liveEvents: AIEvent[] = [];
     eventBus.subscribe((e) => {

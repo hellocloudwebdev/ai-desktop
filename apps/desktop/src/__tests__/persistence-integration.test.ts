@@ -32,7 +32,7 @@ import {
   type EventRepository,
 } from "@ai-desktop/storage";
 import { ActiveStreamRegistry } from "../main/chat/active-stream-registry.js";
-import { ChatService } from "../main/chat/chat-service.js";
+import { createTestChatService } from "./test-helpers.js";
 import { attachStorageConsumer } from "../main/index.js";
 
 class MockStreamingProvider implements ProviderAdapter {
@@ -138,7 +138,7 @@ describe("apps/desktop: Persistence Integration & SQLite WAL Durability (PR17)",
     const streamRegistry = new ActiveStreamRegistry();
     const eventBus = new EventBus();
     const provider = new MockStreamingProvider();
-    const chatService = new ChatService({ provider, streamRegistry, eventBus, storage });
+    const chatService = createTestChatService({ provider, streamRegistry, eventBus, storage });
 
     const conversationId = createConversationId();
     const res = await chatService.sendMessage({
@@ -221,7 +221,7 @@ describe("apps/desktop: Persistence Integration & SQLite WAL Durability (PR17)",
     const streamRegistry = new ActiveStreamRegistry();
     const eventBus = new EventBus();
     const provider = new SlowStreamingProvider();
-    const chatService = new ChatService({ provider, streamRegistry, eventBus, storage });
+    const chatService = createTestChatService({ provider, streamRegistry, eventBus, storage });
 
     const conversationId = createConversationId();
     const res = await chatService.sendMessage({
@@ -249,7 +249,7 @@ describe("apps/desktop: Persistence Integration & SQLite WAL Durability (PR17)",
     const db2 = new StorageDatabase({ url: `file:${tmpDbPath.replace(/\\/g, "/")}` });
     await db2.initialize();
     const storage2 = new PrismaEventRepository(db2);
-    const chatService2 = new ChatService({
+    const chatService2 = createTestChatService({
       provider,
       streamRegistry: new ActiveStreamRegistry(),
       eventBus: new EventBus(),
@@ -282,7 +282,7 @@ describe("apps/desktop: Persistence Integration & SQLite WAL Durability (PR17)",
     const streamRegistry = new ActiveStreamRegistry();
     const eventBus = new EventBus();
     const provider = new FailingProvider();
-    const chatService = new ChatService({ provider, streamRegistry, eventBus, storage });
+    const chatService = createTestChatService({ provider, streamRegistry, eventBus, storage });
 
     const conversationId = createConversationId();
     const res = await chatService.sendMessage({
@@ -435,7 +435,7 @@ describe("apps/desktop: Persistence Integration & SQLite WAL Durability (PR17)",
       const db1 = new StorageDatabase({ url: `file:${tmpDbPath.replace(/\\/g, "/")}` });
       await db1.initialize();
       const storage1 = new PrismaEventRepository(db1);
-      const chatService1 = new ChatService({
+      const chatService1 = createTestChatService({
         provider,
         streamRegistry: new ActiveStreamRegistry(),
         eventBus: new EventBus(),
@@ -460,7 +460,7 @@ describe("apps/desktop: Persistence Integration & SQLite WAL Durability (PR17)",
       const db2 = new StorageDatabase({ url: `file:${tmpDbPath.replace(/\\/g, "/")}` });
       await db2.initialize();
       const storage2 = new PrismaEventRepository(db2);
-      const chatService2 = new ChatService({
+      const chatService2 = createTestChatService({
         provider,
         streamRegistry: new ActiveStreamRegistry(),
         eventBus: new EventBus(),
@@ -494,7 +494,7 @@ describe("apps/desktop: Persistence Integration & SQLite WAL Durability (PR17)",
     const streamRegistry = new ActiveStreamRegistry();
     const eventBus = new EventBus();
     const provider = new MockStreamingProvider();
-    const chatService = new ChatService({ provider, streamRegistry, eventBus, storage });
+    const chatService = createTestChatService({ provider, streamRegistry, eventBus, storage });
 
     const liveEvents: AIEvent[] = [];
     eventBus.subscribe((e) => {
@@ -536,7 +536,7 @@ describe("apps/desktop: Persistence Integration & SQLite WAL Durability (PR17)",
     const streamRegistry = new ActiveStreamRegistry();
     const eventBus = new EventBus();
     const provider = new MockStreamingProvider();
-    const chatService = new ChatService({ provider, streamRegistry, eventBus, storage });
+    const chatService = createTestChatService({ provider, streamRegistry, eventBus, storage });
 
     const conversationId = createConversationId();
 

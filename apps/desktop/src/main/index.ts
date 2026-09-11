@@ -21,7 +21,6 @@ import {
   GEMINI_MODELS,
   GEMINI_PROVIDER_ID,
   ProviderRegistry,
-  type ProviderAdapter,
 } from "@ai-desktop/providers";
 import {
   DuplicateSequenceError,
@@ -170,7 +169,6 @@ export function getEventBus(): EventBus {
 }
 
 export function getChatService(options?: {
-  provider?: ProviderAdapter;
   modelSelectionService?: ModelSelectionService;
   storage?: EventRepository;
   eventBus?: EventBus;
@@ -180,12 +178,9 @@ export function getChatService(options?: {
     const bus = options?.eventBus ?? getEventBus();
     const store = options?.storage ?? getStorage().repository;
     const registry = options?.streamRegistry ?? getActiveStreamRegistry();
-    const modelSelection =
-      options?.modelSelectionService ??
-      (options?.provider ? undefined : getModelSelectionService());
+    const modelSelection = options?.modelSelectionService ?? getModelSelectionService();
 
     const service = new ChatService({
-      provider: options?.provider,
       modelSelectionService: modelSelection,
       streamRegistry: registry,
       eventBus: bus,
