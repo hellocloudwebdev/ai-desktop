@@ -1,6 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import type { ConversationId, MessageId, Timestamp } from "@ai-desktop/shared";
-import type { AIEvent, Message, ContentPart, ModelDefinition } from "@ai-desktop/ai-core";
+import type {
+  AIEvent,
+  Message,
+  ContentPart,
+  ModelDefinition,
+  PermissionRequest,
+} from "@ai-desktop/ai-core";
 
 const DEFAULT_CONVERSATION_ID = "01JM0000000000000000000001";
 
@@ -14,6 +20,7 @@ export function App(): React.ReactElement {
   const [healthStatus, setHealthStatus] = useState<string>("checking...");
   const [availableModels, setAvailableModels] = useState<ModelDefinition[]>([]);
   const [selectedModelId, setSelectedModelId] = useState<string>("");
+  const [pendingPermissions, setPendingPermissions] = useState<PermissionRequest[]>([]);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   // Auto-scroll to latest message
@@ -194,6 +201,13 @@ export function App(): React.ReactElement {
         }
       });
 
+    // PR24: Load any pending permission requests
+    window.api.commands.listPendingPermissionRequests().then((res) => {
+      if (res.ok && res.value.requests) {
+        setPendingPermissions(res.value.requests);
+      }
+    });
+
     // 1. Restart recovery: reload historical conversation state from SQLite WAL events
     window.api.commands
       .loadConversation({ conversationId: conversationId as ConversationId })
@@ -236,6 +250,27 @@ export function App(): React.ReactElement {
       } catch (err) {
         console.warn("Failed to set conversation model:", err);
       }
+    }
+  };
+
+  // PR24: Permission resolution handler (Allow once, session, project, deny)
+  const handleResolvePermission = async (
+    requestId: string,
+    decision: "granted" | "denied",
+    mode: "allow_once" | "allow_session" | "allow_project" | "deny",
+  ) => {
+    if (!window.api) {
+      return;
+    }
+    try {
+      await window.api.commands.resolvePermission({
+        requestId: requestId as unknown as import("@ai-desktop/ai-core").PermissionRequestId,
+        decision,
+        mode,
+      });
+      setPendingPermissions((prev) => prev.filter((p) => p.id !== requestId));
+    } catch (err) {
+      console.warn("Failed to resolve permission request:", err);
     }
   };
 
@@ -388,6 +423,61 @@ export function App(): React.ReactElement {
         )}
         <div ref={messagesEndRef} />
       </section>
+
+      {/* Pending Permission Requests Prompt (PR24.9) */}
+      {pendingPermissions.length > 0 && (
+        <div className="mx-6 mb-3 rounded-xl bg-amber-950/80 border border-amber-700/60 p-4 text-xs text-amber-100 shadow-lg">
+          <div className="flex items-center justify-between mb-2">
+            <span className="font-semibold text-amber-300 uppercase tracking-wider text-[11px]">
+              Permission Request: {pendingPermissions[0].capability}
+            </span>
+            <span className="rounded bg-amber-900/60 px-2 py-0.5 text-[10px] text-amber-300 font-mono">
+              Risk: {pendingPermissions[0].risk}
+            </span>
+          </div>
+          <p className="mb-3 text-slate-200">
+            Action: <span className="font-mono text-amber-200">{pendingPermissions[0].action}</span>{" "}
+            on resource:{" "}
+            <span className="font-mono text-amber-200">{pendingPermissions[0].resource}</span>
+          </p>
+          <div className="flex items-center space-x-2">
+            <button
+              type="button"
+              onClick={() =>
+                handleResolvePermission(pendingPermissions[0].id, "granted", "allow_once")
+              }
+              className="rounded-lg bg-emerald-700 hover:bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition-colors"
+            >
+              Allow once
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                handleResolvePermission(pendingPermissions[0].id, "granted", "allow_session")
+              }
+              className="rounded-lg bg-emerald-800 hover:bg-emerald-700 px-3 py-1.5 text-xs font-medium text-white transition-colors"
+            >
+              Allow for session
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                handleResolvePermission(pendingPermissions[0].id, "granted", "allow_project")
+              }
+              className="rounded-lg bg-indigo-700 hover:bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white transition-colors"
+            >
+              Allow for project
+            </button>
+            <button
+              type="button"
+              onClick={() => handleResolvePermission(pendingPermissions[0].id, "denied", "deny")}
+              className="rounded-lg bg-rose-800 hover:bg-rose-700 px-3 py-1.5 text-xs font-medium text-white transition-colors"
+            >
+              Deny
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Error banner */}
       {errorMessage && (

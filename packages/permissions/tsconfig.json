@@ -3,7 +3,8 @@
   "compilerOptions": {
     "paths": {
       "@ai-desktop/shared": ["../shared/src/index.ts"],
-      "@ai-desktop/ai-core": ["../ai-core/src/index.ts"]
+      "@ai-desktop/ai-core": ["../ai-core/src/index.ts"],
+      "@ai-desktop/storage": ["../storage/src/index.ts"]
     }
   },
   "include": ["src"]

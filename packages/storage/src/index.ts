@@ -32,3 +32,15 @@ export type {
   SetConversationModelData,
 } from "./conversations/conversation-model-repository.js";
 export { PrismaConversationModelRepository } from "./conversations/prisma-conversation-model-repository.js";
+
+// PR24: Permission policies and audit persistence
+export type {
+  PermissionRepository,
+  StoredPermissionPolicy,
+  CreatePolicyData,
+  FindPoliciesQuery,
+  StoredPermissionAudit,
+  RecordAuditData,
+  FindAuditQuery,
+} from "./permissions/permission-repository.js";
+export { PrismaPermissionRepository } from "./permissions/prisma-permission-repository.js";

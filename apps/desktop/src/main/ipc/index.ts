@@ -24,6 +24,11 @@ import {
   ProviderModelsListCommandSchema,
   ConversationModelSetCommandSchema,
   ConversationModelGetCommandSchema,
+  PermissionCheckCommandSchema,
+  PermissionRequestsListCommandSchema,
+  PermissionResolveCommandSchema,
+  PermissionRevokeCommandSchema,
+  PermissionPoliciesListCommandSchema,
   type ChatCancelCommand,
   type ChatSendCommand,
   type ChatStreamEvent,
@@ -35,9 +40,15 @@ import {
   type ProviderModelsListCommand,
   type ConversationModelSetCommand,
   type ConversationModelGetCommand,
+  type PermissionCheckCommand,
+  type PermissionRequestsListCommand,
+  type PermissionResolveCommand,
+  type PermissionRevokeCommand,
+  type PermissionPoliciesListCommand,
   type IpcResponseEnvelope,
 } from "@ai-desktop/shared";
 import { asModelId, asProviderId, type AIEvent } from "@ai-desktop/ai-core";
+import type { PermissionManager } from "@ai-desktop/permissions";
 import type { ActiveStreamRegistry, ChatService, ModelSelectionService } from "../chat/index.js";
 import type { IpcBatcher } from "./batcher.js";
 
@@ -63,6 +74,11 @@ export interface RegisteredCommands {
   onProviderModelsList?: CommandHandler<ProviderModelsListCommand, { models: unknown[] }>;
   onConversationModelSet?: CommandHandler<ConversationModelSetCommand, { modelSelection: unknown }>;
   onConversationModelGet?: CommandHandler<ConversationModelGetCommand, { modelSelection: unknown }>;
+  onPermissionCheck?: CommandHandler<PermissionCheckCommand, { result: unknown }>;
+  onPermissionRequestsList?: CommandHandler<PermissionRequestsListCommand, { requests: unknown[] }>;
+  onPermissionResolve?: CommandHandler<PermissionResolveCommand, { resolved: boolean }>;
+  onPermissionRevoke?: CommandHandler<PermissionRevokeCommand, { revokedCount: number }>;
+  onPermissionPoliciesList?: CommandHandler<PermissionPoliciesListCommand, { policies: unknown[] }>;
 }
 
 export interface RegisterIpcOptions {
@@ -71,6 +87,7 @@ export interface RegisterIpcOptions {
   batcher?: IpcBatcher;
   chatService?: ChatService;
   modelSelectionService?: ModelSelectionService;
+  permissionManager?: PermissionManager;
 }
 
 export class IpcRegistry {
@@ -296,6 +313,8 @@ export function registerIpcHandlers(
     options && "modelSelectionService" in options
       ? options.modelSelectionService
       : chatService?.modelSelectionService;
+  const permissionManager: PermissionManager | undefined =
+    options && "permissionManager" in options ? options.permissionManager : undefined;
   if (batcher) {
     registry.attachBatcher(batcher);
   }
@@ -533,6 +552,111 @@ export function registerIpcHandlers(
         return { modelSelection };
       }
       return { modelSelection: null };
+    },
+  );
+
+  // 14. Permission Check command (PR24)
+  registry.registerCommand(
+    IPC_CHANNELS.PERMISSION_CHECK,
+    PermissionCheckCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onPermissionCheck) {
+        return callbacks.onPermissionCheck(input, event);
+      }
+      if (permissionManager) {
+        const result = await permissionManager.check(
+          {
+            capability: input.capability,
+            action: input.action,
+            resource: input.resource,
+            scope: input.scope,
+            risk: input.risk,
+            relatedToolCallIds: input.relatedToolCallIds,
+            reason: input.reason,
+          },
+          {
+            projectId: input.projectId,
+            conversationId: input.conversationId,
+            batchId: input.batchId,
+          },
+        );
+        return { result };
+      }
+      return { result: { kind: "allow" } };
+    },
+  );
+
+  // 15. Permission Requests List command (PR24)
+  registry.registerCommand(
+    IPC_CHANNELS.PERMISSION_REQUESTS_LIST,
+    PermissionRequestsListCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onPermissionRequestsList) {
+        return callbacks.onPermissionRequestsList(input, event);
+      }
+      if (permissionManager) {
+        const requests = permissionManager.listPendingRequests();
+        return { requests: [...requests] };
+      }
+      return { requests: [] };
+    },
+  );
+
+  // 16. Permission Resolve command (PR24)
+  registry.registerCommand(
+    IPC_CHANNELS.PERMISSION_RESOLVE,
+    PermissionResolveCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onPermissionResolve) {
+        return callbacks.onPermissionResolve(input, event);
+      }
+      if (permissionManager) {
+        const resolved = await permissionManager.resolve({
+          requestId: input.requestId,
+          decision: input.decision,
+          mode: input.mode,
+          reason: input.reason,
+        });
+        return { resolved };
+      }
+      throw new Error("PermissionManager is not available");
+    },
+  );
+
+  // 17. Permission Revoke command (PR24)
+  registry.registerCommand(
+    IPC_CHANNELS.PERMISSION_REVOKE,
+    PermissionRevokeCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onPermissionRevoke) {
+        return callbacks.onPermissionRevoke(input, event);
+      }
+      if (permissionManager) {
+        const revokedCount = await permissionManager.revoke({
+          capability: input.capability,
+          projectId: input.projectId,
+          resourcePattern: input.resourcePattern,
+          scope: input.scope,
+        });
+        return { revokedCount };
+      }
+      return { revokedCount: 0 };
+    },
+  );
+
+  // 18. Permission Policies List command (PR24)
+  registry.registerCommand(
+    IPC_CHANNELS.PERMISSION_POLICIES_LIST,
+    PermissionPoliciesListCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onPermissionPoliciesList) {
+        return callbacks.onPermissionPoliciesList(input, event);
+      }
+      if (permissionManager) {
+        const policies = await permissionManager.listActivePolicies(input.projectId);
+        return { policies: [...policies] };
+      }
+      return { policies: [] };
     },
   );
 }

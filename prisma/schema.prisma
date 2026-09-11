@@ -64,3 +64,47 @@ model ConversationModelRecord {
   @@index([providerId])
   @@map("conversation_models")
 }
+
+// PR24: Permission policy persistence
+// Stores durable project-scoped and persistent permission rules.
+// Sensitive secrets are never stored in policy or resource definitions.
+model PermissionPolicyRecord {
+  id              String   @id          // ULID
+  projectId       String?               // optional project scope
+  capability      String                // e.g. "filesystem", "execution", "mcp", "secrets.use", "secrets.read"
+  action          String?               // e.g. "read", "write", "execute", null for any
+  resourcePattern String?               // path prefix, command prefix, tool name, secret ref
+  decision        String                // "allow" | "deny"
+  scope           String                // "project" | "session" | "once"
+  createdAt       BigInt                // epoch milliseconds
+  updatedAt       BigInt                // epoch milliseconds
+  expiresAt       BigInt?               // optional epoch milliseconds
+
+  @@index([projectId])
+  @@index([capability])
+  @@map("permission_policies")
+}
+
+// PR24: Append-only immutable permission audit history
+// Records every actual permission decision without recording raw secrets or API keys.
+model PermissionAuditRecord {
+  id                  String   @id      // ULID
+  projectId           String?           // optional project scope
+  conversationId      String?           // optional conversation reference
+  permissionRequestId String?           // optional permission request ULID
+  capability          String            // evaluation dimension 1
+  action              String            // evaluation dimension 2
+  resource            String            // evaluation dimension 3
+  scope               String            // evaluation dimension 4
+  risk                String            // evaluation dimension 5
+  decision            String            // "allow" | "deny" | "requires_user"
+  decidedBy           String            // "user" | "policy" | "auto"
+  relatedToolCallIds  String            // JSON array of ToolCallId strings
+  reason              String?           // optional human or policy explanation
+  timestamp           BigInt            // epoch milliseconds
+
+  @@index([projectId])
+  @@index([capability])
+  @@index([timestamp])
+  @@map("permission_audit")
+}

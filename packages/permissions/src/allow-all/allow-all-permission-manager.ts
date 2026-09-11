@@ -16,9 +16,11 @@ import {
   type PermissionCheck,
   PermissionCheckSchema,
   type PermissionDecisionResult,
+  type PermissionRequest,
 } from "@ai-desktop/ai-core";
 import { ValidationError } from "@ai-desktop/shared";
 import type { PermissionManager } from "../core/permission-manager.js";
+import type { PermissionPolicy } from "../core/permission-policy.js";
 
 export class AllowAllPermissionManager implements PermissionManager {
   /**
@@ -38,5 +40,25 @@ export class AllowAllPermissionManager implements PermissionManager {
     }
 
     return { kind: "allow" };
+  }
+
+  async resolve(): Promise<boolean> {
+    return false;
+  }
+
+  async revoke(): Promise<number> {
+    return 0;
+  }
+
+  getPendingRequest(): PermissionRequest | undefined {
+    return undefined;
+  }
+
+  listPendingRequests(): readonly PermissionRequest[] {
+    return [];
+  }
+
+  async listActivePolicies(): Promise<readonly PermissionPolicy[]> {
+    return [];
   }
 }
