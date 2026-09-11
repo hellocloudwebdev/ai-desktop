@@ -1,6 +1,8 @@
 export { ActiveStreamRegistry } from "./active-stream-registry.js";
 export {
   ChatService,
+  validateRequestCapabilities,
+  type ChatExecutionContext,
   type ChatServiceDependencies,
   type SendMessageInput,
   type SendMessageResult,

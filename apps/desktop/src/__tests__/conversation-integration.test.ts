@@ -36,7 +36,7 @@ import {
   type EventRepository,
 } from "@ai-desktop/storage";
 import { ActiveStreamRegistry } from "../main/chat/active-stream-registry.js";
-import { ChatService } from "../main/chat/chat-service.js";
+import { createTestChatService } from "./test-helpers.js";
 import { IpcBatcher } from "../main/ipc/batcher.js";
 import { IpcRegistry, registerIpcHandlers } from "../main/ipc/index.js";
 
@@ -131,7 +131,7 @@ describe("apps/desktop: Conversation End-to-End & Integration (PR16)", () => {
     const eventBus = new EventBus();
     const storage = new InMemoryEventRepository();
     const provider = new MockStreamingProvider();
-    const chatService = new ChatService({ provider, streamRegistry, eventBus, storage });
+    const chatService = createTestChatService({ provider, streamRegistry, eventBus, storage });
 
     registerIpcHandlers(ipcRegistry, { streamRegistry, chatService });
 
@@ -183,7 +183,7 @@ describe("apps/desktop: Conversation End-to-End & Integration (PR16)", () => {
       batcher.enqueue(event);
     });
 
-    const chatService = new ChatService({ provider, streamRegistry, eventBus, storage });
+    const chatService = createTestChatService({ provider, streamRegistry, eventBus, storage });
 
     const conversationId = createConversationId();
     const sentBatches: Array<{ channel: string; data: { events: AIEvent[] } }> = [];
@@ -230,7 +230,7 @@ describe("apps/desktop: Conversation End-to-End & Integration (PR16)", () => {
     {
       const streamRegistry = new ActiveStreamRegistry();
       const eventBus = new EventBus();
-      const chatService = new ChatService({ provider, streamRegistry, eventBus, storage });
+      const chatService = createTestChatService({ provider, streamRegistry, eventBus, storage });
 
       const res1 = await chatService.sendMessage({
         conversationId,
@@ -255,7 +255,7 @@ describe("apps/desktop: Conversation End-to-End & Integration (PR16)", () => {
     {
       const streamRegistry = new ActiveStreamRegistry();
       const eventBus = new EventBus();
-      const chatService = new ChatService({ provider, streamRegistry, eventBus, storage });
+      const chatService = createTestChatService({ provider, streamRegistry, eventBus, storage });
 
       // Load conversation directly from SQLite WAL events (§39.39)
       const conv = await chatService.getConversation(conversationId);
@@ -284,7 +284,7 @@ describe("apps/desktop: Conversation End-to-End & Integration (PR16)", () => {
     const eventBus = new EventBus();
     const storage = new InMemoryEventRepository();
     const provider = new MockStreamingProvider();
-    const chatService = new ChatService({ provider, streamRegistry, eventBus, storage });
+    const chatService = createTestChatService({ provider, streamRegistry, eventBus, storage });
 
     registerIpcHandlers(ipcRegistry, { streamRegistry, chatService });
 
@@ -333,7 +333,7 @@ describe("apps/desktop: Conversation End-to-End & Integration (PR16)", () => {
       const storage1 = new PrismaEventRepository(db1);
       const streamRegistry1 = new ActiveStreamRegistry();
       const eventBus1 = new EventBus();
-      const chatService1 = new ChatService({
+      const chatService1 = createTestChatService({
         provider,
         streamRegistry: streamRegistry1,
         eventBus: eventBus1,
@@ -358,7 +358,7 @@ describe("apps/desktop: Conversation End-to-End & Integration (PR16)", () => {
       const storage2 = new PrismaEventRepository(db2);
       const streamRegistry2 = new ActiveStreamRegistry();
       const eventBus2 = new EventBus();
-      const chatService2 = new ChatService({
+      const chatService2 = createTestChatService({
         provider,
         streamRegistry: streamRegistry2,
         eventBus: eventBus2,
@@ -395,7 +395,7 @@ describe("apps/desktop: Conversation End-to-End & Integration (PR16)", () => {
       const storage = new InMemoryEventRepository();
       const streamRegistry = new ActiveStreamRegistry();
       const eventBus = new EventBus();
-      const chatService = new ChatService({ provider, streamRegistry, eventBus, storage });
+      const chatService = createTestChatService({ provider, streamRegistry, eventBus, storage });
 
       const conversationId = createConversationId();
       const res = await chatService.sendMessage({

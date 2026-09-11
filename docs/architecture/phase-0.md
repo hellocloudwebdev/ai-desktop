@@ -1,10 +1,10 @@
 # Phase 0 — What Exists and What Does Not
 
 This document prevents the repository (and its documentation) from claiming functionality
-that does not exist. It reflects the state after **PR21 (Second provider adapter: Google Gemini)** and
+that does not exist. It reflects the state after **PR23 (Multi-provider Chat Service)** and
 is updated as each PR lands.
 
-## Implemented (as of PR21)
+## Implemented (as of PR23)
 
 - Repository foundation: pnpm workspace + Turborepo task graph (`build`, `dev`,
   `typecheck`, `lint`, `test`).
@@ -318,6 +318,27 @@ is updated as each PR lands.
   - `GeminiAdapter` (`gemini-adapter.ts`): implements `ProviderAdapter`, lifecycle `initialize`, `listModels`, `getModel`, `validateConfig`, `supports`, and streaming `chat(request, signal)` with cooperative `AbortSignal` cancellation forwarded to native request configuration.
   - Multi-provider registration in `ProviderRegistry`: registers both Anthropic and Gemini adapters and all 6 models concurrently.
   - 47 unit and integration tests across Gemini models, request translation, streaming translation, error translation, adapter lifecycle, and multi-provider registry integration.
+- Model & profile selection foundation (`packages/providers` & `packages/storage`, PR22):
+  - Canonical contracts: `ProviderProfile` (user instance storing only non-secret `credentialRef`, never raw keys) and `ModelSelection` (`providerId` + `modelId`).
+  - Validation: `validateProviderProfile` (verifies non-empty name, provider registration, model capability baseline, rejects raw API keys) and `validateModelSelection` (verifies provider exists, model exists, model providerId matches selection).
+  - Storage repositories: `provider_profiles` and `conversation_models` tables in SQLite schema with epoch-millisecond `BigInt` columns, `PrismaProviderProfileRepository` (full CRUD), and `PrismaConversationModelRepository` (upsert/get/delete).
+  - Renderer model selector dropdown with per-conversation model persistence.
+  - 47 unit and integration tests covering profiles, conversation models, and restart recovery.
+- Definitive multi-provider Chat Service (`apps/desktop`, PR23):
+  - Completely provider-neutral `ChatService` (`apps/desktop/src/main/chat/chat-service.ts`):
+    - Zero vendor SDK imports (`@anthropic-ai/sdk`, `@google/genai`), zero vendor request/response structures.
+    - Legacy single-provider production path fully removed: execution routes strictly through `ModelSelectionService`.
+    - Bundles resolution into an explicit, typed `ChatExecutionContext` (`conversationId`, `modelSelection`, `model`, `adapter`, `request`).
+    - Capability pre-check via `validateRequestCapabilities`: rejects unsupported capabilities (e.g., thinking on Gemini Flash-Lite) with call count = 0 before network execution.
+    - Dynamic multi-provider routing through `ProviderRegistry` to `AnthropicAdapter` or `GeminiAdapter`.
+    - Concurrent multi-provider execution: independent streams to Anthropic and Gemini operate in parallel without cross-routing.
+    - Strict cross-conversation isolation: events and sequences remain strictly conversation-scoped.
+    - Sibling stream cancellation: cancelling stream in Conversation A leaves concurrent stream in Conversation B unaffected.
+    - Idempotent cancellation: safe to call repeatedly, on completed streams, or on unknown message IDs without duplicate events.
+    - Terminal-state invariant: exactly one terminal state per execution (`message.completed`, `message.cancelled`, or `message.failed`).
+    - Error propagation: provider errors mapped cleanly without automatic, silent provider fallback.
+    - Restart recovery for both providers: conversation history and model choices reconstruct faithfully from SQLite WAL.
+  - 17 dedicated multi-provider integration tests in `apps/desktop/src/__tests__/multi-provider-chat-service.test.ts`; 101 tests in desktop, 383 tests passing monorepo-wide.
 - All remaining canonical packages stay **empty shells** (`package.json`, `tsconfig.json`,
   `src/index.ts` placeholder) — deliberately no premature domain functionality inside them.
 - Toolchain: TypeScript 5.9.3, ESLint 10.10.0, Vitest 4.1.10, Vite 8.1.0, Prettier 3.9.6,

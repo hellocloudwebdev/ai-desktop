@@ -122,7 +122,8 @@ Do **NOT** "helpfully" upgrade package versions without a verified toolchain com
 | **PR20**  | `pr20-provider-configuration`              | Complete | Provider configuration validation, validateConfig(), model checks, secret quarantine, 11 tests                                                                              |
 | **PR21**  | `pr21-gemini-provider`                     | Complete | Concrete GeminiAdapter, Gemini 2.5 catalog, request/stream/error translation, 47 tests                                                                                      |
 | **PR22**  | `pr22-model-profile-selection` (`899055d`) | Complete | ProviderProfile/ModelSelection contracts, SQLite profile + conversation-model persistence, ModelSelectionService routing, 7 IPC commands, renderer model selector, 47 tests |
-| **PR23+** | —                                          | **NEXT** | Multi-provider ChatService, Multi-provider persistence, Phase 2 Gate                                                                                                        |
+| **PR23**  | `pr23-multi-provider-chat-service`         | Complete | Provider-neutral ChatService, ModelSelectionService routing, dynamic multi-provider execution, capability pre-check, sibling cancellation, cross-conv isolation, 17 tests   |
+| **PR24+** | —                                          | **NEXT** | Multi-provider persistence, Phase 2 Gate                                                                                                                                    |
 
 ---
 
