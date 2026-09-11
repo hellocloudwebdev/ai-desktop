@@ -201,6 +201,9 @@ importers:
       '@ai-desktop/shared':
         specifier: workspace:*
         version: link:../shared
+      '@ai-desktop/storage':
+        specifier: workspace:*
+        version: link:../storage
       zod:
         specifier: 4.4.3
         version: 4.4.3

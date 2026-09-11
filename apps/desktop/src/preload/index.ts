@@ -20,9 +20,18 @@ import {
   type ProviderProfileDeleteCommand,
   type ConversationModelSetCommand,
   type ConversationModelGetCommand,
+  type PermissionCheckCommand,
+  type PermissionResolveCommand,
+  type PermissionRevokeCommand,
+  type PermissionPoliciesListCommand,
   type IpcResponseEnvelope,
 } from "@ai-desktop/shared";
-import type { AIEvent, Conversation, ModelDefinition } from "@ai-desktop/ai-core";
+import type {
+  AIEvent,
+  Conversation,
+  ModelDefinition,
+  PermissionRequest,
+} from "@ai-desktop/ai-core";
 import type { ChatStreamBatch } from "../main/ipc/batcher.js";
 
 export type Unsubscribe = () => void;
@@ -68,6 +77,23 @@ export interface DesktopApplicationApi {
     getConversationModel(
       command: ConversationModelGetCommand,
     ): Promise<IpcResponseEnvelope<{ modelSelection: unknown }>>;
+
+    // PR24: Permission management commands
+    checkPermission(
+      command: PermissionCheckCommand,
+    ): Promise<IpcResponseEnvelope<{ result: unknown }>>;
+    listPendingPermissionRequests(): Promise<
+      IpcResponseEnvelope<{ requests: PermissionRequest[] }>
+    >;
+    resolvePermission(
+      command: PermissionResolveCommand,
+    ): Promise<IpcResponseEnvelope<{ resolved: boolean }>>;
+    revokePermission(
+      command: PermissionRevokeCommand,
+    ): Promise<IpcResponseEnvelope<{ revokedCount: number }>>;
+    listPermissionPolicies(
+      command?: PermissionPoliciesListCommand,
+    ): Promise<IpcResponseEnvelope<{ policies: unknown[] }>>;
   };
 
   /**
@@ -121,6 +147,21 @@ export function createDesktopApi(): DesktopApplicationApi {
       },
       async getConversationModel(command: ConversationModelGetCommand) {
         return ipcRenderer.invoke(IPC_CHANNELS.CONVERSATION_MODEL_GET, command);
+      },
+      async checkPermission(command: PermissionCheckCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.PERMISSION_CHECK, command);
+      },
+      async listPendingPermissionRequests() {
+        return ipcRenderer.invoke(IPC_CHANNELS.PERMISSION_REQUESTS_LIST, {});
+      },
+      async resolvePermission(command: PermissionResolveCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.PERMISSION_RESOLVE, command);
+      },
+      async revokePermission(command: PermissionRevokeCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.PERMISSION_REVOKE, command);
+      },
+      async listPermissionPolicies(command?: PermissionPoliciesListCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.PERMISSION_POLICIES_LIST, command ?? {});
       },
     },
 

@@ -1,6 +1,6 @@
 # ai-desktop
 
-A desktop AI assistant. This repository is currently at **PR23 — Multi-provider Chat Service**:
+A desktop AI assistant. This repository is currently at **PR24 — Real Permissions Foundation**:
 shared primitives, canonical AI domain contracts, projections, in-process EventBus,
 permission checkpoint, SQLite WAL event repository, OS-backed credential store, canonical
 provider contracts, concrete `AnthropicAdapter`, concrete `GeminiAdapter`, Electron 44 desktop
@@ -9,10 +9,10 @@ registry, the ~32 ms IPC event batcher with immediate terminal-event flush, the 
 first vertical conversation slice, comprehensive persistence integration, the formal
 Phase 1 Acceptance Gate, runtime `ProviderRegistry`, validated provider configuration,
 multi-provider capability integration (Anthropic Claude and Google Gemini 2.5 families),
-provider profiles with per-conversation model selection (`ModelSelectionService`), and
-the definitive provider-neutral `ChatService` (dynamic multi-provider routing, concurrent
-cross-conversation isolation, sibling stream cancellation, pre-execution capability checks,
-idempotent cancellation, terminal-state audit) are implemented. Future
+provider profiles with per-conversation model selection (`ModelSelectionService`),
+the definitive provider-neutral `ChatService`, and the real `PermissionManager` (5-dimension
+evaluation, deterministic policy engine, 4 approval scopes, SQLite policy & audit persistence,
+batch coalescing, IPC & renderer approval prompt) are implemented. Future
 packages remain empty shells awaiting their respective implementation PRs — see
 [docs/architecture/phase-0.md](docs/architecture/phase-0.md) for the honest list of what is
 and is not implemented.
@@ -65,8 +65,8 @@ mechanically enforced by `scripts/validate-dependencies.mjs` and `eslint-plugin-
 | `@ai-desktop/shared`        | shared contracts & primitives (implemented in PR3)                                                          | —                                     |
 | `@ai-desktop/ai-core`       | messages, content, events, tools, projections (PR4/PR5)                                                     | shared                                |
 | `@ai-desktop/providers`     | ProviderAdapter contract, Anthropic (PR11), Gemini (PR21), registry, profiles & model selection (PR19–PR22) | ai-core, shared                       |
-| `@ai-desktop/storage`       | persistence (PR8) & secrets store (PR9)                                                                     | ai-core, shared                       |
-| `@ai-desktop/permissions`   | PermissionManager mediation (PR7)                                                                           | ai-core, storage, shared              |
+| `@ai-desktop/storage`       | persistence (PR8), secrets store (PR9), permission policies & audit (PR24)                                  | ai-core, shared                       |
+| `@ai-desktop/permissions`   | PermissionManager mediation, policy evaluator, SQLite policy & audit persistence (PR7, PR24)                | ai-core, storage, shared              |
 | `@ai-desktop/mcp`           | MCP host; SDK types stay here                                                                               | ai-core, storage, permissions, shared |
 | `@ai-desktop/skills`        | skill loader                                                                                                | ai-core, storage, shared              |
 | `@ai-desktop/execution`     | tool/code/container execution                                                                               | ai-core, permissions, storage, shared |
@@ -74,7 +74,7 @@ mechanically enforced by `scripts/validate-dependencies.mjs` and `eslint-plugin-
 | `@ai-desktop/agent-runtime` | in-process EventBus (PR6); orchestration (later)                                                            | all of the above                      |
 | `@ai-desktop/workspace`     | workspace UI                                                                                                | (later PRs)                           |
 | `@ai-desktop/plugins`       | plugin infrastructure                                                                                       | (not yet defined)                     |
-| `@ai-desktop/desktop`       | Electron shell, React renderer, typed IPC, multi-provider ChatService (PR12–PR18, PR22, PR23)               | agent-runtime, shared                 |
+| `@ai-desktop/desktop`       | Electron shell, React renderer, typed IPC, multi-provider ChatService, permissions (PR12–PR18, PR22–PR24)   | agent-runtime, shared                 |
 
 ## Repository layout
 

@@ -40,6 +40,13 @@ export const IPC_CHANNELS = {
   PROVIDER_MODELS_LIST: "provider:models-list",
   CONVERSATION_MODEL_SET: "conversation:model-set",
   CONVERSATION_MODEL_GET: "conversation:model-get",
+
+  // Permission operations (PR24)
+  PERMISSION_CHECK: "permission:check",
+  PERMISSION_REQUESTS_LIST: "permission:requests-list",
+  PERMISSION_RESOLVE: "permission:resolve",
+  PERMISSION_REVOKE: "permission:revoke",
+  PERMISSION_POLICIES_LIST: "permission:policies-list",
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];
@@ -202,6 +209,67 @@ export const ConversationModelGetCommandSchema = z.object({
 });
 
 export type ConversationModelGetCommand = z.infer<typeof ConversationModelGetCommandSchema>;
+
+/**
+ * Command to check a capability permission (PR24).
+ */
+export const PermissionCheckCommandSchema = z.object({
+  capability: z.string().trim().min(1),
+  action: z.string().trim().min(1),
+  resource: z.string().trim().min(1),
+  scope: z.enum(["once", "session", "workspace", "project", "always"]).default("once"),
+  risk: z.enum(["low", "medium", "high", "critical"]).default("medium"),
+  relatedToolCallIds: z.array(ToolCallIdSchema).min(1),
+  projectId: z.string().trim().min(1).optional(),
+  conversationId: ConversationIdSchema.optional(),
+  batchId: z.string().trim().min(1).optional(),
+  reason: z.string().optional(),
+});
+
+export type PermissionCheckCommand = z.infer<typeof PermissionCheckCommandSchema>;
+
+/**
+ * Command to list pending permission requests awaiting user approval (PR24).
+ */
+export const PermissionRequestsListCommandSchema = z.object({}).optional().default({});
+
+export type PermissionRequestsListCommand = z.infer<typeof PermissionRequestsListCommandSchema>;
+
+/**
+ * Command to resolve an outstanding permission request (PR24).
+ */
+export const PermissionResolveCommandSchema = z.object({
+  requestId: PermissionRequestIdSchema,
+  decision: z.enum(["granted", "denied"]),
+  mode: z.enum(["allow_once", "allow_session", "allow_project", "deny"]),
+  reason: z.string().max(500).optional(),
+});
+
+export type PermissionResolveCommand = z.infer<typeof PermissionResolveCommandSchema>;
+
+/**
+ * Command to revoke permission policies (PR24).
+ */
+export const PermissionRevokeCommandSchema = z.object({
+  capability: z.string().trim().min(1),
+  projectId: z.string().trim().min(1).optional(),
+  resourcePattern: z.string().trim().min(1).optional(),
+  scope: z.enum(["session", "project"]).optional(),
+});
+
+export type PermissionRevokeCommand = z.infer<typeof PermissionRevokeCommandSchema>;
+
+/**
+ * Command to list active permission policies (PR24).
+ */
+export const PermissionPoliciesListCommandSchema = z
+  .object({
+    projectId: z.string().trim().min(1).optional(),
+  })
+  .optional()
+  .default({});
+
+export type PermissionPoliciesListCommand = z.infer<typeof PermissionPoliciesListCommandSchema>;
 
 // ---------------------------------------------------------------------------
 // Event Contracts (Main Process -> Renderer)

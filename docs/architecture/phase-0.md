@@ -1,10 +1,10 @@
 # Phase 0 — What Exists and What Does Not
 
 This document prevents the repository (and its documentation) from claiming functionality
-that does not exist. It reflects the state after **PR23 (Multi-provider Chat Service)** and
+that does not exist. It reflects the state after **PR24 (Real Permissions Foundation)** and
 is updated as each PR lands.
 
-## Implemented (as of PR23)
+## Implemented (as of PR24)
 
 - Repository foundation: pnpm workspace + Turborepo task graph (`build`, `dev`,
   `typecheck`, `lint`, `test`).
@@ -339,6 +339,18 @@ is updated as each PR lands.
     - Error propagation: provider errors mapped cleanly without automatic, silent provider fallback.
     - Restart recovery for both providers: conversation history and model choices reconstruct faithfully from SQLite WAL.
   - 17 dedicated multi-provider integration tests in `apps/desktop/src/__tests__/multi-provider-chat-service.test.ts`; 101 tests in desktop, 383 tests passing monorepo-wide.
+- Real permissions foundation (`packages/permissions`, `packages/storage`, and `apps/desktop`, PR24):
+  - Replaced Phase 0/1 `AllowAllPermissionManager` with production `DefaultPermissionManager` connected to storage and `EventBus`.
+  - Evaluates all 5 canonical dimensions (`capability`, `action`, `resource`, `scope`, `risk`) using pure deterministic `PermissionPolicyEvaluator` with explicit deny precedence.
+  - 4 canonical approval modes: `allow_once` (authorizes specific `relatedToolCallIds`), `allow_session` (in-memory, vanishes on app restart), `allow_project` (persisted in SQLite `permission_policies` table scoped strictly to `projectId`), and `deny`.
+  - Append-only immutable `permission_audit` table in SQLite WAL recording capability, action, resource, scope, risk, decision, and tool call IDs with zero secrets or raw credentials.
+  - Canonical event emission: `permission.requested`, `permission.granted`, `permission.denied`, `permission.revoked`, `permission.policy.changed`.
+  - Batch coalescing: same batch + same capability + same scope + same resource coalesces into a single `PermissionRequest` with all `relatedToolCallIds`.
+  - Security dimensions: filesystem path-aware (no directory boundary escapes), execution command/cwd-aware (word boundary matching), MCP per-tool, and strict separation between `secrets.use` and `secrets.read` (the former never grants the latter).
+  - Revocation: `revoke()` clears session and project policies and emits `permission.revoked`, ensuring subsequent checks return `requires_user` without rewriting audit history.
+  - Typed IPC: `permission:check`, `permission:requests-list`, `permission:resolve`, `permission:revoke`, `permission:policies-list`.
+  - Renderer approval UI with 4 distinct choices: Allow once, Allow for session, Allow for project, Deny.
+  - 26 tests in permissions, 46 in storage, 106 in desktop, 418 total in workspace.
 - All remaining canonical packages stay **empty shells** (`package.json`, `tsconfig.json`,
   `src/index.ts` placeholder) — deliberately no premature domain functionality inside them.
 - Toolchain: TypeScript 5.9.3, ESLint 10.10.0, Vitest 4.1.10, Vite 8.1.0, Prettier 3.9.6,

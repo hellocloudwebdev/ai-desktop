@@ -28,10 +28,13 @@ import {
   PrismaEventRepository,
   PrismaProviderProfileRepository,
   PrismaConversationModelRepository,
+  PrismaPermissionRepository,
   type EventRepository,
   type ProviderProfileRepository,
   type ConversationModelRepository,
+  type PermissionRepository,
 } from "@ai-desktop/storage";
+import { DefaultPermissionManager, type PermissionManager } from "@ai-desktop/permissions";
 import { ActiveStreamRegistry, ChatService, ModelSelectionService } from "./chat/index.js";
 import { IpcBatcher } from "./ipc/batcher.js";
 import { IpcRegistry, registerIpcHandlers } from "./ipc/index.js";
@@ -54,6 +57,8 @@ let providerRegistry: ProviderRegistry | null = null;
 let profileRepository: ProviderProfileRepository | null = null;
 let conversationModelRepository: ConversationModelRepository | null = null;
 let modelSelectionService: ModelSelectionService | null = null;
+let permissionRepository: PermissionRepository | null = null;
+let permissionManager: PermissionManager | null = null;
 
 export function getProviderRegistry(): ProviderRegistry {
   if (!providerRegistry) {
@@ -129,6 +134,26 @@ export function getStorage(): { database: StorageDatabase; repository: EventRepo
     storage = new PrismaEventRepository(database);
   }
   return { database, repository: storage };
+}
+
+export function getPermissionRepository(): PermissionRepository {
+  if (!permissionRepository) {
+    const { database: db } = getStorage();
+    permissionRepository = new PrismaPermissionRepository(db);
+  }
+  return permissionRepository;
+}
+
+export function getPermissionManager(): PermissionManager {
+  if (!permissionManager) {
+    permissionManager = new DefaultPermissionManager({
+      storage: getPermissionRepository(),
+      eventSink: (event) => {
+        getEventBus().publish(event);
+      },
+    });
+  }
+  return permissionManager;
 }
 
 /**
@@ -241,13 +266,24 @@ export function initIpc(options?: {
   activeStreamRegistry?: ActiveStreamRegistry;
   batcher?: IpcBatcher;
   chatService?: ChatService;
+  permissionManager?: PermissionManager;
+  modelSelectionService?: ModelSelectionService;
 }): IpcRegistry {
   if (!ipcRegistry) {
     ipcRegistry = new IpcRegistry();
     const streamRegistry = options?.activeStreamRegistry ?? getActiveStreamRegistry();
     const batcher = options?.batcher ?? getIpcBatcher();
     const chat = options?.chatService ?? getChatService({ streamRegistry });
-    registerIpcHandlers(ipcRegistry, { streamRegistry, batcher, chatService: chat });
+    const modelSelection = options?.modelSelectionService ?? getModelSelectionService();
+    const permissions = options?.permissionManager ?? getPermissionManager();
+
+    registerIpcHandlers(ipcRegistry, {
+      streamRegistry,
+      batcher,
+      chatService: chat,
+      modelSelectionService: modelSelection,
+      permissionManager: permissions,
+    });
   }
   return ipcRegistry;
 }

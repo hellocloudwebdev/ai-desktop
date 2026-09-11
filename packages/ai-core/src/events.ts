@@ -224,6 +224,26 @@ export const PermissionDeniedEventSchema = z.object({
   reason: z.string().optional(),
 });
 
+export const PermissionRevokedEventSchema = z.object({
+  ...BaseEventFields,
+  type: z.literal("permission.revoked"),
+  category: z.literal("capability"),
+  capability: z.string().min(1),
+  scope: PermissionScopeSchema.optional(),
+  resource: z.string().optional(),
+  reason: z.string().optional(),
+});
+
+export const PermissionPolicyChangedEventSchema = z.object({
+  ...BaseEventFields,
+  type: z.literal("permission.policy.changed"),
+  category: z.literal("capability"),
+  capability: z.string().min(1),
+  action: z.enum(["created", "updated", "deleted"]),
+  scope: PermissionScopeSchema.optional(),
+  details: z.string().optional(),
+});
+
 export const ExecutionRequestedEventSchema = z.object({
   ...BaseEventFields,
   type: z.literal("execution.requested"),
@@ -269,6 +289,8 @@ export const CapabilityEventSchema = z.discriminatedUnion("type", [
   PermissionRequestedEventSchema,
   PermissionGrantedEventSchema,
   PermissionDeniedEventSchema,
+  PermissionRevokedEventSchema,
+  PermissionPolicyChangedEventSchema,
   ExecutionRequestedEventSchema,
   ExecutionStartedEventSchema,
   ExecutionCompletedEventSchema,
@@ -282,6 +304,8 @@ export type ToolCallFailedEvent = z.infer<typeof ToolCallFailedEventSchema>;
 export type PermissionRequestedEvent = z.infer<typeof PermissionRequestedEventSchema>;
 export type PermissionGrantedEvent = z.infer<typeof PermissionGrantedEventSchema>;
 export type PermissionDeniedEvent = z.infer<typeof PermissionDeniedEventSchema>;
+export type PermissionRevokedEvent = z.infer<typeof PermissionRevokedEventSchema>;
+export type PermissionPolicyChangedEvent = z.infer<typeof PermissionPolicyChangedEventSchema>;
 export type ExecutionRequestedEvent = z.infer<typeof ExecutionRequestedEventSchema>;
 export type ExecutionStartedEvent = z.infer<typeof ExecutionStartedEventSchema>;
 export type ExecutionCompletedEvent = z.infer<typeof ExecutionCompletedEventSchema>;
@@ -466,6 +490,8 @@ export const AIEventTypeSchema = z.enum([
   "permission.requested",
   "permission.granted",
   "permission.denied",
+  "permission.revoked",
+  "permission.policy.changed",
   "execution.requested",
   "execution.started",
   "execution.completed",
@@ -509,6 +535,8 @@ export const AIEventSchema = z.discriminatedUnion("type", [
   PermissionRequestedEventSchema,
   PermissionGrantedEventSchema,
   PermissionDeniedEventSchema,
+  PermissionRevokedEventSchema,
+  PermissionPolicyChangedEventSchema,
   ExecutionRequestedEventSchema,
   ExecutionStartedEventSchema,
   ExecutionCompletedEventSchema,
