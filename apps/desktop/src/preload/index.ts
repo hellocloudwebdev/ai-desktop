@@ -24,6 +24,13 @@ import {
   type PermissionResolveCommand,
   type PermissionRevokeCommand,
   type PermissionPoliciesListCommand,
+  type SkillsListCommand,
+  type SkillsInstallCommand,
+  type SkillsUninstallCommand,
+  type SkillsEnableCommand,
+  type SkillsDisableCommand,
+  type SkillsGetCommand,
+  type SkillsReferencesLoadCommand,
   type IpcResponseEnvelope,
 } from "@ai-desktop/shared";
 import type {
@@ -94,6 +101,21 @@ export interface DesktopApplicationApi {
     listPermissionPolicies(
       command?: PermissionPoliciesListCommand,
     ): Promise<IpcResponseEnvelope<{ policies: unknown[] }>>;
+
+    // PR26: Skill management commands
+    listSkills(command?: SkillsListCommand): Promise<IpcResponseEnvelope<{ skills: unknown[] }>>;
+    installSkill(command: SkillsInstallCommand): Promise<IpcResponseEnvelope<{ skill: unknown }>>;
+    uninstallSkill(
+      command: SkillsUninstallCommand,
+    ): Promise<IpcResponseEnvelope<{ uninstalled: boolean }>>;
+    enableSkill(command: SkillsEnableCommand): Promise<IpcResponseEnvelope<{ enabled: boolean }>>;
+    disableSkill(
+      command: SkillsDisableCommand,
+    ): Promise<IpcResponseEnvelope<{ disabled: boolean }>>;
+    getSkill(command: SkillsGetCommand): Promise<IpcResponseEnvelope<{ skill: unknown }>>;
+    loadSkillReference(
+      command: SkillsReferencesLoadCommand,
+    ): Promise<IpcResponseEnvelope<{ content: string }>>;
   };
 
   /**
@@ -162,6 +184,27 @@ export function createDesktopApi(): DesktopApplicationApi {
       },
       async listPermissionPolicies(command?: PermissionPoliciesListCommand) {
         return ipcRenderer.invoke(IPC_CHANNELS.PERMISSION_POLICIES_LIST, command ?? {});
+      },
+      async listSkills(command?: SkillsListCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.SKILLS_LIST, command ?? {});
+      },
+      async installSkill(command: SkillsInstallCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.SKILLS_INSTALL, command);
+      },
+      async uninstallSkill(command: SkillsUninstallCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.SKILLS_UNINSTALL, command);
+      },
+      async enableSkill(command: SkillsEnableCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.SKILLS_ENABLE, command);
+      },
+      async disableSkill(command: SkillsDisableCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.SKILLS_DISABLE, command);
+      },
+      async getSkill(command: SkillsGetCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.SKILLS_GET, command);
+      },
+      async loadSkillReference(command: SkillsReferencesLoadCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.SKILLS_REFERENCES_LOAD, command);
       },
     },
 

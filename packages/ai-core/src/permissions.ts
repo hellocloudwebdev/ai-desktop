@@ -79,6 +79,17 @@ export const PermissionDecisionResultSchema = z.discriminatedUnion("kind", [
 ]);
 
 /**
+ * Canonical interface for evaluating capability permissions.
+ * ai-core owns the permission contract; packages/permissions owns the behavior.
+ */
+export interface PermissionManager {
+  check(
+    request: PermissionCheck,
+    options?: { projectId?: string; conversationId?: string; batchId?: string },
+  ): Promise<PermissionDecisionResult>;
+}
+
+/**
  * Canonical request for permission to execute a privileged capability.
  */
 export const PermissionRequestSchema = z.object({

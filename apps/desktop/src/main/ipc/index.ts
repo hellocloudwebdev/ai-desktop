@@ -29,6 +29,13 @@ import {
   PermissionResolveCommandSchema,
   PermissionRevokeCommandSchema,
   PermissionPoliciesListCommandSchema,
+  SkillsListCommandSchema,
+  SkillsInstallCommandSchema,
+  SkillsUninstallCommandSchema,
+  SkillsEnableCommandSchema,
+  SkillsDisableCommandSchema,
+  SkillsGetCommandSchema,
+  SkillsReferencesLoadCommandSchema,
   type ChatCancelCommand,
   type ChatSendCommand,
   type ChatStreamEvent,
@@ -45,10 +52,18 @@ import {
   type PermissionResolveCommand,
   type PermissionRevokeCommand,
   type PermissionPoliciesListCommand,
+  type SkillsListCommand,
+  type SkillsInstallCommand,
+  type SkillsUninstallCommand,
+  type SkillsEnableCommand,
+  type SkillsDisableCommand,
+  type SkillsGetCommand,
+  type SkillsReferencesLoadCommand,
   type IpcResponseEnvelope,
 } from "@ai-desktop/shared";
-import { asModelId, asProviderId, type AIEvent } from "@ai-desktop/ai-core";
+import { asModelId, asProviderId, asSkillId, type AIEvent } from "@ai-desktop/ai-core";
 import type { PermissionManager } from "@ai-desktop/permissions";
+import type { SkillInstaller, SkillManager } from "@ai-desktop/skills";
 import type { ActiveStreamRegistry, ChatService, ModelSelectionService } from "../chat/index.js";
 import type { IpcBatcher } from "./batcher.js";
 
@@ -79,6 +94,13 @@ export interface RegisteredCommands {
   onPermissionResolve?: CommandHandler<PermissionResolveCommand, { resolved: boolean }>;
   onPermissionRevoke?: CommandHandler<PermissionRevokeCommand, { revokedCount: number }>;
   onPermissionPoliciesList?: CommandHandler<PermissionPoliciesListCommand, { policies: unknown[] }>;
+  onSkillsList?: CommandHandler<SkillsListCommand, { skills: unknown[] }>;
+  onSkillsInstall?: CommandHandler<SkillsInstallCommand, { skill: unknown }>;
+  onSkillsUninstall?: CommandHandler<SkillsUninstallCommand, { uninstalled: boolean }>;
+  onSkillsEnable?: CommandHandler<SkillsEnableCommand, { enabled: boolean }>;
+  onSkillsDisable?: CommandHandler<SkillsDisableCommand, { disabled: boolean }>;
+  onSkillsGet?: CommandHandler<SkillsGetCommand, { skill: unknown }>;
+  onSkillsReferencesLoad?: CommandHandler<SkillsReferencesLoadCommand, { content: string }>;
 }
 
 export interface RegisterIpcOptions {
@@ -88,6 +110,8 @@ export interface RegisterIpcOptions {
   chatService?: ChatService;
   modelSelectionService?: ModelSelectionService;
   permissionManager?: PermissionManager;
+  skillManager?: SkillManager;
+  skillInstaller?: SkillInstaller;
 }
 
 export class IpcRegistry {
@@ -315,6 +339,10 @@ export function registerIpcHandlers(
       : chatService?.modelSelectionService;
   const permissionManager: PermissionManager | undefined =
     options && "permissionManager" in options ? options.permissionManager : undefined;
+  const skillManager: SkillManager | undefined =
+    options && "skillManager" in options ? options.skillManager : undefined;
+  const skillInstaller: SkillInstaller | undefined =
+    options && "skillInstaller" in options ? options.skillInstaller : undefined;
   if (batcher) {
     registry.attachBatcher(batcher);
   }
@@ -657,6 +685,124 @@ export function registerIpcHandlers(
         return { policies: [...policies] };
       }
       return { policies: [] };
+    },
+  );
+
+  // 19. Skills List command (PR26)
+  registry.registerCommand(
+    IPC_CHANNELS.SKILLS_LIST,
+    SkillsListCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onSkillsList) {
+        return callbacks.onSkillsList(input, event);
+      }
+      if (skillManager) {
+        const skills = await skillManager.listSkills(input.projectId);
+        return { skills: [...skills] };
+      }
+      return { skills: [] };
+    },
+  );
+
+  // 20. Skills Install command (PR26)
+  registry.registerCommand(
+    IPC_CHANNELS.SKILLS_INSTALL,
+    SkillsInstallCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onSkillsInstall) {
+        return callbacks.onSkillsInstall(input, event);
+      }
+      if (skillInstaller) {
+        const res = await skillInstaller.install(input.sourceDir, { projectId: input.projectId });
+        if (!res.ok) {
+          throw res.error;
+        }
+        return { skill: res.value };
+      }
+      throw new Error("SkillInstaller is not available");
+    },
+  );
+
+  // 21. Skills Uninstall command (PR26)
+  registry.registerCommand(
+    IPC_CHANNELS.SKILLS_UNINSTALL,
+    SkillsUninstallCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onSkillsUninstall) {
+        return callbacks.onSkillsUninstall(input, event);
+      }
+      if (skillInstaller) {
+        await skillInstaller.uninstall(asSkillId(input.skillId));
+        return { uninstalled: true };
+      }
+      return { uninstalled: true };
+    },
+  );
+
+  // 22. Skills Enable command (PR26)
+  registry.registerCommand(
+    IPC_CHANNELS.SKILLS_ENABLE,
+    SkillsEnableCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onSkillsEnable) {
+        return callbacks.onSkillsEnable(input, event);
+      }
+      if (skillManager) {
+        await skillManager.enable(asSkillId(input.skillId), input.projectId);
+        return { enabled: true };
+      }
+      throw new Error("SkillManager is not available");
+    },
+  );
+
+  // 23. Skills Disable command (PR26)
+  registry.registerCommand(
+    IPC_CHANNELS.SKILLS_DISABLE,
+    SkillsDisableCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onSkillsDisable) {
+        return callbacks.onSkillsDisable(input, event);
+      }
+      if (skillManager) {
+        await skillManager.disable(asSkillId(input.skillId), input.projectId);
+        return { disabled: true };
+      }
+      throw new Error("SkillManager is not available");
+    },
+  );
+
+  // 24. Skills Get command (PR26)
+  registry.registerCommand(
+    IPC_CHANNELS.SKILLS_GET,
+    SkillsGetCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onSkillsGet) {
+        return callbacks.onSkillsGet(input, event);
+      }
+      if (skillManager) {
+        const skill = await skillManager.getSkillInfo(asSkillId(input.skillId));
+        return { skill: skill ?? null };
+      }
+      return { skill: null };
+    },
+  );
+
+  // 25. Skills References Load command (PR26)
+  registry.registerCommand(
+    IPC_CHANNELS.SKILLS_REFERENCES_LOAD,
+    SkillsReferencesLoadCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onSkillsReferencesLoad) {
+        return callbacks.onSkillsReferencesLoad(input, event);
+      }
+      if (skillManager) {
+        const content = await skillManager.loadReference(
+          asSkillId(input.skillId),
+          input.relativePath,
+        );
+        return { content };
+      }
+      throw new Error("SkillManager is not available");
     },
   );
 }

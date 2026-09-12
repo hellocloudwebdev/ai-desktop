@@ -108,3 +108,23 @@ model PermissionAuditRecord {
   @@index([timestamp])
   @@map("permission_audit")
 }
+
+// PR26: Installed Skill package metadata persistence
+// Stores install location, metadata, and enabled status.
+// Full package files remain on the local filesystem.
+model SkillRecord {
+  id          String   @id          // canonical SkillId (e.g. "code-review", "git-helper")
+  name        String                // user-facing display name
+  version     String                // SemVer (e.g. "1.0.0")
+  description String
+  source      String                // e.g. "local"
+  installPath String                // absolute local filesystem path
+  checksum    String                // package/manifest checksum
+  installedAt BigInt                // epoch milliseconds
+  updatedAt   BigInt                // epoch milliseconds
+  enabled     Boolean  @default(false)
+  projectId   String?               // optional project-specific enablement
+
+  @@index([projectId])
+  @@map("skills")
+}

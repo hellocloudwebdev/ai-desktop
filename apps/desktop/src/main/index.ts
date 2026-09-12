@@ -29,12 +29,15 @@ import {
   PrismaProviderProfileRepository,
   PrismaConversationModelRepository,
   PrismaPermissionRepository,
+  PrismaSkillRepository,
   type EventRepository,
   type ProviderProfileRepository,
   type ConversationModelRepository,
   type PermissionRepository,
+  type SkillRepository,
 } from "@ai-desktop/storage";
 import { DefaultPermissionManager, type PermissionManager } from "@ai-desktop/permissions";
+import { SkillInstaller, SkillManager, SkillToolRegistry } from "@ai-desktop/skills";
 import { ActiveStreamRegistry, ChatService, ModelSelectionService } from "./chat/index.js";
 import { IpcBatcher } from "./ipc/batcher.js";
 import { IpcRegistry, registerIpcHandlers } from "./ipc/index.js";
@@ -59,6 +62,10 @@ let conversationModelRepository: ConversationModelRepository | null = null;
 let modelSelectionService: ModelSelectionService | null = null;
 let permissionRepository: PermissionRepository | null = null;
 let permissionManager: PermissionManager | null = null;
+let skillRepository: SkillRepository | null = null;
+let skillToolRegistry: SkillToolRegistry | null = null;
+let skillManager: SkillManager | null = null;
+let skillInstaller: SkillInstaller | null = null;
 
 export function getProviderRegistry(): ProviderRegistry {
   if (!providerRegistry) {
@@ -154,6 +161,49 @@ export function getPermissionManager(): PermissionManager {
     });
   }
   return permissionManager;
+}
+
+export function getSkillRepository(): SkillRepository {
+  if (!skillRepository) {
+    const { database: db } = getStorage();
+    skillRepository = new PrismaSkillRepository(db);
+  }
+  return skillRepository;
+}
+
+export function getSkillToolRegistry(): SkillToolRegistry {
+  if (!skillToolRegistry) {
+    skillToolRegistry = new SkillToolRegistry();
+  }
+  return skillToolRegistry;
+}
+
+export function getSkillManager(): SkillManager {
+  if (!skillManager) {
+    skillManager = new SkillManager({
+      repository: getSkillRepository(),
+      toolRegistry: getSkillToolRegistry(),
+    });
+  }
+  return skillManager;
+}
+
+export function getSkillInstaller(): SkillInstaller {
+  if (!skillInstaller) {
+    const baseDir =
+      app && typeof app.getPath === "function"
+        ? path.join(app.getPath("userData"), "skills")
+        : path.resolve(process.cwd(), ".ai-desktop/skills");
+
+    skillInstaller = new SkillInstaller({
+      installBaseDir: baseDir,
+      repository: getSkillRepository(),
+      onUninstall: (skillId) => {
+        getSkillToolRegistry().unregisterSkillTools(skillId);
+      },
+    });
+  }
+  return skillInstaller;
 }
 
 /**
@@ -268,6 +318,8 @@ export function initIpc(options?: {
   chatService?: ChatService;
   permissionManager?: PermissionManager;
   modelSelectionService?: ModelSelectionService;
+  skillManager?: SkillManager;
+  skillInstaller?: SkillInstaller;
 }): IpcRegistry {
   if (!ipcRegistry) {
     ipcRegistry = new IpcRegistry();
@@ -276,6 +328,8 @@ export function initIpc(options?: {
     const chat = options?.chatService ?? getChatService({ streamRegistry });
     const modelSelection = options?.modelSelectionService ?? getModelSelectionService();
     const permissions = options?.permissionManager ?? getPermissionManager();
+    const skills = options?.skillManager ?? getSkillManager();
+    const installer = options?.skillInstaller ?? getSkillInstaller();
 
     registerIpcHandlers(ipcRegistry, {
       streamRegistry,
@@ -283,6 +337,8 @@ export function initIpc(options?: {
       chatService: chat,
       modelSelectionService: modelSelection,
       permissionManager: permissions,
+      skillManager: skills,
+      skillInstaller: installer,
     });
   }
   return ipcRegistry;

@@ -47,6 +47,15 @@ export const IPC_CHANNELS = {
   PERMISSION_RESOLVE: "permission:resolve",
   PERMISSION_REVOKE: "permission:revoke",
   PERMISSION_POLICIES_LIST: "permission:policies-list",
+
+  // Skill operations (PR26)
+  SKILLS_LIST: "skills:list",
+  SKILLS_INSTALL: "skills:install",
+  SKILLS_UNINSTALL: "skills:uninstall",
+  SKILLS_ENABLE: "skills:enable",
+  SKILLS_DISABLE: "skills:disable",
+  SKILLS_GET: "skills:get",
+  SKILLS_REFERENCES_LOAD: "skills:references-load",
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];
@@ -270,6 +279,76 @@ export const PermissionPoliciesListCommandSchema = z
   .default({});
 
 export type PermissionPoliciesListCommand = z.infer<typeof PermissionPoliciesListCommandSchema>;
+
+/**
+ * Command to list skills (PR26).
+ */
+export const SkillsListCommandSchema = z
+  .object({
+    projectId: z.string().trim().min(1).optional(),
+  })
+  .optional()
+  .default({});
+
+export type SkillsListCommand = z.infer<typeof SkillsListCommandSchema>;
+
+/**
+ * Command to install a skill (PR26).
+ */
+export const SkillsInstallCommandSchema = z.object({
+  sourceDir: z.string().trim().min(1),
+  projectId: z.string().trim().min(1).optional(),
+});
+
+export type SkillsInstallCommand = z.infer<typeof SkillsInstallCommandSchema>;
+
+/**
+ * Command to uninstall a skill (PR26).
+ */
+export const SkillsUninstallCommandSchema = z.object({
+  skillId: z.string().trim().min(1),
+});
+
+export type SkillsUninstallCommand = z.infer<typeof SkillsUninstallCommandSchema>;
+
+/**
+ * Command to enable a skill (PR26).
+ */
+export const SkillsEnableCommandSchema = z.object({
+  skillId: z.string().trim().min(1),
+  projectId: z.string().trim().min(1).optional(),
+});
+
+export type SkillsEnableCommand = z.infer<typeof SkillsEnableCommandSchema>;
+
+/**
+ * Command to disable a skill (PR26).
+ */
+export const SkillsDisableCommandSchema = z.object({
+  skillId: z.string().trim().min(1),
+  projectId: z.string().trim().min(1).optional(),
+});
+
+export type SkillsDisableCommand = z.infer<typeof SkillsDisableCommandSchema>;
+
+/**
+ * Command to get a skill info (PR26).
+ */
+export const SkillsGetCommandSchema = z.object({
+  skillId: z.string().trim().min(1),
+});
+
+export type SkillsGetCommand = z.infer<typeof SkillsGetCommandSchema>;
+
+/**
+ * Command to load reference content on demand (PR26).
+ */
+export const SkillsReferencesLoadCommandSchema = z.object({
+  skillId: z.string().trim().min(1),
+  relativePath: z.string().trim().min(1),
+});
+
+export type SkillsReferencesLoadCommand = z.infer<typeof SkillsReferencesLoadCommandSchema>;
 
 // ---------------------------------------------------------------------------
 // Event Contracts (Main Process -> Renderer)
