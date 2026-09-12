@@ -24,6 +24,7 @@ export type ExecutionId = Brand<string, "ExecutionId">;
 export type TaskNodeId = Brand<string, "TaskNodeId">;
 export type ProviderId = Brand<string, "ProviderId">;
 export type ModelId = Brand<string, "ModelId">;
+export type SkillId = Brand<string, "SkillId">;
 
 const ULID_PATTERN = /^[0123456789ABCDEFGHJKMNPQRSTVWXYZ]{26}$/i;
 
@@ -59,6 +60,16 @@ export const ModelIdSchema = z
   })
   .transform((val) => val.toLowerCase() as ModelId);
 
+export const SkillIdSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(64)
+  .regex(SEMANTIC_ID_PATTERN, {
+    message: "SkillId must be lowercase alphanumeric with optional dot/dash/underscore/colon",
+  })
+  .transform((val) => val.toLowerCase() as SkillId);
+
 export function createEventId(seedTime?: number): EventId {
   return generateUlid(seedTime) as EventId;
 }
@@ -77,6 +88,14 @@ export function asProviderId(raw: string): ProviderId {
 
 export function asModelId(raw: string): ModelId {
   return raw.toLowerCase() as ModelId;
+}
+
+export function asSkillId(raw: string): SkillId {
+  return raw.toLowerCase() as SkillId;
+}
+
+export function parseSkillId(raw: string): SkillId {
+  return SkillIdSchema.parse(raw);
 }
 
 export function parseEventId(raw: string): EventId {

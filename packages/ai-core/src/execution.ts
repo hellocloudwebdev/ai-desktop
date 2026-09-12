@@ -86,3 +86,11 @@ export type ExecutionResult = {
   readonly timestamp: Timestamp;
   readonly metadata?: Readonly<Record<string, unknown>>;
 };
+
+/**
+ * Canonical interface for executing isolated scripts and commands.
+ * Implemented exclusively by packages/execution.
+ */
+export interface ExecutionManager {
+  execute(request: ExecutionRequest, signal?: AbortSignal): Promise<ExecutionResult>;
+}

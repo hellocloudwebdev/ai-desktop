@@ -44,3 +44,7 @@ export type {
   FindAuditQuery,
 } from "./permissions/permission-repository.js";
 export { PrismaPermissionRepository } from "./permissions/prisma-permission-repository.js";
+
+// PR26: Skill metadata and enablement persistence
+export type { SkillRepository, StoredSkill, CreateSkillData } from "./skills/skill-repository.js";
+export { PrismaSkillRepository } from "./skills/prisma-skill-repository.js";

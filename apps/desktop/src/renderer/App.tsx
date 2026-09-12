@@ -21,6 +21,10 @@ export function App(): React.ReactElement {
   const [availableModels, setAvailableModels] = useState<ModelDefinition[]>([]);
   const [selectedModelId, setSelectedModelId] = useState<string>("");
   const [pendingPermissions, setPendingPermissions] = useState<PermissionRequest[]>([]);
+  const [skills, setSkills] = useState<
+    Array<{ id: string; name: string; state: string; enabled: boolean; active?: boolean }>
+  >([]);
+  const [showSkills, setShowSkills] = useState<boolean>(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   // Auto-scroll to latest message
@@ -208,6 +212,15 @@ export function App(): React.ReactElement {
       }
     });
 
+    // PR26: Load installed skills
+    window.api.commands.listSkills().then((res) => {
+      if (res.ok && res.value.skills) {
+        setSkills(
+          res.value.skills as Array<{ id: string; name: string; state: string; enabled: boolean }>,
+        );
+      }
+    });
+
     // 1. Restart recovery: reload historical conversation state from SQLite WAL events
     window.api.commands
       .loadConversation({ conversationId: conversationId as ConversationId })
@@ -271,6 +284,26 @@ export function App(): React.ReactElement {
       setPendingPermissions((prev) => prev.filter((p) => p.id !== requestId));
     } catch (err) {
       console.warn("Failed to resolve permission request:", err);
+    }
+  };
+
+  // PR26: Skill toggle enable/disable handler
+  const handleToggleSkill = async (skillId: string, currentlyEnabled: boolean) => {
+    if (!window.api) return;
+    try {
+      if (currentlyEnabled) {
+        await window.api.commands.disableSkill({ skillId });
+      } else {
+        await window.api.commands.enableSkill({ skillId });
+      }
+      const res = await window.api.commands.listSkills();
+      if (res.ok && res.value.skills) {
+        setSkills(
+          res.value.skills as Array<{ id: string; name: string; state: string; enabled: boolean }>,
+        );
+      }
+    } catch (err) {
+      console.warn("Failed to toggle skill:", err);
     }
   };
 
@@ -356,6 +389,54 @@ export function App(): React.ReactElement {
                 </option>
               ))}
             </select>
+          </div>
+
+          {/* Skills Management Trigger (PR26.17) */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowSkills((v) => !v)}
+              className="rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 px-2.5 py-1 text-xs text-slate-200 focus:outline-none transition-colors"
+            >
+              Skills ({skills.filter((s) => s.enabled).length})
+            </button>
+            {showSkills && (
+              <div className="absolute right-0 mt-2 w-64 rounded-xl bg-slate-900 border border-slate-700 p-3 shadow-xl z-50">
+                <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800">
+                  <span className="font-semibold text-xs text-white">Installed Skills</span>
+                  <span className="text-[10px] text-slate-400 font-mono">
+                    {skills.length} packages
+                  </span>
+                </div>
+                {skills.length === 0 ? (
+                  <p className="text-xs text-slate-500 py-2">No skills installed.</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {skills.map((s) => (
+                      <li key={s.id} className="flex items-center justify-between text-xs">
+                        <div>
+                          <div className="font-medium text-slate-200">{s.name}</div>
+                          <div className="text-[10px] text-slate-400">
+                            {s.active ? "Active" : s.enabled ? "Enabled" : "Disabled"}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleSkill(s.id, s.enabled)}
+                          className={`rounded px-2 py-0.5 text-[10px] font-medium ${
+                            s.enabled
+                              ? "bg-emerald-800 hover:bg-emerald-700 text-emerald-100"
+                              : "bg-slate-800 hover:bg-slate-700 text-slate-300"
+                          }`}
+                        >
+                          {s.enabled ? "Enabled" : "Enable"}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="flex items-center space-x-3 text-xs text-slate-400 font-mono">
