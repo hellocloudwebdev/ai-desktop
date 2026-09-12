@@ -57,6 +57,9 @@ importers:
       '@ai-desktop/execution':
         specifier: workspace:*
         version: link:../../packages/execution
+      '@ai-desktop/memory':
+        specifier: workspace:*
+        version: link:../../packages/memory
       '@ai-desktop/permissions':
         specifier: workspace:*
         version: link:../../packages/permissions
@@ -229,6 +232,19 @@ importers:
         version: 4.1.10(@types/node@24.13.3)(vite@8.1.0(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0))
 
   packages/memory:
+    dependencies:
+      '@ai-desktop/ai-core':
+        specifier: workspace:*
+        version: link:../ai-core
+      '@ai-desktop/shared':
+        specifier: workspace:*
+        version: link:../shared
+      '@ai-desktop/storage':
+        specifier: workspace:*
+        version: link:../storage
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
     devDependencies:
       eslint:
         specifier: ^10.10.0
@@ -239,6 +255,9 @@ importers:
       typescript-eslint:
         specifier: ^8.69.0
         version: 8.69.0(eslint@10.10.0(jiti@2.7.0)(supports-color@7.2.0))(supports-color@7.2.0)(typescript@5.9.3)
+      vitest:
+        specifier: 4.1.10
+        version: 4.1.10(@types/node@24.13.3)(vite@8.1.0(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0))
 
   packages/permissions:
     dependencies:
