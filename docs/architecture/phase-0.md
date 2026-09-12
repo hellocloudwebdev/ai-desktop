@@ -1,10 +1,10 @@
 # Phase 0 — What Exists and What Does Not
 
 This document prevents the repository (and its documentation) from claiming functionality
-that does not exist. It reflects the state after **PR25 (MCP Foundation)** and
+that does not exist. It reflects the state after **PR27 (Execution Engine)** and
 is updated as each PR lands.
 
-## Implemented (as of PR25)
+## Implemented (as of PR27)
 
 - Repository foundation: pnpm workspace + Turborepo task graph (`build`, `dev`,
   `typecheck`, `lint`, `test`).
@@ -363,6 +363,22 @@ is updated as each PR lands.
   - Enforces tool timeouts (soft warning + hard timeout terminating operation via `AbortSignal`) and the global 256 KB result ceiling.
   - Multi-server namespace isolation and idempotent connect/disconnect lifecycle.
   - 26 unit and integration tests across server configuration, converter, tool registry, in-process host, and security lifecycle; 444 total tests passing workspace-wide.
+- Skills foundation (`packages/skills`, PR26):
+  - Skill package architecture (`Skill ≠ Agent`): packages instructions, references, assets, and executable scripts without owning an autonomous agent loop.
+  - Reuses canonical `SkillId` from `ai-core`.
+  - Enforced lifecycle states: `Installed -> Enabled -> Active`. Inactive skills have zero tools registered in `ToolRegistry`.
+  - Manifest validation (`SkillManifestSchema`) enforcing SemVer, capability declarations, and strict relative path safety (forbidding path traversal `..` and absolute paths).
+  - Pre-execution checksum verification: SHA-256 script checksum verified immediately before execution; tampered scripts on disk are blocked immediately.
+  - On-demand reference content loading with path containment and 512 KB per-file ceiling.
+  - 17 unit and integration tests in `packages/skills`.
+- Sandboxed execution engine (`packages/execution`, PR27):
+  - Canonical separation of `Session` (workspace, mounts, environment state) from `Execution` (single command/process invocation).
+  - `DefaultExecutionManager`: orchestrates `validation -> permission -> session -> sandboxProvider.execute()`. Zero Docker-specific code in `ExecutionManager`.
+  - `SandboxProvider` contract and `DockerProvider` / `LocalProcessSandboxProvider` implementations.
+  - `DockerProvider`: enforces non-root container execution (`--user 1000:1000`), explicit workspace mounting (read-only by default, forbids root, `/etc`, `$HOME`, docker socket), restricted networking by default (`--network none`), actual resource enforcement (CPU `--cpus`, memory `--memory`, PID `--pids-limit=100`), hard wall-clock timeout terminating underlying container, and orphan container cleanup.
+  - `LocalProcessSandboxProvider`: process containment with environment allowlisting (never wholesale `process.env`), hard wall-clock timeouts, cooperative `AbortSignal` cancellation, and global 256 KB result ceiling.
+  - Skill script execution integration: Skill scripts execute exclusively through `ExecutionManager` and `SandboxProvider` with pre-execution checksum verification.
+  - 18 unit and integration tests in `packages/execution`; 479 total tests passing workspace-wide.
 - All remaining canonical packages stay **empty shells** (`package.json`, `tsconfig.json`,
   `src/index.ts` placeholder) — deliberately no premature domain functionality inside them.
 - Toolchain: TypeScript 5.9.3, ESLint 10.10.0, Vitest 4.1.10, Vite 8.1.0, Prettier 3.9.6,
@@ -371,7 +387,7 @@ is updated as each PR lands.
 
 ## Not yet implemented
 
-- `skills` (Skill loader & execution) — Skills milestone.
+- `memory` (Memory storage & retrieval) — Memory milestone.
 - Autonomous multi-step Agent loop / tools orchestration — Agent Runtime milestone.
 - Full workspace multi-column layout — Workspace milestone.
 
@@ -383,7 +399,7 @@ The claims above are checkable:
 pnpm install && pnpm typecheck && pnpm lint && pnpm test && pnpm build
 ```
 
-All five succeed across the shared, ai-core, agent-runtime (EventBus), permissions, storage, providers, mcp, and desktop packages,
-while future packages remain shells. A repository search finds no `dockerode` or future runtime
-classes (`ExecutionManager`, `MemoryStore`, `AgentLoop`) anywhere in implementation files.
+All five succeed across the shared, ai-core, agent-runtime (EventBus), permissions, storage, providers, mcp, skills, execution, and desktop packages,
+while future packages remain shells. A repository search finds no future runtime
+classes (`MemoryStore`, `AgentLoop`) anywhere in implementation files.
 `@modelcontextprotocol/sdk` is strictly isolated within `packages/mcp`; `@anthropic-ai/sdk` and `@google/genai` are strictly isolated within `packages/providers`; `electron` is strictly isolated within `apps/desktop`.
