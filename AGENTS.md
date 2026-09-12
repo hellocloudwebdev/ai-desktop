@@ -65,8 +65,9 @@ The dependency graph is locked in `docs/architecture/dependency-graph.json` and 
 - `providers`: Depends on `ai-core`, `shared`, and vendor SDKs (`@anthropic-ai/sdk`, `@google/genai` — quarantined here).
 - `storage`: Depends on `ai-core`, `shared`, and internal Prisma.
 - `permissions`: Depends on `ai-core`, `shared` (and future `storage`).
+- `mcp`: Depends on `ai-core`, `storage`, `permissions`, `shared`, and `@modelcontextprotocol/sdk` (quarantined here).
 - `agent-runtime`: In-process EventBus (PR6); full orchestration is deferred.
-- **Shells Stay Empty:** Do not prematurely implement future packages (`mcp`, `skills`, `execution`, `memory`, `plugins`) until their dedicated PR milestone. `providers`, `storage`, and `desktop` are now implemented.
+- **Shells Stay Empty:** Do not prematurely implement future packages (`skills`, `execution`, `memory`, `plugins`) until their dedicated PR milestone. `providers`, `storage`, `permissions`, `desktop`, and `mcp` are now implemented.
 
 ---
 
@@ -74,25 +75,26 @@ The dependency graph is locked in `docs/architecture/dependency-graph.json` and 
 
 Do **NOT** "helpfully" upgrade package versions without a verified toolchain compatibility pass:
 
-| Component                    | Pinned Version             | Architectural Reason                                                                        |
-| :--------------------------- | :------------------------- | :------------------------------------------------------------------------------------------ |
-| **Node.js**                  | `>= 22` (tested on `24.x`) | LTS foundation matching Vite 8 requirements                                                 |
-| **pnpm**                     | `11.25.0`                  | Pinned via root `package.json` `packageManager`                                             |
-| **Turborepo**                | `2.10.12`                  | Monorepo build and task orchestration                                                       |
-| **TypeScript**               | `5.9.3`                    | **Do NOT upgrade to TypeScript 7.x.** `typescript-eslint` officially supports TS `< 6.1.0`. |
-| **ESLint**                   | `10.10.0`                  | Flat config foundation                                                                      |
-| **typescript-eslint**        | `^8.69.0`                  | Strict type linting                                                                         |
-| **eslint-plugin-boundaries** | `7.2.0`                    | AST-level architecture boundary enforcement                                                 |
-| **Vitest**                   | `4.1.10`                   | Unit test runner                                                                            |
-| **Vite**                     | `8.1.0`                    | Pinned peer foundation                                                                      |
-| **Zod**                      | `4.4.3`                    | Schema validation at process and contract boundaries                                        |
-| **Prisma**                   | `6.4.1`                    | SQLite persistence with WAL mode strictly inside `storage`                                  |
-| **@napi-rs/keyring**         | `2.0.0`                    | Native OS keychain binding (Windows Credential Manager / macOS / Linux) inside `storage`    |
-| **@anthropic-ai/sdk**        | `0.124.0`                  | Official Anthropic SDK strictly inside `packages/providers`                                 |
-| **@google/genai**            | `2.21.0`                   | Official Google Gemini SDK strictly inside `packages/providers`                             |
-| **Electron**                 | `44.0.0`                   | Desktop application shell strictly inside `apps/desktop`                                    |
-| **React**                    | `19.2.8`                   | Frontend UI library strictly inside `apps/desktop`                                          |
-| **Tailwind CSS**             | `4.3.3`                    | Utility-first CSS styling via `@tailwindcss/vite` in `apps/desktop`                         |
+| Component                     | Pinned Version             | Architectural Reason                                                                        |
+| :---------------------------- | :------------------------- | :------------------------------------------------------------------------------------------ |
+| **Node.js**                   | `>= 22` (tested on `24.x`) | LTS foundation matching Vite 8 requirements                                                 |
+| **pnpm**                      | `11.25.0`                  | Pinned via root `package.json` `packageManager`                                             |
+| **Turborepo**                 | `2.10.12`                  | Monorepo build and task orchestration                                                       |
+| **TypeScript**                | `5.9.3`                    | **Do NOT upgrade to TypeScript 7.x.** `typescript-eslint` officially supports TS `< 6.1.0`. |
+| **ESLint**                    | `10.10.0`                  | Flat config foundation                                                                      |
+| **typescript-eslint**         | `^8.69.0`                  | Strict type linting                                                                         |
+| **eslint-plugin-boundaries**  | `7.2.0`                    | AST-level architecture boundary enforcement                                                 |
+| **Vitest**                    | `4.1.10`                   | Unit test runner                                                                            |
+| **Vite**                      | `8.1.0`                    | Pinned peer foundation                                                                      |
+| **Zod**                       | `4.4.3`                    | Schema validation at process and contract boundaries                                        |
+| **Prisma**                    | `6.4.1`                    | SQLite persistence with WAL mode strictly inside `storage`                                  |
+| **@napi-rs/keyring**          | `2.0.0`                    | Native OS keychain binding (Windows Credential Manager / macOS / Linux) inside `storage`    |
+| **@anthropic-ai/sdk**         | `0.124.0`                  | Official Anthropic SDK strictly inside `packages/providers`                                 |
+| **@google/genai**             | `2.21.0`                   | Official Google Gemini SDK strictly inside `packages/providers`                             |
+| **@modelcontextprotocol/sdk** | `1.30.0`                   | Official MCP SDK strictly inside `packages/mcp`                                             |
+| **Electron**                  | `44.0.0`                   | Desktop application shell strictly inside `apps/desktop`                                    |
+| **React**                     | `19.2.8`                   | Frontend UI library strictly inside `apps/desktop`                                          |
+| **Tailwind CSS**              | `4.3.3`                    | Utility-first CSS styling via `@tailwindcss/vite` in `apps/desktop`                         |
 
 ---
 
@@ -123,8 +125,9 @@ Do **NOT** "helpfully" upgrade package versions without a verified toolchain com
 | **PR21**  | `pr21-gemini-provider`                         | Complete | Concrete GeminiAdapter, Gemini 2.5 catalog, request/stream/error translation, 47 tests                                                                                      |
 | **PR22**  | `pr22-model-profile-selection` (`899055d`)     | Complete | ProviderProfile/ModelSelection contracts, SQLite profile + conversation-model persistence, ModelSelectionService routing, 7 IPC commands, renderer model selector, 47 tests |
 | **PR23**  | `pr23-multi-provider-chat-service` (`2e29588`) | Complete | Provider-neutral ChatService, ModelSelectionService routing, dynamic multi-provider execution, capability pre-check, sibling cancellation, cross-conv isolation, 17 tests   |
-| **PR24**  | `pr24-real-permissions`                        | Complete | DefaultPermissionManager, 5-dimension evaluation, 4 scopes, SQLite policy & audit persistence, batch coalescing, IPC & renderer approval, security tests, 35 tests          |
-| **PR25+** | —                                              | **NEXT** | Multi-provider persistence, Phase 2 Gate                                                                                                                                    |
+| **PR24**  | `pr24-real-permissions` (`6e7c58b`)            | Complete | DefaultPermissionManager, 5-dimension evaluation, 4 scopes, SQLite policy & audit persistence, batch coalescing, IPC & renderer approval, security tests, 35 tests          |
+| **PR25**  | `pr25-mcp-foundation`                          | Complete | MCPHost contract, InProcessMCPHost, MCP v2 SDK quarantine, tool discovery, ToolRegistry, McpToolExecutor with timeout & 256KB limit, tools/list_changed sync, 26 tests      |
+| **PR26+** | —                                              | **NEXT** | Skills foundation, tool execution engine                                                                                                                                    |
 
 ---
 
