@@ -42,6 +42,7 @@ import { DefaultPermissionManager, type PermissionManager } from "@ai-desktop/pe
 import { SkillInstaller, SkillManager, SkillToolRegistry } from "@ai-desktop/skills";
 import { MemoryService } from "@ai-desktop/memory";
 import { ActiveStreamRegistry, ChatService, ModelSelectionService } from "./chat/index.js";
+import { AgentService } from "./agent/index.js";
 import { IpcBatcher } from "./ipc/batcher.js";
 import { IpcRegistry, registerIpcHandlers } from "./ipc/index.js";
 
@@ -69,6 +70,7 @@ let skillRepository: SkillRepository | null = null;
 let skillToolRegistry: SkillToolRegistry | null = null;
 let skillManager: SkillManager | null = null;
 let skillInstaller: SkillInstaller | null = null;
+let agentService: AgentService | null = null;
 
 export function getProviderRegistry(): ProviderRegistry {
   if (!providerRegistry) {
@@ -304,6 +306,34 @@ export function getChatService(options?: {
   return chatService;
 }
 
+/**
+ * Desktop AgentService singleton (PR29.16): one AgentRuntime wired to the
+ * proven desktop foundations. MCP/Skill executors attach lazily when their
+ * hosts are available; without them, tool calls fail closed with a clear
+ * "no executor" error rather than executing blindly.
+ */
+export function getAgentService(options?: {
+  mcpExecutor?: ConstructorParameters<typeof AgentService>[0]["mcpExecutor"];
+  skillExecutor?: ConstructorParameters<typeof AgentService>[0]["skillExecutor"];
+}): AgentService {
+  if (!agentService || options) {
+    const service = new AgentService({
+      modelSelectionService: getModelSelectionService(),
+      permissionManager: getPermissionManager(),
+      memoryService: getMemoryService(),
+      eventBus: getEventBus(),
+      storage: getStorage().repository,
+      ...(options?.mcpExecutor ? { mcpExecutor: options.mcpExecutor } : {}),
+      ...(options?.skillExecutor ? { skillExecutor: options.skillExecutor } : {}),
+    });
+    if (!options) {
+      agentService = service;
+    }
+    return service;
+  }
+  return agentService;
+}
+
 export function getSecureWebPreferences(preloadPath: string): Electron.WebPreferences {
   return {
     preload: preloadPath,
@@ -356,6 +386,7 @@ export function initIpc(options?: {
   skillManager?: SkillManager;
   skillInstaller?: SkillInstaller;
   memoryService?: MemoryService;
+  agentService?: AgentService;
 }): IpcRegistry {
   if (!ipcRegistry) {
     ipcRegistry = new IpcRegistry();
@@ -367,6 +398,7 @@ export function initIpc(options?: {
     const skills = options?.skillManager ?? getSkillManager();
     const installer = options?.skillInstaller ?? getSkillInstaller();
     const memory = options?.memoryService ?? getMemoryService();
+    const agent = options?.agentService ?? getAgentService();
 
     registerIpcHandlers(ipcRegistry, {
       streamRegistry,
@@ -377,6 +409,7 @@ export function initIpc(options?: {
       skillManager: skills,
       skillInstaller: installer,
       memoryService: memory,
+      agentService: agent,
     });
   }
   return ipcRegistry;

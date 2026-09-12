@@ -42,6 +42,10 @@ import {
   MemoryDeleteCommandSchema,
   MemorySearchCommandSchema,
   MemorySupersedeCommandSchema,
+  AgentStartCommandSchema,
+  AgentCancelCommandSchema,
+  AgentGetCommandSchema,
+  AgentListCommandSchema,
   type ChatCancelCommand,
   type ChatSendCommand,
   type ChatStreamEvent,
@@ -71,6 +75,10 @@ import {
   type MemoryDeleteCommand,
   type MemorySearchCommand,
   type MemorySupersedeCommand,
+  type AgentStartCommand,
+  type AgentCancelCommand,
+  type AgentGetCommand,
+  type AgentListCommand,
   type IpcResponseEnvelope,
 } from "@ai-desktop/shared";
 import {
@@ -83,6 +91,7 @@ import {
 import type { PermissionManager } from "@ai-desktop/permissions";
 import type { SkillInstaller, SkillManager } from "@ai-desktop/skills";
 import type { MemoryService } from "@ai-desktop/memory";
+import type { AgentService } from "../agent/index.js";
 import type { ActiveStreamRegistry, ChatService, ModelSelectionService } from "../chat/index.js";
 import type { IpcBatcher } from "./batcher.js";
 
@@ -126,6 +135,10 @@ export interface RegisteredCommands {
   onMemoryDelete?: CommandHandler<MemoryDeleteCommand, { deleted: boolean }>;
   onMemorySearch?: CommandHandler<MemorySearchCommand, { facts: unknown[] }>;
   onMemorySupersede?: CommandHandler<MemorySupersedeCommand, { fact: unknown }>;
+  onAgentStart?: CommandHandler<AgentStartCommand, { result: unknown }>;
+  onAgentCancel?: CommandHandler<AgentCancelCommand, { cancelled: boolean }>;
+  onAgentGet?: CommandHandler<AgentGetCommand, { task: unknown }>;
+  onAgentList?: CommandHandler<AgentListCommand, { taskIds: string[] }>;
 }
 
 export interface RegisterIpcOptions {
@@ -138,6 +151,7 @@ export interface RegisterIpcOptions {
   skillManager?: SkillManager;
   skillInstaller?: SkillInstaller;
   memoryService?: MemoryService;
+  agentService?: AgentService;
 }
 
 export class IpcRegistry {
@@ -371,6 +385,8 @@ export function registerIpcHandlers(
     options && "skillInstaller" in options ? options.skillInstaller : undefined;
   const memoryService: MemoryService | undefined =
     options && "memoryService" in options ? options.memoryService : undefined;
+  const agentService: AgentService | undefined =
+    options && "agentService" in options ? options.agentService : undefined;
   if (batcher) {
     registry.attachBatcher(batcher);
   }
@@ -944,6 +960,82 @@ export function registerIpcHandlers(
         return { fact };
       }
       throw new Error("MemoryService is not available");
+    },
+  );
+
+  // 32. Agent Start command (PR29): runs a task to a single terminal state.
+  // Task.* events flow through EventBus -> batched renderer delivery + storage.
+  registry.registerCommand(
+    IPC_CHANNELS.AGENT_START,
+    AgentStartCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onAgentStart) {
+        return callbacks.onAgentStart(input, event);
+      }
+      if (agentService) {
+        const result = await agentService.startTask({
+          conversationId: input.conversationId,
+          goal: input.goal,
+          ...(input.projectId ? { projectId: input.projectId } : {}),
+          ...(input.modelId ? { modelId: input.modelId } : {}),
+          ...(input.systemPrompt ? { systemPrompt: input.systemPrompt } : {}),
+          ...(input.maxNodeIterations ? { maxNodeIterations: input.maxNodeIterations } : {}),
+        });
+        return { result };
+      }
+      throw new Error("AgentService is not available");
+    },
+  );
+
+  // 33. Agent Cancel command (PR29): downward-only cancellation.
+  registry.registerCommand(
+    IPC_CHANNELS.AGENT_CANCEL,
+    AgentCancelCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onAgentCancel) {
+        return callbacks.onAgentCancel(input, event);
+      }
+      if (agentService) {
+        const cancelled = agentService.cancelTask(input.taskId, input.reason);
+        return { cancelled };
+      }
+      throw new Error("AgentService is not available");
+    },
+  );
+
+  // 34. Agent Get command (PR29): status snapshot + node checklist.
+  registry.registerCommand(IPC_CHANNELS.AGENT_GET, AgentGetCommandSchema, async (input, event) => {
+    if (callbacks?.onAgentGet) {
+      return callbacks.onAgentGet(input, event);
+    }
+    if (agentService) {
+      const status = agentService.getTaskStatus(input.taskId);
+      if (status === undefined) {
+        throw new Error(`Unknown agent task "${input.taskId}"`);
+      }
+      return {
+        task: {
+          taskId: input.taskId,
+          status,
+          graph: agentService.getTaskGraph(input.taskId) ?? null,
+        },
+      };
+    }
+    throw new Error("AgentService is not available");
+  });
+
+  // 35. Agent List command (PR29): known in-process task ids.
+  registry.registerCommand(
+    IPC_CHANNELS.AGENT_LIST,
+    AgentListCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onAgentList) {
+        return callbacks.onAgentList(input, event);
+      }
+      if (agentService) {
+        return { taskIds: agentService.listTasks() };
+      }
+      throw new Error("AgentService is not available");
     },
   );
 }
