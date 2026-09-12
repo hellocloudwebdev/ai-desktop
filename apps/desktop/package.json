@@ -15,6 +15,7 @@
   "dependencies": {
     "@ai-desktop/agent-runtime": "workspace:*",
     "@ai-desktop/ai-core": "workspace:*",
+    "@ai-desktop/execution": "workspace:*",
     "@ai-desktop/permissions": "workspace:*",
     "@ai-desktop/providers": "workspace:*",
     "@ai-desktop/shared": "workspace:*",

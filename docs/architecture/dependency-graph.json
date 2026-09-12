@@ -79,6 +79,7 @@
       "internalDependencies": [
         "agent-runtime",
         "ai-core",
+        "execution",
         "permissions",
         "providers",
         "shared",

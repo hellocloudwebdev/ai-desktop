@@ -1,6 +1,6 @@
 # ai-desktop
 
-A desktop AI assistant. This repository is currently at **PR25 — MCP Foundation**:
+A desktop AI assistant. This repository is currently at **PR27 — Execution Engine**:
 shared primitives, canonical AI domain contracts, projections, in-process EventBus,
 permission checkpoint, SQLite WAL event repository, OS-backed credential store, canonical
 provider contracts, concrete `AnthropicAdapter`, concrete `GeminiAdapter`, Electron 44 desktop
@@ -12,11 +12,14 @@ multi-provider capability integration (Anthropic Claude and Google Gemini 2.5 fa
 provider profiles with per-conversation model selection (`ModelSelectionService`),
 the definitive provider-neutral `ChatService`, real `PermissionManager` (5-dimension
 evaluation, deterministic policy engine, 4 approval scopes, SQLite policy & audit persistence,
-batch coalescing, IPC & renderer approval prompt), and the first real MCP integration
-(`MCPHost` contract, `InProcessMCPHost`, MCP SDK quarantine, tool discovery, `ToolRegistry`,
-`McpToolExecutor` with 256 KB result limit and timeout handling, dynamic `tools/list_changed` sync)
-are implemented. Future packages remain empty shells awaiting their respective implementation
-PRs — see [docs/architecture/phase-0.md](docs/architecture/phase-0.md) for the honest list of what is
+batch coalescing, IPC & renderer approval prompt), real MCP integration (`MCPHost` contract,
+`InProcessMCPHost`, MCP SDK quarantine, tool discovery, `ToolRegistry`, `McpToolExecutor`),
+Skills foundation (`SkillManifestSchema`, package validation, `Installed -> Enabled -> Active` lifecycle,
+pre-execution checksum verification, on-demand references), and the sandboxed execution engine
+(`Session != Execution` separation, `DefaultExecutionManager`, `DockerProvider` with non-root
+execution, explicit read-only mounts, restricted networking, CPU/memory/PID limits, and
+`LocalProcessSandboxProvider`) are implemented. Future packages remain empty shells awaiting their respective
+implementation PRs — see [docs/architecture/phase-0.md](docs/architecture/phase-0.md) for the honest list of what is
 and is not implemented.
 
 ## Toolchain
@@ -71,13 +74,13 @@ mechanically enforced by `scripts/validate-dependencies.mjs` and `eslint-plugin-
 | `@ai-desktop/storage`       | persistence (PR8), secrets store (PR9), permission policies & audit (PR24)                                  | ai-core, shared                       |
 | `@ai-desktop/permissions`   | PermissionManager mediation, policy evaluator, SQLite policy & audit persistence (PR7, PR24)                | ai-core, storage, shared              |
 | `@ai-desktop/mcp`           | MCPHost, InProcessMCPHost, tool discovery, ToolRegistry, McpToolExecutor (PR25)                             | ai-core, storage, permissions, shared |
-| `@ai-desktop/skills`        | skill loader                                                                                                | ai-core, storage, shared              |
-| `@ai-desktop/execution`     | tool/code/container execution                                                                               | ai-core, permissions, storage, shared |
+| `@ai-desktop/skills`        | Skill package validation, lifecycle (Installed/Enabled/Active), checksums (PR26)                            | ai-core, storage, shared              |
+| `@ai-desktop/execution`     | sandboxed command execution, ExecutionManager, DockerProvider, LocalProcessSandboxProvider (PR27)           | ai-core, permissions, storage, shared |
 | `@ai-desktop/memory`        | memory storage                                                                                              | ai-core, storage, providers, shared   |
 | `@ai-desktop/agent-runtime` | in-process EventBus (PR6); orchestration (later)                                                            | all of the above                      |
 | `@ai-desktop/workspace`     | workspace UI                                                                                                | (later PRs)                           |
 | `@ai-desktop/plugins`       | plugin infrastructure                                                                                       | (not yet defined)                     |
-| `@ai-desktop/desktop`       | Electron shell, React renderer, typed IPC, multi-provider ChatService, permissions (PR12–PR18, PR22–PR24)   | agent-runtime, shared                 |
+| `@ai-desktop/desktop`       | Electron shell, React renderer, typed IPC, ChatService, permissions, skills (PR12–PR18, PR22–PR27)          | agent-runtime, shared                 |
 
 ## Repository layout
 
