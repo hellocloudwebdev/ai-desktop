@@ -31,6 +31,12 @@ import {
   type SkillsDisableCommand,
   type SkillsGetCommand,
   type SkillsReferencesLoadCommand,
+  type MemoryListCommand,
+  type MemoryGetCommand,
+  type MemoryUpdateCommand,
+  type MemoryDeleteCommand,
+  type MemorySearchCommand,
+  type MemorySupersedeCommand,
   type IpcResponseEnvelope,
 } from "@ai-desktop/shared";
 import type {
@@ -116,6 +122,18 @@ export interface DesktopApplicationApi {
     loadSkillReference(
       command: SkillsReferencesLoadCommand,
     ): Promise<IpcResponseEnvelope<{ content: string }>>;
+
+    // PR28: Memory management commands
+    listMemories(command?: MemoryListCommand): Promise<IpcResponseEnvelope<{ facts: unknown[] }>>;
+    getMemory(command: MemoryGetCommand): Promise<IpcResponseEnvelope<{ fact: unknown }>>;
+    updateMemory(command: MemoryUpdateCommand): Promise<IpcResponseEnvelope<{ fact: unknown }>>;
+    deleteMemory(command: MemoryDeleteCommand): Promise<IpcResponseEnvelope<{ deleted: boolean }>>;
+    searchMemories(
+      command: MemorySearchCommand,
+    ): Promise<IpcResponseEnvelope<{ facts: unknown[] }>>;
+    supersedeMemory(
+      command: MemorySupersedeCommand,
+    ): Promise<IpcResponseEnvelope<{ fact: unknown }>>;
   };
 
   /**
@@ -205,6 +223,24 @@ export function createDesktopApi(): DesktopApplicationApi {
       },
       async loadSkillReference(command: SkillsReferencesLoadCommand) {
         return ipcRenderer.invoke(IPC_CHANNELS.SKILLS_REFERENCES_LOAD, command);
+      },
+      async listMemories(command?: MemoryListCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.MEMORY_LIST, command ?? {});
+      },
+      async getMemory(command: MemoryGetCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.MEMORY_GET, command);
+      },
+      async updateMemory(command: MemoryUpdateCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.MEMORY_UPDATE, command);
+      },
+      async deleteMemory(command: MemoryDeleteCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.MEMORY_DELETE, command);
+      },
+      async searchMemories(command: MemorySearchCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.MEMORY_SEARCH, command);
+      },
+      async supersedeMemory(command: MemorySupersedeCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.MEMORY_SUPERSEDE, command);
       },
     },
 

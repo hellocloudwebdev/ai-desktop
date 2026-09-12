@@ -128,3 +128,26 @@ model SkillRecord {
   @@index([projectId])
   @@map("skills")
 }
+
+// PR28: Durable scoped memory facts persistence
+// Stores facts extracted from conversations with global/project scope isolation.
+// Raw credentials are never stored; superseded facts are kept for history, not retrieval.
+model MemoryFactRecord {
+  id                   String   @id      // canonical MemoryFactId (ULID)
+  scopeLevel           String             // "global" | "project"
+  projectId            String?            // required when scopeLevel = "project", null when global
+  content              String             // fact text (max 2000 chars, no raw credentials)
+  category             String             // "preference" | "fact" | "instruction" | "project_context" | "workflow"
+  sensitivity          String   @default("normal") // "normal" | "sensitive"
+  sourceConversationId String?            // optional conversation reference
+  confidence           Float    @default(1.0)      // 0.0 to 1.0
+  createdAt            BigInt             // epoch milliseconds
+  updatedAt            BigInt             // epoch milliseconds
+  supersededBy         String?            // MemoryFactId of replacing fact
+
+  @@index([scopeLevel])
+  @@index([projectId])
+  @@index([updatedAt])
+  @@index([supersededBy])
+  @@map("memory_facts")
+}

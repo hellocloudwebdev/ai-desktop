@@ -1,4 +1,4 @@
-// PR23: apps/desktop — Provider-Neutral Main Chat Service
+// PR23/PR28: apps/desktop — Provider-Neutral Main Chat Service
 //
 // Invariants (Step 39 & PR23):
 //   1. Provider-neutral execution: zero knowledge of Anthropic SDK, Gemini SDK,
@@ -15,6 +15,9 @@
 //  11. Stream cleanup (registry.remove) runs in a finally block.
 //  12. Distinguishes cancellation from provider errors; preserves partial transcripts upon cancellation.
 //  13. Idempotent cancellation: safe to call repeatedly or on completed/unknown streams.
+//  14. (PR28) import_guard injection: retrieves relevant facts via MemoryService after model
+//      resolution and prepends bounded, filtered memorycontext to systemPrompt.
+//      Memory never modifies historical messages and flows identically to every provider.
 
 import {
   BaseError,
@@ -49,6 +52,7 @@ import {
 } from "@ai-desktop/providers";
 import type { EventBus } from "@ai-desktop/agent-runtime";
 import type { EventRepository } from "@ai-desktop/storage";
+import type { MemoryService } from "@ai-desktop/memory";
 import { isTerminalEvent } from "../ipc/batcher.js";
 import type { ActiveStreamRegistry } from "./active-stream-registry.js";
 import type { ModelSelectionService } from "./model-selection-service.js";
@@ -71,9 +75,11 @@ export interface SendMessageInput {
   clientMessageId?: string;
   modelId?: string;
   profileId?: string;
+  projectId?: string;
   systemPrompt?: string;
   tools?: readonly ToolDefinition[];
   options?: ChatRequestOptions;
+  includeMemory?: boolean;
 }
 
 export interface SendMessageResult {
@@ -88,6 +94,7 @@ export interface ChatServiceDependencies {
   readonly streamRegistry: ActiveStreamRegistry;
   readonly eventBus: EventBus;
   readonly storage: EventRepository;
+  readonly memoryService?: MemoryService;
 }
 
 /**
@@ -141,16 +148,22 @@ export class ChatService {
   private readonly _streamRegistry: ActiveStreamRegistry;
   private readonly _eventBus: EventBus;
   private readonly _storage: EventRepository;
+  private readonly _memoryService?: MemoryService;
 
   constructor(deps: ChatServiceDependencies) {
     this._modelSelectionService = deps.modelSelectionService;
     this._streamRegistry = deps.streamRegistry;
     this._eventBus = deps.eventBus;
     this._storage = deps.storage;
+    this._memoryService = deps.memoryService;
   }
 
   get modelSelectionService(): ModelSelectionService {
     return this._modelSelectionService;
+  }
+
+  get memoryService(): MemoryService | undefined {
+    return this._memoryService;
   }
 
   get streamRegistry(): ActiveStreamRegistry {
@@ -231,11 +244,25 @@ export class ChatService {
       userMessageInput,
     ];
 
+    // 4a. PR28: Memory retrieval + bounded context assembly (after model/provider
+    // selection, before provider execution; provider-neutral — same text to every adapter).
+    let systemPrompt = input.systemPrompt;
+    if (this._memoryService && (input.includeMemory ?? true)) {
+      const memorySection = await this._memoryService.buildMemoryContext({
+        projectId: input.projectId,
+        query: input.content,
+      });
+      const memoryText = this._memoryService.formatMemoryContext(memorySection);
+      if (memoryText) {
+        systemPrompt = input.systemPrompt ? `${input.systemPrompt}\n\n${memoryText}` : memoryText;
+      }
+    }
+
     const chatRequest: ChatRequest = {
       conversationId,
       modelId: route.model.id,
       messages,
-      systemPrompt: input.systemPrompt,
+      systemPrompt,
       tools: input.tools,
       options: input.options,
     };

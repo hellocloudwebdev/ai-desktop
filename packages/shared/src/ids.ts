@@ -25,6 +25,7 @@ export type TaskId = Brand<string, "TaskId">;
 export type ToolCallId = Brand<string, "ToolCallId">;
 export type PermissionRequestId = Brand<string, "PermissionRequestId">;
 export type SessionId = Brand<string, "SessionId">;
+export type MemoryFactId = Brand<string, "MemoryFactId">;
 
 function getCrypto(): Crypto {
   if (
@@ -128,6 +129,10 @@ export function createSessionId(seedTime?: number): SessionId {
   return generateUlid(seedTime) as SessionId;
 }
 
+export function createMemoryFactId(seedTime?: number): MemoryFactId {
+  return generateUlid(seedTime) as MemoryFactId;
+}
+
 // ---------------------------------------------------------------------------
 // Branded ID Parsers (validate syntax and return branded types)
 // ---------------------------------------------------------------------------
@@ -174,6 +179,13 @@ export function parseSessionId(raw: string): SessionId {
   return raw.toUpperCase() as SessionId;
 }
 
+export function parseMemoryFactId(raw: string): MemoryFactId {
+  if (!isUlid(raw)) {
+    throw new TypeError(`Invalid MemoryFactId: "${raw}" is not a valid ULID`);
+  }
+  return raw.toUpperCase() as MemoryFactId;
+}
+
 // ---------------------------------------------------------------------------
 // Trusted Type Casting Helpers (for trusted persistence / test layers)
 // ---------------------------------------------------------------------------
@@ -200,4 +212,8 @@ export function asPermissionRequestId(raw: string): PermissionRequestId {
 
 export function asSessionId(raw: string): SessionId {
   return raw as SessionId;
+}
+
+export function asMemoryFactId(raw: string): MemoryFactId {
+  return raw as MemoryFactId;
 }

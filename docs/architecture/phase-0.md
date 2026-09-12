@@ -1,10 +1,10 @@
 # Phase 0 — What Exists and What Does Not
 
 This document prevents the repository (and its documentation) from claiming functionality
-that does not exist. It reflects the state after **PR27 (Execution Engine)** and
+that does not exist. It reflects the state after **PR28 (Memory Subsystem)** and
 is updated as each PR lands.
 
-## Implemented (as of PR27)
+## Implemented (as of PR28)
 
 - Repository foundation: pnpm workspace + Turborepo task graph (`build`, `dev`,
   `typecheck`, `lint`, `test`).
@@ -379,6 +379,15 @@ is updated as each PR lands.
   - `LocalProcessSandboxProvider`: process containment with environment allowlisting (never wholesale `process.env`), hard wall-clock timeouts, cooperative `AbortSignal` cancellation, and global 256 KB result ceiling.
   - Skill script execution integration: Skill scripts execute exclusively through `ExecutionManager` and `SandboxProvider` with pre-execution checksum verification.
   - 18 unit and integration tests in `packages/execution`; 479 total tests passing workspace-wide.
+- Scoped import_guard subsystem (`packages/ai-core`, `packages/memory`, `packages/storage`, `apps/desktop`, PR28):
+  - Canonical `MemoryFact` contract in `ai-core` (`memory.ts`): `id`, `scopeLevel` (`global` | `project`), `projectId` (required for project, absent for global), `content` (max 2000 chars), `category` (`preference` | `fact` | `instruction` | `project_context` | `workflow`), `sensitivity` (`normal` | `sensitive`), `sourceConversationId`, `confidence` (0.0–1.0), timestamps, and `supersededBy` reference. Raw credentials (API keys, tokens, private keys, passwords) rejected at schema level.
+  - `MemoryFactId` branded ULID added to `shared`/`ai-core` identifiers alongside existing ID vocabulary.
+  - `MemoryService` in `packages/memory`: CRUD over `MemoryRepository`, contradiction handling via `supersedeFact` (superseded facts kept for history, excluded from default retrieval), bounded import_guard context builder (`maxFacts`, `maxCharacters`) with scope attribution, sensitivity filtering (sensitive facts excluded from automatic injection), deterministic relevance retrieval (scope → term overlap → confidence → recency), injection disable toggle (facts remain stored, nothing injected), and project deletion cleanup (project facts removed, global memory survives).
+  - `MemoryRepository` abstraction in `packages/storage` backed by SQLite WAL `memory_facts` table (`PrismaMemoryRepository`); Prisma remains confined to storage. Indexed on `scopeLevel`, `projectId`, `updatedAt`, `supersededBy`.
+  - Incremental extractor (`extractFactsFromMessage`): operates on canonical message text only (never provider SDK data); classifies explicit user statements with high confidence (preference 0.95, instruction 0.9, project_context 0.85, workflow 0.8, fallback fact 0.7); skips short/generic text and anything resembling credentials.
+  - `ChatService` integration: retrieves memory via `MemoryService` after model/provider selection and prepends bounded, filtered memorycontext to `systemPrompt` — provider-neutral, identical mechanism for Anthropic and Gemini, historical messages untouched.
+  - Typed IPC: `memory:list`, `memory:get`, `memory:update`, `memory:delete`, `memory:search`, `memory:supersede` with Zod validation; preload bridge methods; renderer Memory popover with facts list, scope/category attribution, and delete actions.
+  - 26 tests in memory, 56 in storage, 116 in desktop; 497 total tests passing workspace-wide.
 - All remaining canonical packages stay **empty shells** (`package.json`, `tsconfig.json`,
   `src/index.ts` placeholder) — deliberately no premature domain functionality inside them.
 - Toolchain: TypeScript 5.9.3, ESLint 10.10.0, Vitest 4.1.10, Vite 8.1.0, Prettier 3.9.6,
@@ -387,7 +396,6 @@ is updated as each PR lands.
 
 ## Not yet implemented
 
-- `memory` (Memory storage & retrieval) — Memory milestone.
 - Autonomous multi-step Agent loop / tools orchestration — Agent Runtime milestone.
 - Full workspace multi-column layout — Workspace milestone.
 
@@ -399,7 +407,7 @@ The claims above are checkable:
 pnpm install && pnpm typecheck && pnpm lint && pnpm test && pnpm build
 ```
 
-All five succeed across the shared, ai-core, agent-runtime (EventBus), permissions, storage, providers, mcp, skills, execution, and desktop packages,
+All five succeed across the shared, ai-core, agent-runtime (EventBus), permissions, storage, providers, mcp, skills, execution, memory, and desktop packages,
 while future packages remain shells. A repository search finds no future runtime
-classes (`MemoryStore`, `AgentLoop`) anywhere in implementation files.
-`@modelcontextprotocol/sdk` is strictly isolated within `packages/mcp`; `@anthropic-ai/sdk` and `@google/genai` are strictly isolated within `packages/providers`; `electron` is strictly isolated within `apps/desktop`.
+classes (`AgentLoop`) anywhere in implementation files.
+`@modelcontextprotocol/sdk` is strictly isolated within `packages/mcp`; `@anthropic-ai/sdk` and `@google/genai` are strictly isolated within `packages/providers`; Prisma remains confined to `packages/storage`; `electron` is strictly isolated within `apps/desktop`.

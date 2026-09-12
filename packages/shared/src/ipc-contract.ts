@@ -56,6 +56,14 @@ export const IPC_CHANNELS = {
   SKILLS_DISABLE: "skills:disable",
   SKILLS_GET: "skills:get",
   SKILLS_REFERENCES_LOAD: "skills:references-load",
+
+  // Memory operations (PR28)
+  MEMORY_LIST: "memory:list",
+  MEMORY_GET: "memory:get",
+  MEMORY_UPDATE: "memory:update",
+  MEMORY_DELETE: "memory:delete",
+  MEMORY_SEARCH: "memory:search",
+  MEMORY_SUPERSEDE: "memory:supersede",
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];
@@ -349,6 +357,75 @@ export const SkillsReferencesLoadCommandSchema = z.object({
 });
 
 export type SkillsReferencesLoadCommand = z.infer<typeof SkillsReferencesLoadCommandSchema>;
+
+/**
+ * Command to list import_guard facts (PR28).
+ */
+export const MemoryListCommandSchema = z
+  .object({
+    projectId: z.string().trim().min(1).optional(),
+    category: z
+      .enum(["preference", "fact", "instruction", "project_context", "workflow"])
+      .optional(),
+    includeSuperseded: z.boolean().optional(),
+  })
+  .optional()
+  .default({});
+
+export type MemoryListCommand = z.infer<typeof MemoryListCommandSchema>;
+
+/**
+ * Command to get a single import_guard fact (PR28).
+ */
+export const MemoryGetCommandSchema = z.object({
+  id: z.string().trim().min(1),
+});
+
+export type MemoryGetCommand = z.infer<typeof MemoryGetCommandSchema>;
+
+/**
+ * Command to update a import_guard fact (PR28).
+ */
+export const MemoryUpdateCommandSchema = z.object({
+  id: z.string().trim().min(1),
+  content: z.string().trim().min(1).max(2000).optional(),
+  category: z.enum(["preference", "fact", "instruction", "project_context", "workflow"]).optional(),
+  sensitivity: z.enum(["normal", "sensitive"]).optional(),
+  confidence: z.number().min(0).max(1).optional(),
+});
+
+export type MemoryUpdateCommand = z.infer<typeof MemoryUpdateCommandSchema>;
+
+/**
+ * Command to delete a import_guard fact (PR28).
+ */
+export const MemoryDeleteCommandSchema = z.object({
+  id: z.string().trim().min(1),
+});
+
+export type MemoryDeleteCommand = z.infer<typeof MemoryDeleteCommandSchema>;
+
+/**
+ * Command to search memories with relevance retrieval (PR28).
+ */
+export const MemorySearchCommandSchema = z.object({
+  projectId: z.string().trim().min(1).optional(),
+  query: z.string().trim().min(1).optional(),
+  category: z.enum(["preference", "fact", "instruction", "project_context", "workflow"]).optional(),
+  limit: z.number().int().positive().max(50).optional(),
+});
+
+export type MemorySearchCommand = z.infer<typeof MemorySearchCommandSchema>;
+
+/**
+ * Command to supersede a import_guard fact with a replacement (PR28).
+ */
+export const MemorySupersedeCommandSchema = z.object({
+  id: z.string().trim().min(1),
+  supersededBy: z.string().trim().min(1),
+});
+
+export type MemorySupersedeCommand = z.infer<typeof MemorySupersedeCommandSchema>;
 
 // ---------------------------------------------------------------------------
 // Event Contracts (Main Process -> Renderer)

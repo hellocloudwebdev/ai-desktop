@@ -48,3 +48,12 @@ export { PrismaPermissionRepository } from "./permissions/prisma-permission-repo
 // PR26: Skill metadata and enablement persistence
 export type { SkillRepository, StoredSkill, CreateSkillData } from "./skills/skill-repository.js";
 export { PrismaSkillRepository } from "./skills/prisma-skill-repository.js";
+
+// PR28: Scoped import_guard facts persistence
+export type {
+  MemoryRepository,
+  StoredMemoryFact,
+  CreateMemoryFactData,
+  ListMemoryFactsQuery,
+} from "./memory/memory-repository.js";
+export { PrismaMemoryRepository } from "./memory/prisma-memory-repository.js";

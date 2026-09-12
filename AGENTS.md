@@ -68,8 +68,9 @@ The dependency graph is locked in `docs/architecture/dependency-graph.json` and 
 - `mcp`: Depends on `ai-core`, `storage`, `permissions`, `shared`, and `@modelcontextprotocol/sdk` (quarantined here).
 - `skills`: Depends on `ai-core`, `storage`, `shared`.
 - `execution`: Depends on `ai-core`, `permissions`, `storage`, `shared`.
+- `memory`: Depends on `ai-core`, `storage`, `shared`.
 - `agent-runtime`: In-process EventBus (PR6); full orchestration is deferred.
-- **Shells Stay Empty:** Do not prematurely implement future packages (`memory`, `plugins`) until their dedicated PR milestone. `providers`, `storage`, `permissions`, `mcp`, `skills`, `execution`, and `desktop` are now implemented.
+- **Shells Stay Empty:** Do not prematurely implement future packages (`plugins`) until their dedicated PR milestone. `providers`, `storage`, `permissions`, `mcp`, `skills`, `execution`, `memory`, and `desktop` are now implemented.
 
 ---
 
@@ -131,7 +132,8 @@ Do **NOT** "helpfully" upgrade package versions without a verified toolchain com
 | **PR25**  | `pr25-mcp-foundation`                          | Complete | MCPHost contract, InProcessMCPHost, MCP v2 SDK quarantine, tool discovery, ToolRegistry, McpToolExecutor with timeout & 256KB limit, tools/list_changed sync, 26 tests      |
 | **PR26**  | `pr26-skills-foundation` (`4830dc9`)           | Complete | Skill package architecture, manifest validation, lifecycle (Installed/Enabled/Active), pre-execution checksum verification, on-demand references, 17 tests                  |
 | **PR27**  | `pr27-execution-engine`                        | Complete | Sandboxed execution engine, Session vs Execution, DefaultExecutionManager, DockerProvider (non-root, mounts, env allowlist, limits), LocalProcessSandboxProvider, 18 tests  |
-| **PR28+** | —                                              | **NEXT** | Memory subsystem, Agent Runtime                                                                                                                                             |
+| **PR28**  | `pr28-memory-subsystem`                        | Complete | Scoped import_guard facts, extractor, deterministic retrieval, supersession, project isolation, bounded injection, SQLite persistence, IPC + renderer UI, 47 tests          |
+| **PR29+** | —                                              | **NEXT** | Agent Runtime                                                                                                                                                               |
 
 ---
 
