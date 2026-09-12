@@ -1,10 +1,10 @@
 # Phase 0 — What Exists and What Does Not
 
 This document prevents the repository (and its documentation) from claiming functionality
-that does not exist. It reflects the state after **PR24 (Real Permissions Foundation)** and
+that does not exist. It reflects the state after **PR25 (MCP Foundation)** and
 is updated as each PR lands.
 
-## Implemented (as of PR24)
+## Implemented (as of PR25)
 
 - Repository foundation: pnpm workspace + Turborepo task graph (`build`, `dev`,
   `typecheck`, `lint`, `test`).
@@ -351,6 +351,18 @@ is updated as each PR lands.
   - Typed IPC: `permission:check`, `permission:requests-list`, `permission:resolve`, `permission:revoke`, `permission:policies-list`.
   - Renderer approval UI with 4 distinct choices: Allow once, Allow for session, Allow for project, Deny.
   - 26 tests in permissions, 46 in storage, 106 in desktop, 418 total in workspace.
+- MCP foundation & tool discovery (`packages/mcp`, PR25):
+  - `MCPHost` application boundary contract and `InProcessMCPHost` implementation managing official `@modelcontextprotocol/sdk` (1.30.0) Client and Transport sessions.
+  - Complete MCP SDK quarantine: `@modelcontextprotocol/sdk` installed and used strictly within `packages/mcp`; zero SDK types escape to Agent Runtime or other packages.
+  - Verified MCP v2 package split: supports `stdio`, `sse`, and `in_memory` transports (for fast, hermetic testing).
+  - `McpServerConfigSchema`: validates configuration at runtime and strictly rejects raw credentials (`apiKey`, `password`, `secret`, `accessToken`, `authorization`).
+  - Canonical tool discovery: converts raw MCP tools into canonical `ToolDefinition` with `source = "mcp"`, `runtime = "mcp_protocol"`, locked stable tool ID `mcp:<serverId>/<toolName>`, and deterministic SHA-256 definition hash.
+  - `ToolRegistry`: manages discovered tools, detects definition hash changes, and invalidates affected trust grants.
+  - Dynamic `tools/list_changed` notification handling: listens for MCP server notifications and resyncs definitions without requiring client restarts.
+  - `McpToolExecutor`: enforces the universal tool lifecycle (`validation -> permission -> execution`). Input validation failure aborts before `PermissionManager.check()`; permission denial halts execution before the MCP backend is invoked.
+  - Enforces tool timeouts (soft warning + hard timeout terminating operation via `AbortSignal`) and the global 256 KB result ceiling.
+  - Multi-server namespace isolation and idempotent connect/disconnect lifecycle.
+  - 26 unit and integration tests across server configuration, converter, tool registry, in-process host, and security lifecycle; 444 total tests passing workspace-wide.
 - All remaining canonical packages stay **empty shells** (`package.json`, `tsconfig.json`,
   `src/index.ts` placeholder) — deliberately no premature domain functionality inside them.
 - Toolchain: TypeScript 5.9.3, ESLint 10.10.0, Vitest 4.1.10, Vite 8.1.0, Prettier 3.9.6,
@@ -359,7 +371,7 @@ is updated as each PR lands.
 
 ## Not yet implemented
 
-- `mcp` (MCP client/server integration) — MCP milestone.
+- `skills` (Skill loader & execution) — Skills milestone.
 - Autonomous multi-step Agent loop / tools orchestration — Agent Runtime milestone.
 - Full workspace multi-column layout — Workspace milestone.
 
@@ -371,7 +383,7 @@ The claims above are checkable:
 pnpm install && pnpm typecheck && pnpm lint && pnpm test && pnpm build
 ```
 
-All five succeed across the shared, ai-core, agent-runtime (EventBus), permissions, storage, providers, and desktop packages,
-while future packages remain shells. A repository search finds no `@modelcontextprotocol`, `dockerode`, or future runtime
-classes (`ToolExecutor`, `MCPHost`, `ExecutionManager`, `MemoryStore`, `AgentLoop`) anywhere in implementation files.
-`@anthropic-ai/sdk` is strictly isolated within `packages/providers`; `electron` is strictly isolated within `apps/desktop`.
+All five succeed across the shared, ai-core, agent-runtime (EventBus), permissions, storage, providers, mcp, and desktop packages,
+while future packages remain shells. A repository search finds no `dockerode` or future runtime
+classes (`ExecutionManager`, `MemoryStore`, `AgentLoop`) anywhere in implementation files.
+`@modelcontextprotocol/sdk` is strictly isolated within `packages/mcp`; `@anthropic-ai/sdk` and `@google/genai` are strictly isolated within `packages/providers`; `electron` is strictly isolated within `apps/desktop`.

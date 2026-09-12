@@ -1,6 +1,6 @@
 # ai-desktop
 
-A desktop AI assistant. This repository is currently at **PR24 — Real Permissions Foundation**:
+A desktop AI assistant. This repository is currently at **PR25 — MCP Foundation**:
 shared primitives, canonical AI domain contracts, projections, in-process EventBus,
 permission checkpoint, SQLite WAL event repository, OS-backed credential store, canonical
 provider contracts, concrete `AnthropicAdapter`, concrete `GeminiAdapter`, Electron 44 desktop
@@ -10,35 +10,38 @@ first vertical conversation slice, comprehensive persistence integration, the fo
 Phase 1 Acceptance Gate, runtime `ProviderRegistry`, validated provider configuration,
 multi-provider capability integration (Anthropic Claude and Google Gemini 2.5 families),
 provider profiles with per-conversation model selection (`ModelSelectionService`),
-the definitive provider-neutral `ChatService`, and the real `PermissionManager` (5-dimension
+the definitive provider-neutral `ChatService`, real `PermissionManager` (5-dimension
 evaluation, deterministic policy engine, 4 approval scopes, SQLite policy & audit persistence,
-batch coalescing, IPC & renderer approval prompt) are implemented. Future
-packages remain empty shells awaiting their respective implementation PRs — see
-[docs/architecture/phase-0.md](docs/architecture/phase-0.md) for the honest list of what is
+batch coalescing, IPC & renderer approval prompt), and the first real MCP integration
+(`MCPHost` contract, `InProcessMCPHost`, MCP SDK quarantine, tool discovery, `ToolRegistry`,
+`McpToolExecutor` with 256 KB result limit and timeout handling, dynamic `tools/list_changed` sync)
+are implemented. Future packages remain empty shells awaiting their respective implementation
+PRs — see [docs/architecture/phase-0.md](docs/architecture/phase-0.md) for the honest list of what is
 and is not implemented.
 
 ## Toolchain
 
-| Tool                     | Version                                  | Notes                                                              |
-| ------------------------ | ---------------------------------------- | ------------------------------------------------------------------ |
-| Node.js                  | >= 22 (developed on 24.16.0)             |                                                                    |
-| pnpm                     | 11.25.0                                  | pinned via `packageManager`                                        |
-| Turborepo                | 2.10.12                                  |                                                                    |
-| TypeScript               | 5.9.3                                    | TypeScript 7 deliberately not adopted without a compatibility pass |
-| Prettier                 | 3.9.6                                    |                                                                    |
-| ESLint                   | ^10.10.0 (+ `typescript-eslint` ^8.69.0) |                                                                    |
-| eslint-plugin-boundaries | 7.2.0                                    | AST-level dependency boundaries in per-package lint                |
-| Prisma                   | 6.4.1                                    | used strictly inside `@ai-desktop/storage`                         |
-| @anthropic-ai/sdk        | 0.124.0                                  | used strictly inside `@ai-desktop/providers`                       |
-| @google/genai            | 2.21.0                                   | used strictly inside `@ai-desktop/providers`                       |
-| Vitest                   | 4.1.10                                   | root test runner for repository tooling                            |
-| Vite                     | 8.1.0                                    | locked peer foundation for Vitest                                  |
-| Electron                 | 44.0.0                                   | desktop shell strictly inside `apps/desktop`                       |
-| React                    | 19.2.8                                   | UI renderer strictly inside `apps/desktop`                         |
-| Tailwind CSS             | 4.3.3                                    | UI styling via `@tailwindcss/vite` in `apps/desktop`               |
+| Tool                      | Version                                  | Notes                                                              |
+| ------------------------- | ---------------------------------------- | ------------------------------------------------------------------ |
+| Node.js                   | >= 22 (developed on 24.16.0)             |                                                                    |
+| pnpm                      | 11.25.0                                  | pinned via `packageManager`                                        |
+| Turborepo                 | 2.10.12                                  |                                                                    |
+| TypeScript                | 5.9.3                                    | TypeScript 7 deliberately not adopted without a compatibility pass |
+| Prettier                  | 3.9.6                                    |                                                                    |
+| ESLint                    | ^10.10.0 (+ `typescript-eslint` ^8.69.0) |                                                                    |
+| eslint-plugin-boundaries  | 7.2.0                                    | AST-level dependency boundaries in per-package lint                |
+| Prisma                    | 6.4.1                                    | used strictly inside `@ai-desktop/storage`                         |
+| @anthropic-ai/sdk         | 0.124.0                                  | used strictly inside `@ai-desktop/providers`                       |
+| @google/genai             | 2.21.0                                   | used strictly inside `@ai-desktop/providers`                       |
+| @modelcontextprotocol/sdk | 1.30.0                                   | used strictly inside `@ai-desktop/mcp`                             |
+| Vitest                    | 4.1.10                                   | root test runner for repository tooling                            |
+| Vite                      | 8.1.0                                    | locked peer foundation for Vitest                                  |
+| Electron                  | 44.0.0                                   | desktop shell strictly inside `apps/desktop`                       |
+| React                     | 19.2.8                                   | UI renderer strictly inside `apps/desktop`                         |
+| Tailwind CSS              | 4.3.3                                    | UI styling via `@tailwindcss/vite` in `apps/desktop`               |
 
-The MCP SDK and Docker tooling are intentionally **not** dependencies of this repository
-yet — neither of them may be installed before their own implementation PR.
+Docker tooling is intentionally **not** a dependency of this repository
+yet — it may not be installed before its own implementation PR.
 
 ## Quickstart
 
@@ -67,7 +70,7 @@ mechanically enforced by `scripts/validate-dependencies.mjs` and `eslint-plugin-
 | `@ai-desktop/providers`     | ProviderAdapter contract, Anthropic (PR11), Gemini (PR21), registry, profiles & model selection (PR19–PR22) | ai-core, shared                       |
 | `@ai-desktop/storage`       | persistence (PR8), secrets store (PR9), permission policies & audit (PR24)                                  | ai-core, shared                       |
 | `@ai-desktop/permissions`   | PermissionManager mediation, policy evaluator, SQLite policy & audit persistence (PR7, PR24)                | ai-core, storage, shared              |
-| `@ai-desktop/mcp`           | MCP host; SDK types stay here                                                                               | ai-core, storage, permissions, shared |
+| `@ai-desktop/mcp`           | MCPHost, InProcessMCPHost, tool discovery, ToolRegistry, McpToolExecutor (PR25)                             | ai-core, storage, permissions, shared |
 | `@ai-desktop/skills`        | skill loader                                                                                                | ai-core, storage, shared              |
 | `@ai-desktop/execution`     | tool/code/container execution                                                                               | ai-core, permissions, storage, shared |
 | `@ai-desktop/memory`        | memory storage                                                                                              | ai-core, storage, providers, shared   |
