@@ -1,6 +1,6 @@
 # ai-desktop
 
-A desktop AI assistant. This repository is currently at **PR27 — Execution Engine**:
+A desktop AI assistant. This repository is currently at **PR28 — Memory Subsystem**:
 shared primitives, canonical AI domain contracts, projections, in-process EventBus,
 permission checkpoint, SQLite WAL event repository, OS-backed credential store, canonical
 provider contracts, concrete `AnthropicAdapter`, concrete `GeminiAdapter`, Electron 44 desktop
@@ -15,10 +15,13 @@ evaluation, deterministic policy engine, 4 approval scopes, SQLite policy & audi
 batch coalescing, IPC & renderer approval prompt), real MCP integration (`MCPHost` contract,
 `InProcessMCPHost`, MCP SDK quarantine, tool discovery, `ToolRegistry`, `McpToolExecutor`),
 Skills foundation (`SkillManifestSchema`, package validation, `Installed -> Enabled -> Active` lifecycle,
-pre-execution checksum verification, on-demand references), and the sandboxed execution engine
+pre-execution checksum verification, on-demand references), sandboxed execution engine
 (`Session != Execution` separation, `DefaultExecutionManager`, `DockerProvider` with non-root
 execution, explicit read-only mounts, restricted networking, CPU/memory/PID limits, and
-`LocalProcessSandboxProvider`) are implemented. Future packages remain empty shells awaiting their respective
+`LocalProcessSandboxProvider`), and the scoped import_guard subsystem (`MemoryFact` contract,
+global/project scopes, SQLite `memory_facts` persistence, incremental extraction, deterministic
+relevance retrieval, `superseded_by` contradiction handling, project isolation, bounded prompt
+injection with sensitivity filtering) are implemented. Future packages remain empty shells awaiting their respective
 implementation PRs — see [docs/architecture/phase-0.md](docs/architecture/phase-0.md) for the honest list of what is
 and is not implemented.
 
@@ -76,7 +79,7 @@ mechanically enforced by `scripts/validate-dependencies.mjs` and `eslint-plugin-
 | `@ai-desktop/mcp`           | MCPHost, InProcessMCPHost, tool discovery, ToolRegistry, McpToolExecutor (PR25)                             | ai-core, storage, permissions, shared |
 | `@ai-desktop/skills`        | Skill package validation, lifecycle (Installed/Enabled/Active), checksums (PR26)                            | ai-core, storage, shared              |
 | `@ai-desktop/execution`     | sandboxed command execution, ExecutionManager, DockerProvider, LocalProcessSandboxProvider (PR27)           | ai-core, permissions, storage, shared |
-| `@ai-desktop/memory`        | memory storage                                                                                              | ai-core, storage, providers, shared   |
+| `@ai-desktop/memory`        | scoped import_guard facts, extractor, retriever, MemoryService (PR28)                                       | ai-core, storage, shared              |
 | `@ai-desktop/agent-runtime` | in-process EventBus (PR6); orchestration (later)                                                            | all of the above                      |
 | `@ai-desktop/workspace`     | workspace UI                                                                                                | (later PRs)                           |
 | `@ai-desktop/plugins`       | plugin infrastructure                                                                                       | (not yet defined)                     |

@@ -80,6 +80,7 @@
         "agent-runtime",
         "ai-core",
         "execution",
+        "memory",
         "permissions",
         "providers",
         "shared",

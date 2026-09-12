@@ -10,6 +10,7 @@ export * from "./identifiers.js";
 export * from "./content.js";
 export * from "./message.js";
 export * from "./tools.js";
+export * from "./memory.js";
 export * from "./permissions.js";
 export * from "./execution.js";
 export * from "./tasks.js";

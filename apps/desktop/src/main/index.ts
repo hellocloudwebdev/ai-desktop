@@ -30,14 +30,17 @@ import {
   PrismaConversationModelRepository,
   PrismaPermissionRepository,
   PrismaSkillRepository,
+  PrismaMemoryRepository,
   type EventRepository,
   type ProviderProfileRepository,
   type ConversationModelRepository,
   type PermissionRepository,
   type SkillRepository,
+  type MemoryRepository,
 } from "@ai-desktop/storage";
 import { DefaultPermissionManager, type PermissionManager } from "@ai-desktop/permissions";
 import { SkillInstaller, SkillManager, SkillToolRegistry } from "@ai-desktop/skills";
+import { MemoryService } from "@ai-desktop/memory";
 import { ActiveStreamRegistry, ChatService, ModelSelectionService } from "./chat/index.js";
 import { IpcBatcher } from "./ipc/batcher.js";
 import { IpcRegistry, registerIpcHandlers } from "./ipc/index.js";
@@ -206,6 +209,35 @@ export function getSkillInstaller(): SkillInstaller {
   return skillInstaller;
 }
 
+export function getMemoryRepository(): MemoryRepository {
+  return getMemoryRepositoryInternal();
+}
+
+function getMemoryRepositoryInternal(): MemoryRepository {
+  const existing = (globalThis as unknown as { __aiDesktopMemoryRepo?: MemoryRepository })
+    .__aiDesktopMemoryRepo;
+  if (existing) {
+    return existing;
+  }
+  const { database: db } = getStorage();
+  const repo = new PrismaMemoryRepository(db);
+  (globalThis as unknown as { __aiDesktopMemoryRepo?: MemoryRepository }).__aiDesktopMemoryRepo =
+    repo;
+  return repo;
+}
+
+export function getMemoryService(): MemoryService {
+  const existing = (globalThis as unknown as { __aiDesktopMemoryService?: MemoryService })
+    .__aiDesktopMemoryService;
+  if (existing) {
+    return existing;
+  }
+  const service = new MemoryService({ repository: getMemoryRepository() });
+  (globalThis as unknown as { __aiDesktopMemoryService?: MemoryService }).__aiDesktopMemoryService =
+    service;
+  return service;
+}
+
 /**
  * Attaches storage as a consumer on EventBus (§40.6, §40.18).
  * Ensures any canonical events published to EventBus are durably stored in SQLite WAL.
@@ -245,6 +277,7 @@ export function getEventBus(): EventBus {
 
 export function getChatService(options?: {
   modelSelectionService?: ModelSelectionService;
+  memoryService?: MemoryService;
   storage?: EventRepository;
   eventBus?: EventBus;
   streamRegistry?: ActiveStreamRegistry;
@@ -254,9 +287,11 @@ export function getChatService(options?: {
     const store = options?.storage ?? getStorage().repository;
     const registry = options?.streamRegistry ?? getActiveStreamRegistry();
     const modelSelection = options?.modelSelectionService ?? getModelSelectionService();
+    const memory = options?.memoryService ?? getMemoryService();
 
     const service = new ChatService({
       modelSelectionService: modelSelection,
+      memoryService: memory,
       streamRegistry: registry,
       eventBus: bus,
       storage: store,
@@ -320,6 +355,7 @@ export function initIpc(options?: {
   modelSelectionService?: ModelSelectionService;
   skillManager?: SkillManager;
   skillInstaller?: SkillInstaller;
+  memoryService?: MemoryService;
 }): IpcRegistry {
   if (!ipcRegistry) {
     ipcRegistry = new IpcRegistry();
@@ -330,6 +366,7 @@ export function initIpc(options?: {
     const permissions = options?.permissionManager ?? getPermissionManager();
     const skills = options?.skillManager ?? getSkillManager();
     const installer = options?.skillInstaller ?? getSkillInstaller();
+    const memory = options?.memoryService ?? getMemoryService();
 
     registerIpcHandlers(ipcRegistry, {
       streamRegistry,
@@ -339,6 +376,7 @@ export function initIpc(options?: {
       permissionManager: permissions,
       skillManager: skills,
       skillInstaller: installer,
+      memoryService: memory,
     });
   }
   return ipcRegistry;

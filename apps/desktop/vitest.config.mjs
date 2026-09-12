@@ -10,6 +10,7 @@ export default defineConfig({
       "@ai-desktop/shared": path.resolve(__dirname, "../../packages/shared/src/index.ts"),
       "@ai-desktop/ai-core": path.resolve(__dirname, "../../packages/ai-core/src/index.ts"),
       "@ai-desktop/execution": path.resolve(__dirname, "../../packages/execution/src/index.ts"),
+      "@ai-desktop/memory": path.resolve(__dirname, "../../packages/memory/src/index.ts"),
       "@ai-desktop/permissions": path.resolve(__dirname, "../../packages/permissions/src/index.ts"),
       "@ai-desktop/providers": path.resolve(__dirname, "../../packages/providers/src/index.ts"),
       "@ai-desktop/skills": path.resolve(__dirname, "../../packages/skills/src/index.ts"),

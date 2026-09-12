@@ -25,6 +25,16 @@ export function App(): React.ReactElement {
     Array<{ id: string; name: string; state: string; enabled: boolean; active?: boolean }>
   >([]);
   const [showSkills, setShowSkills] = useState<boolean>(false);
+  const [memories, setMemories] = useState<
+    Array<{
+      id: string;
+      content: string;
+      category: string;
+      scopeLevel: string;
+      projectId?: string | null;
+    }>
+  >([]);
+  const [showMemories, setShowMemories] = useState<boolean>(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   // Auto-scroll to latest message
@@ -221,6 +231,21 @@ export function App(): React.ReactElement {
       }
     });
 
+    // PR28: Load durable memories
+    window.api.commands.listMemories().then((res) => {
+      if (res.ok && res.value.facts) {
+        setMemories(
+          res.value.facts as Array<{
+            id: string;
+            content: string;
+            category: string;
+            scopeLevel: string;
+            projectId?: string | null;
+          }>,
+        );
+      }
+    });
+
     // 1. Restart recovery: reload historical conversation state from SQLite WAL events
     window.api.commands
       .loadConversation({ conversationId: conversationId as ConversationId })
@@ -304,6 +329,17 @@ export function App(): React.ReactElement {
       }
     } catch (err) {
       console.warn("Failed to toggle skill:", err);
+    }
+  };
+
+  // PR28: Memory delete handler
+  const handleDeleteMemory = async (factId: string) => {
+    if (!window.api) return;
+    try {
+      await window.api.commands.deleteMemory({ id: factId });
+      setMemories((prev) => prev.filter((m) => m.id !== factId));
+    } catch (err) {
+      console.warn("Failed to delete import_guard fact:", err);
     }
   };
 
@@ -431,6 +467,53 @@ export function App(): React.ReactElement {
                         >
                           {s.enabled ? "Enabled" : "Enable"}
                         </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Memory Management Trigger (PR28.13) */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowMemories((v) => !v)}
+              className="rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 px-2.5 py-1 text-xs text-slate-200 focus:outline-none transition-colors"
+            >
+              Memory ({memories.length})
+            </button>
+            {showMemories && (
+              <div className="absolute right-0 mt-2 w-80 rounded-xl bg-slate-900 border border-slate-700 p-3 shadow-xl z-50 max-h-96 overflow-y-auto">
+                <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800">
+                  <span className="font-semibold text-xs text-white">Durable Memory</span>
+                  <span className="text-[10px] text-slate-400 font-mono">
+                    {memories.length} facts
+                  </span>
+                </div>
+                {memories.length === 0 ? (
+                  <p className="text-xs text-slate-500 py-2">No import_guard facts stored yet.</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {memories.map((m) => (
+                      <li key={m.id} className="rounded-lg bg-slate-800/60 p-2 text-xs">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="rounded bg-slate-700 px-1.5 py-0.5 text-[10px] text-slate-300 font-mono">
+                            {m.scopeLevel === "project"
+                              ? `project:${m.projectId ?? "?"}`
+                              : "global"}
+                            /{m.category}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteMemory(m.id)}
+                            className="rounded px-1.5 py-0.5 text-[10px] font-medium bg-rose-900/60 hover:bg-rose-800 text-rose-200"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                        <div className="text-slate-200 leading-relaxed">{m.content}</div>
                       </li>
                     ))}
                   </ul>

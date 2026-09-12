@@ -1,0 +1,16 @@
+import { fileURLToPath } from "node:url";
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+  resolve: {
+    alias: {
+      "@ai-desktop/shared": fileURLToPath(new URL("../shared/src/index.ts", import.meta.url)),
+      "@ai-desktop/ai-core": fileURLToPath(new URL("../ai-core/src/index.ts", import.meta.url)),
+      "@ai-desktop/storage": fileURLToPath(new URL("../storage/src/index.ts", import.meta.url)),
+    },
+  },
+  test: {
+    include: ["src/**/*.test.ts"],
+    testTimeout: 20000,
+  },
+});

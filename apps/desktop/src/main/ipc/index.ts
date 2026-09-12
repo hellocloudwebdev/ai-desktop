@@ -36,6 +36,12 @@ import {
   SkillsDisableCommandSchema,
   SkillsGetCommandSchema,
   SkillsReferencesLoadCommandSchema,
+  MemoryListCommandSchema,
+  MemoryGetCommandSchema,
+  MemoryUpdateCommandSchema,
+  MemoryDeleteCommandSchema,
+  MemorySearchCommandSchema,
+  MemorySupersedeCommandSchema,
   type ChatCancelCommand,
   type ChatSendCommand,
   type ChatStreamEvent,
@@ -59,11 +65,24 @@ import {
   type SkillsDisableCommand,
   type SkillsGetCommand,
   type SkillsReferencesLoadCommand,
+  type MemoryListCommand,
+  type MemoryGetCommand,
+  type MemoryUpdateCommand,
+  type MemoryDeleteCommand,
+  type MemorySearchCommand,
+  type MemorySupersedeCommand,
   type IpcResponseEnvelope,
 } from "@ai-desktop/shared";
-import { asModelId, asProviderId, asSkillId, type AIEvent } from "@ai-desktop/ai-core";
+import {
+  asModelId,
+  asProviderId,
+  asSkillId,
+  asMemoryFactId,
+  type AIEvent,
+} from "@ai-desktop/ai-core";
 import type { PermissionManager } from "@ai-desktop/permissions";
 import type { SkillInstaller, SkillManager } from "@ai-desktop/skills";
+import type { MemoryService } from "@ai-desktop/memory";
 import type { ActiveStreamRegistry, ChatService, ModelSelectionService } from "../chat/index.js";
 import type { IpcBatcher } from "./batcher.js";
 
@@ -101,6 +120,12 @@ export interface RegisteredCommands {
   onSkillsDisable?: CommandHandler<SkillsDisableCommand, { disabled: boolean }>;
   onSkillsGet?: CommandHandler<SkillsGetCommand, { skill: unknown }>;
   onSkillsReferencesLoad?: CommandHandler<SkillsReferencesLoadCommand, { content: string }>;
+  onMemoryList?: CommandHandler<MemoryListCommand, { facts: unknown[] }>;
+  onMemoryGet?: CommandHandler<MemoryGetCommand, { fact: unknown }>;
+  onMemoryUpdate?: CommandHandler<MemoryUpdateCommand, { fact: unknown }>;
+  onMemoryDelete?: CommandHandler<MemoryDeleteCommand, { deleted: boolean }>;
+  onMemorySearch?: CommandHandler<MemorySearchCommand, { facts: unknown[] }>;
+  onMemorySupersede?: CommandHandler<MemorySupersedeCommand, { fact: unknown }>;
 }
 
 export interface RegisterIpcOptions {
@@ -112,6 +137,7 @@ export interface RegisterIpcOptions {
   permissionManager?: PermissionManager;
   skillManager?: SkillManager;
   skillInstaller?: SkillInstaller;
+  memoryService?: MemoryService;
 }
 
 export class IpcRegistry {
@@ -343,6 +369,8 @@ export function registerIpcHandlers(
     options && "skillManager" in options ? options.skillManager : undefined;
   const skillInstaller: SkillInstaller | undefined =
     options && "skillInstaller" in options ? options.skillInstaller : undefined;
+  const memoryService: MemoryService | undefined =
+    options && "memoryService" in options ? options.memoryService : undefined;
   if (batcher) {
     registry.attachBatcher(batcher);
   }
@@ -803,6 +831,119 @@ export function registerIpcHandlers(
         return { content };
       }
       throw new Error("SkillManager is not available");
+    },
+  );
+
+  // 26. Memory List command (PR28)
+  registry.registerCommand(
+    IPC_CHANNELS.MEMORY_LIST,
+    MemoryListCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onMemoryList) {
+        return callbacks.onMemoryList(input, event);
+      }
+      if (memoryService) {
+        const facts = await memoryService.searchMemories({
+          projectId: input.projectId,
+          category: input.category,
+          includeSuperseded: input.includeSuperseded,
+        });
+        return { facts: [...facts] };
+      }
+      return { facts: [] };
+    },
+  );
+
+  // 27. Memory Get command (PR28)
+  registry.registerCommand(
+    IPC_CHANNELS.MEMORY_GET,
+    MemoryGetCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onMemoryGet) {
+        return callbacks.onMemoryGet(input, event);
+      }
+      if (memoryService) {
+        const fact = await memoryService.getFactById(asMemoryFactId(input.id));
+        return { fact: fact ?? null };
+      }
+      return { fact: null };
+    },
+  );
+
+  // 28. Memory Update command (PR28)
+  registry.registerCommand(
+    IPC_CHANNELS.MEMORY_UPDATE,
+    MemoryUpdateCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onMemoryUpdate) {
+        return callbacks.onMemoryUpdate(input, event);
+      }
+      if (memoryService) {
+        const fact = await memoryService.updateFact(asMemoryFactId(input.id), {
+          content: input.content,
+          category: input.category,
+          sensitivity: input.sensitivity,
+          confidence: input.confidence,
+        });
+        return { fact };
+      }
+      throw new Error("MemoryService is not available");
+    },
+  );
+
+  // 29. Memory Delete command (PR28)
+  registry.registerCommand(
+    IPC_CHANNELS.MEMORY_DELETE,
+    MemoryDeleteCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onMemoryDelete) {
+        return callbacks.onMemoryDelete(input, event);
+      }
+      if (memoryService) {
+        await memoryService.deleteFact(asMemoryFactId(input.id));
+        return { deleted: true };
+      }
+      return { deleted: true };
+    },
+  );
+
+  // 30. Memory Search command (PR28)
+  registry.registerCommand(
+    IPC_CHANNELS.MEMORY_SEARCH,
+    MemorySearchCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onMemorySearch) {
+        return callbacks.onMemorySearch(input, event);
+      }
+      if (memoryService) {
+        const facts = await memoryService.searchMemories({
+          projectId: input.projectId,
+          query: input.query,
+          category: input.category,
+          limit: input.limit,
+        });
+        return { facts: [...facts] };
+      }
+      return { facts: [] };
+    },
+  );
+
+  // 31. Memory Supersede command (PR28)
+  registry.registerCommand(
+    IPC_CHANNELS.MEMORY_SUPERSEDE,
+    MemorySupersedeCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onMemorySupersede) {
+        return callbacks.onMemorySupersede(input, event);
+      }
+      if (memoryService) {
+        const fact = await memoryService.supersedeFact(
+          asMemoryFactId(input.id),
+          asMemoryFactId(input.supersededBy),
+        );
+        return { fact };
+      }
+      throw new Error("MemoryService is not available");
     },
   );
 }

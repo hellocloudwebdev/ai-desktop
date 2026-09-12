@@ -15,9 +15,13 @@ import {
   type ToolCallId,
   type PermissionRequestId,
   type SessionId,
+  type MemoryFactId,
   createSessionId,
   parseSessionId,
   asSessionId,
+  createMemoryFactId,
+  parseMemoryFactId,
+  asMemoryFactId,
 } from "@ai-desktop/shared";
 import { z } from "zod";
 
@@ -29,8 +33,16 @@ export type {
   ToolCallId,
   PermissionRequestId,
   SessionId,
+  MemoryFactId,
 };
-export { createSessionId, parseSessionId, asSessionId };
+export {
+  createSessionId,
+  parseSessionId,
+  asSessionId,
+  createMemoryFactId,
+  parseMemoryFactId,
+  asMemoryFactId,
+};
 
 export type EventId = Brand<string, "EventId">;
 export type ExecutionId = Brand<string, "ExecutionId">;
@@ -49,6 +61,7 @@ export const EventIdSchema = UlidSchema.transform((val) => val.toUpperCase() as 
 export const ExecutionIdSchema = UlidSchema.transform((val) => val.toUpperCase() as ExecutionId);
 export const TaskNodeIdSchema = UlidSchema.transform((val) => val.toUpperCase() as TaskNodeId);
 export const SessionIdSchema = UlidSchema.transform((val) => val.toUpperCase() as SessionId);
+export const MemoryFactIdSchema = UlidSchema.transform((val) => val.toUpperCase() as MemoryFactId);
 
 // Provider and Model IDs are stable semantic identifiers (e.g. "anthropic", "claude-3-5-sonnet", "gemini:gemini-2.5-flash")
 // rather than random ULIDs, but are strongly branded to prevent string confusion.
