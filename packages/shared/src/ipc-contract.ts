@@ -64,6 +64,12 @@ export const IPC_CHANNELS = {
   MEMORY_DELETE: "memory:delete",
   MEMORY_SEARCH: "memory:search",
   MEMORY_SUPERSEDE: "memory:supersede",
+
+  // Agent runtime operations (PR29)
+  AGENT_START: "agent:start",
+  AGENT_CANCEL: "agent:cancel",
+  AGENT_GET: "agent:get",
+  AGENT_LIST: "agent:list",
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];
@@ -426,6 +432,50 @@ export const MemorySupersedeCommandSchema = z.object({
 });
 
 export type MemorySupersedeCommand = z.infer<typeof MemorySupersedeCommandSchema>;
+
+// ---------------------------------------------------------------------------
+// Agent Runtime Commands (PR29)
+// ---------------------------------------------------------------------------
+
+/**
+ * Command to start a new agent task run (TaskGraph durable skeleton + per-node ReAct).
+ */
+export const AgentStartCommandSchema = z.object({
+  conversationId: ConversationIdSchema,
+  goal: z.string().trim().min(1).max(4000),
+  projectId: z.string().trim().min(1).max(256).optional(),
+  modelId: z.string().trim().min(1).max(128).optional(),
+  systemPrompt: z.string().trim().min(1).max(8000).optional(),
+  maxNodeIterations: z.number().int().positive().max(50).optional(),
+});
+
+export type AgentStartCommand = z.infer<typeof AgentStartCommandSchema>;
+
+/**
+ * Command to cancel a running agent task (downward-only cancellation).
+ */
+export const AgentCancelCommandSchema = z.object({
+  taskId: TaskIdSchema,
+  reason: z.string().trim().min(1).max(500).optional(),
+});
+
+export type AgentCancelCommand = z.infer<typeof AgentCancelCommandSchema>;
+
+/**
+ * Command to fetch one agent task's status snapshot.
+ */
+export const AgentGetCommandSchema = z.object({
+  taskId: TaskIdSchema,
+});
+
+export type AgentGetCommand = z.infer<typeof AgentGetCommandSchema>;
+
+/**
+ * Command to list known agent task ids (in-process registry).
+ */
+export const AgentListCommandSchema = z.object({});
+
+export type AgentListCommand = z.infer<typeof AgentListCommandSchema>;
 
 // ---------------------------------------------------------------------------
 // Event Contracts (Main Process -> Renderer)

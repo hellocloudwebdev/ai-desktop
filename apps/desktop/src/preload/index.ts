@@ -37,6 +37,10 @@ import {
   type MemoryDeleteCommand,
   type MemorySearchCommand,
   type MemorySupersedeCommand,
+  type AgentStartCommand,
+  type AgentCancelCommand,
+  type AgentGetCommand,
+  type AgentListCommand,
   type IpcResponseEnvelope,
 } from "@ai-desktop/shared";
 import type {
@@ -134,6 +138,14 @@ export interface DesktopApplicationApi {
     supersedeMemory(
       command: MemorySupersedeCommand,
     ): Promise<IpcResponseEnvelope<{ fact: unknown }>>;
+
+    // PR29: Agent runtime commands
+    startAgentTask(command: AgentStartCommand): Promise<IpcResponseEnvelope<{ result: unknown }>>;
+    cancelAgentTask(
+      command: AgentCancelCommand,
+    ): Promise<IpcResponseEnvelope<{ cancelled: boolean }>>;
+    getAgentTask(command: AgentGetCommand): Promise<IpcResponseEnvelope<{ task: unknown }>>;
+    listAgentTasks(command?: AgentListCommand): Promise<IpcResponseEnvelope<{ taskIds: string[] }>>;
   };
 
   /**
@@ -241,6 +253,18 @@ export function createDesktopApi(): DesktopApplicationApi {
       },
       async supersedeMemory(command: MemorySupersedeCommand) {
         return ipcRenderer.invoke(IPC_CHANNELS.MEMORY_SUPERSEDE, command);
+      },
+      async startAgentTask(command: AgentStartCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.AGENT_START, command);
+      },
+      async cancelAgentTask(command: AgentCancelCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.AGENT_CANCEL, command);
+      },
+      async getAgentTask(command: AgentGetCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.AGENT_GET, command);
+      },
+      async listAgentTasks(command?: AgentListCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.AGENT_LIST, command ?? {});
       },
     },
 

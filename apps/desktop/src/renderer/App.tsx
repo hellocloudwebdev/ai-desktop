@@ -35,6 +35,16 @@ export function App(): React.ReactElement {
     }>
   >([]);
   const [showMemories, setShowMemories] = useState<boolean>(false);
+  const [agentTasks, setAgentTasks] = useState<
+    Array<{
+      taskId: string;
+      status: string;
+      nodes: Array<{ id: string; goal: string; status: string }>;
+    }>
+  >([]);
+  const [showAgentTasks, setShowAgentTasks] = useState<boolean>(false);
+  const [agentGoal, setAgentGoal] = useState<string>("");
+  const [agentRunning, setAgentRunning] = useState<boolean>(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   // Auto-scroll to latest message
@@ -246,6 +256,11 @@ export function App(): React.ReactElement {
       }
     });
 
+    // PR29: Load known agent tasks (in-process registry snapshot)
+    window.api.commands.listAgentTasks().then(() => {
+      void refreshAgentTasks();
+    });
+
     // 1. Restart recovery: reload historical conversation state from SQLite WAL events
     window.api.commands
       .loadConversation({ conversationId: conversationId as ConversationId })
@@ -329,6 +344,85 @@ export function App(): React.ReactElement {
       }
     } catch (err) {
       console.warn("Failed to toggle skill:", err);
+    }
+  };
+
+  // PR29: Agent task handlers (TaskGraph + per-node ReAct orchestration mode)
+  const refreshAgentTasks = useCallback(async () => {
+    const api = window.api;
+    if (!api) return;
+    try {
+      const res = await api.commands.listAgentTasks();
+      if (res.ok && res.value.taskIds) {
+        const snapshots = await Promise.all(
+          res.value.taskIds.map(async (taskId: string) => {
+            try {
+              const got = await api.commands.getAgentTask({
+                taskId: taskId as unknown as import("@ai-desktop/shared").TaskId,
+              });
+              if (got.ok) {
+                const task = got.value.task as {
+                  taskId: string;
+                  status: string;
+                  graph: { nodes: Array<{ id: string; goal: string; status: string }> } | null;
+                };
+                return { taskId: task.taskId, status: task.status, nodes: task.graph?.nodes ?? [] };
+              }
+            } catch {
+              // Task may have settled between list and get; skip it
+            }
+            return null;
+          }),
+        );
+        setAgentTasks(
+          snapshots.filter(
+            (
+              t,
+            ): t is {
+              taskId: string;
+              status: string;
+              nodes: Array<{ id: string; goal: string; status: string }>;
+            } => t !== null,
+          ),
+        );
+      }
+    } catch (err) {
+      console.warn("Failed to list agent tasks:", err);
+    }
+  }, []);
+
+  const handleStartAgentTask = async () => {
+    if (!window.api) return;
+    const goal = agentGoal.trim();
+    if (!goal || agentRunning) return;
+    setAgentRunning(true);
+    try {
+      const res = await window.api.commands.startAgentTask({
+        conversationId: conversationId as ConversationId,
+        goal,
+      });
+      if (!res.ok) {
+        setErrorMessage(res.error.message);
+      } else {
+        setAgentGoal("");
+        await refreshAgentTasks();
+      }
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : "Failed to start agent task");
+    } finally {
+      setAgentRunning(false);
+    }
+  };
+
+  const handleCancelAgentTask = async (taskId: string) => {
+    if (!window.api) return;
+    try {
+      await window.api.commands.cancelAgentTask({
+        taskId: taskId as unknown as import("@ai-desktop/shared").TaskId,
+      });
+      await refreshAgentTasks();
+    } catch (err) {
+      console.warn("Failed to cancel agent task:", err);
     }
   };
 
@@ -514,6 +608,102 @@ export function App(): React.ReactElement {
                           </button>
                         </div>
                         <div className="text-slate-200 leading-relaxed">{m.content}</div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Agent Tasks Trigger (PR29.17): TaskGraph progress + Cancel */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                setShowAgentTasks((v) => !v);
+                void refreshAgentTasks();
+              }}
+              className="rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 px-2.5 py-1 text-xs text-slate-200 focus:outline-none transition-colors"
+            >
+              Agent (
+              {agentTasks.filter((t) => t.status === "active" || t.status === "blocked").length})
+            </button>
+            {showAgentTasks && (
+              <div className="absolute right-0 mt-2 w-96 rounded-xl bg-slate-900 border border-slate-700 p-3 shadow-xl z-50 max-h-96 overflow-y-auto">
+                <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800">
+                  <span className="font-semibold text-xs text-white">Agent Tasks</span>
+                  <span className="text-[10px] text-slate-400 font-mono">
+                    {agentTasks.length} tasks
+                  </span>
+                </div>
+                <div className="flex items-center space-x-2 mb-3">
+                  <input
+                    type="text"
+                    value={agentGoal}
+                    onChange={(e) => setAgentGoal(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") void handleStartAgentTask();
+                    }}
+                    placeholder="Describe a multi-step goal…"
+                    disabled={agentRunning}
+                    className="flex-1 rounded-lg bg-slate-800 border border-slate-700 px-2.5 py-1.5 text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void handleStartAgentTask()}
+                    disabled={agentRunning || !agentGoal.trim()}
+                    className="rounded-lg bg-indigo-700 hover:bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white transition-colors disabled:opacity-50"
+                  >
+                    {agentRunning ? "Starting…" : "Run"}
+                  </button>
+                </div>
+                {agentTasks.length === 0 ? (
+                  <p className="text-xs text-slate-500 py-2">No agent tasks yet.</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {agentTasks.map((t) => (
+                      <li key={t.taskId} className="rounded-lg bg-slate-800/60 p-2 text-xs">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="rounded bg-slate-700 px-1.5 py-0.5 text-[10px] text-slate-300 font-mono">
+                            {t.taskId.slice(0, 8)}… · {t.status}
+                          </span>
+                          {(t.status === "active" || t.status === "blocked") && (
+                            <button
+                              type="button"
+                              onClick={() => void handleCancelAgentTask(t.taskId)}
+                              className="rounded px-1.5 py-0.5 text-[10px] font-medium bg-rose-900/60 hover:bg-rose-800 text-rose-200"
+                            >
+                              Cancel
+                            </button>
+                          )}
+                        </div>
+                        {t.nodes.length > 0 && (
+                          <ul className="space-y-1 mt-1">
+                            {t.nodes.map((n) => (
+                              <li
+                                key={n.id}
+                                className="flex items-center space-x-1.5 text-[11px] text-slate-300"
+                              >
+                                <span
+                                  className={`inline-block h-1.5 w-1.5 rounded-full ${
+                                    n.status === "completed"
+                                      ? "bg-emerald-400"
+                                      : n.status === "failed"
+                                        ? "bg-rose-400"
+                                        : n.status === "active"
+                                          ? "bg-amber-400 animate-pulse"
+                                          : n.status === "blocked"
+                                            ? "bg-orange-400"
+                                            : "bg-slate-500"
+                                  }`}
+                                />
+                                <span className="truncate">{n.goal}</span>
+                                <span className="text-slate-500 font-mono">[{n.status}]</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
                       </li>
                     ))}
                   </ul>

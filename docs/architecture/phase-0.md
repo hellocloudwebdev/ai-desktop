@@ -1,10 +1,10 @@
 # Phase 0 — What Exists and What Does Not
 
 This document prevents the repository (and its documentation) from claiming functionality
-that does not exist. It reflects the state after **PR28 (Memory Subsystem)** and
+that does not exist. It reflects the state after **PR29 (Agent Runtime)** and
 is updated as each PR lands.
 
-## Implemented (as of PR28)
+## Implemented (as of PR29)
 
 - Repository foundation: pnpm workspace + Turborepo task graph (`build`, `dev`,
   `typecheck`, `lint`, `test`).
@@ -388,6 +388,40 @@ is updated as each PR lands.
   - `ChatService` integration: retrieves memory via `MemoryService` after model/provider selection and prepends bounded, filtered memorycontext to `systemPrompt` — provider-neutral, identical mechanism for Anthropic and Gemini, historical messages untouched.
   - Typed IPC: `memory:list`, `memory:get`, `memory:update`, `memory:delete`, `memory:search`, `memory:supersede` with Zod validation; preload bridge methods; renderer Memory popover with facts list, scope/category attribution, and delete actions.
   - 26 tests in memory, 56 in storage, 116 in desktop; 497 total tests passing workspace-wide.
+- Agent Runtime orchestration (`packages/agent-runtime`, `apps/desktop`, PR29):
+  - Hybrid design: `TaskGraph` is the durable skeleton (pure DAG with Kahn validation:
+    no self-dependency, valid references, zero cycles); the ReAct loop
+    (Observe → Reason → Act → Observe) runs inside each node.
+  - Provider-neutral `ModelInvoker`: resolves routes through `ModelSelectionService`
+    and consumes canonical `adapter.chat()` streams; `tool.call.requested` events are
+    the ReAct signal — no invented JSON function-call protocol.
+  - Universal `ToolInvoker`: routes `mcp:*` to `McpToolExecutor` and `skill:*` to
+    `SkillToolExecutor`; both keep their own validation → permission → execution lifecycle.
+  - Revisable planning: `replan()` adds/removes nodes mid-run with `task.replan` events
+    carrying full `TaskNode`-shaped `addedNodes` so replay restores revisions.
+  - Blocked states: external `PermissionGateway` reports deny/requires_user as blocked
+    without executing; `resumeTask` replays the exact pending tool calls (no duplicate
+    execution, no model drift); model text can never self-grant.
+  - Downward-only cancellation: per-task `AbortController` hierarchy aborts node
+    controllers then the task controller; siblings never touched; exactly one terminal
+    state (completed/failed/cancelled) per task.
+  - Retry policy: `MAX_AUTO_RETRIES = 1` for eligible transient technical failures only
+    (timeout/429/502/503/504/ECONNRESET); permission denials and semantic failures never retry.
+  - Event durability: every task emits `task.created/started/subtask.created/node.started/
+node.completed/node.failed/blocked/replan/completed/failed/cancelled` plus the
+    `tool.call.*` lifecycle through `EventSink → EventBus → storage`, so
+    `projectTaskGraph` replays any finished run into an equivalent graph.
+  - Memory integration: per-node retrieval through `MemoryProvider` with `projectId`
+    propagation; absent/failing memory degrades gracefully.
+  - Desktop wiring (`apps/desktop/src/main/agent/`): `AgentService` adapts the proven
+    foundations (selection, executors, `PermissionManager`, `MemoryService`,
+    EventBus/storage) to the runtime boundaries; `ChatService` coexistence is structural
+    (simple chat untouched; agent is an additional explicit mode).
+  - Typed IPC: `agent:start`, `agent:cancel`, `agent:get`, `agent:list` with Zod
+    validation; preload bridge methods; renderer Agent popover with goal input, task
+    list, per-node status checklist, and Cancel.
+  - 53 tests in agent-runtime, 131 in desktop (incl. provider/tool/security integration);
+    560 total tests passing workspace-wide.
 - All remaining canonical packages stay **empty shells** (`package.json`, `tsconfig.json`,
   `src/index.ts` placeholder) — deliberately no premature domain functionality inside them.
 - Toolchain: TypeScript 5.9.3, ESLint 10.10.0, Vitest 4.1.10, Vite 8.1.0, Prettier 3.9.6,
@@ -396,7 +430,8 @@ is updated as each PR lands.
 
 ## Not yet implemented
 
-- Autonomous multi-step Agent loop / tools orchestration — Agent Runtime milestone.
+- Claude-Code-style coding agent built on the runtime — Coding Agent milestone
+  (the PR29 TaskGraph + ReAct runtime is the orchestration foundation it consumes).
 - Full workspace multi-column layout — Workspace milestone.
 
 ## Verification
