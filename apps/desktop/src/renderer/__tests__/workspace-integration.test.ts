@@ -66,6 +66,8 @@ describe("renderer: workspace integration (PR31)", () => {
       "components/workspace/surfaces/ChatSurface.tsx",
       "components/workspace/surfaces/CodingSurface.tsx",
       "components/workspace/surfaces/TaskSurfaces.tsx",
+      "components/workspace/surfaces/ExtensionsSurface.tsx",
+      "workspace/extensions.ts",
       "components/workspace/WorkspaceSidebar.tsx",
       "components/workspace/WorkspaceInspector.tsx",
       "components/workspace/WorkspaceComposer.tsx",
@@ -81,6 +83,7 @@ describe("renderer: workspace integration (PR31)", () => {
       "@ai-desktop/providers",
       "@ai-desktop/mcp",
       "@ai-desktop/skills",
+      "@ai-desktop/plugins",
       'from "electron"',
       'from "node:',
     ];

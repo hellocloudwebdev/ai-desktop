@@ -45,6 +45,12 @@ import {
   type CodingCancelCommand,
   type CodingGetCommand,
   type CodingListCommand,
+  type ExtensionListCommand,
+  type ExtensionGetCommand,
+  type ExtensionInstallCommand,
+  type ExtensionUninstallCommand,
+  type ExtensionEnableCommand,
+  type ExtensionDisableCommand,
   type IpcResponseEnvelope,
 } from "@ai-desktop/shared";
 import type {
@@ -162,6 +168,32 @@ export interface DesktopApplicationApi {
     listCodingTasks(
       command?: CodingListCommand,
     ): Promise<IpcResponseEnvelope<{ taskIds: string[] }>>;
+
+    // PR32: Extension management commands (no extension:execute channel —
+    // execution flows through the agent tool router, never through IPC)
+    listExtensions(
+      command?: ExtensionListCommand,
+    ): Promise<IpcResponseEnvelope<{ extensions: unknown[] }>>;
+    getExtension(
+      command: ExtensionGetCommand,
+    ): Promise<IpcResponseEnvelope<{ extension: unknown }>>;
+    installExtension(
+      command: ExtensionInstallCommand,
+    ): Promise<IpcResponseEnvelope<{ extension: unknown }>>;
+    uninstallExtension(
+      command: ExtensionUninstallCommand,
+    ): Promise<IpcResponseEnvelope<{ uninstalled: boolean }>>;
+    enableExtension(
+      command: ExtensionEnableCommand,
+    ): Promise<IpcResponseEnvelope<{ extension: unknown }>>;
+    disableExtension(
+      command: ExtensionDisableCommand,
+    ): Promise<IpcResponseEnvelope<{ extension: unknown }>>;
+    setExtensionProjectEnabled(command: {
+      extensionId: string;
+      projectId: string;
+      enabled: boolean;
+    }): Promise<IpcResponseEnvelope<{ extension: unknown }>>;
   };
 
   /**
@@ -293,6 +325,36 @@ export function createDesktopApi(): DesktopApplicationApi {
       },
       async listCodingTasks(command?: CodingListCommand) {
         return ipcRenderer.invoke(IPC_CHANNELS.CODING_LIST, command ?? {});
+      },
+      async listExtensions(command?: ExtensionListCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.EXTENSION_LIST, command ?? {});
+      },
+      async getExtension(command: ExtensionGetCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.EXTENSION_GET, command);
+      },
+      async installExtension(command: ExtensionInstallCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.EXTENSION_INSTALL, command);
+      },
+      async uninstallExtension(command: ExtensionUninstallCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.EXTENSION_UNINSTALL, command);
+      },
+      async enableExtension(command: ExtensionEnableCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.EXTENSION_ENABLE, command);
+      },
+      async disableExtension(command: ExtensionDisableCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.EXTENSION_DISABLE, command);
+      },
+      async setExtensionProjectEnabled(command: {
+        extensionId: string;
+        projectId: string;
+        enabled: boolean;
+      }) {
+        return ipcRenderer.invoke(
+          command.enabled
+            ? IPC_CHANNELS.EXTENSION_PROJECT_ENABLE
+            : IPC_CHANNELS.EXTENSION_PROJECT_DISABLE,
+          { extensionId: command.extensionId, projectId: command.projectId },
+        );
       },
     },
 

@@ -69,8 +69,8 @@
     },
     "plugins": {
       "directory": "packages/plugins",
-      "internalDependencies": [],
-      "note": "Edges are not locked yet; the plugin architecture is a later decision."
+      "internalDependencies": ["ai-core", "shared"],
+      "note": "PR32 extension/plugin ecosystem foundation. Domain owns manifest, capability, lifecycle, registry, trust, event, and tool-contribution contracts; storage and permission mediation stay host-owned (storage repos + PermissionManager compose in apps/desktop)."
     }
   },
   "applications": {
@@ -82,6 +82,7 @@
         "execution",
         "memory",
         "permissions",
+        "plugins",
         "providers",
         "shared",
         "skills",

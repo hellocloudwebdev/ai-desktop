@@ -13,6 +13,7 @@ const SURFACE_TABS: Array<{ id: WorkspaceSurface; label: string }> = [
   { id: "tasks", label: "Tasks" },
   { id: "activity", label: "Activity" },
   { id: "files", label: "Files" },
+  { id: "extensions", label: "Extensions" },
 ];
 
 export function WorkspaceSidebar({
@@ -35,6 +36,7 @@ export function WorkspaceSidebar({
   memories,
   onToggleSkill,
   onDeleteMemory,
+  extensionsSummary,
 }: SidebarProps): React.ReactElement {
   return (
     <nav
@@ -69,7 +71,9 @@ export function WorkspaceSidebar({
                 ? ` (${codingActiveCount})`
                 : tab.id === "tasks" && agentActiveCount + codingActiveCount > 0
                   ? ` (${agentActiveCount + codingActiveCount})`
-                  : "";
+                  : tab.id === "extensions" && extensionsSummary.active > 0
+                    ? ` (${extensionsSummary.active})`
+                    : "";
             return (
               <li key={tab.id}>
                 <button

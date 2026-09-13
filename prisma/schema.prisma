@@ -151,3 +151,37 @@ model MemoryFactRecord {
   @@index([supersededBy])
   @@map("memory_facts")
 }
+
+// PR32: Installed extension package metadata persistence
+// Stores manifest reference (JSON), lifecycle/trust state, and install location.
+// Full extension package files remain on the local filesystem.
+model ExtensionRecord {
+  id           String   @id          // canonical ExtensionId (e.g. "my-extension")
+  name         String                // user-facing extension name
+  version      String                // SemVer (e.g. "1.0.0")
+  displayName  String?               // optional display name
+  description  String?               // optional description
+  manifest     String                // JSON-serialized extension manifest
+  manifestHash String                // manifest integrity hash
+  lifecycle    String                // e.g. "installed" | "enabled" | "disabled"
+  trust        String                // e.g. "untrusted" | "trusted"
+  installPath  String?               // optional absolute local filesystem path
+  installedAt  BigInt                // epoch milliseconds
+  updatedAt    BigInt                // epoch milliseconds
+
+  @@map("extension_records")
+}
+
+// PR32: Extension-to-project enablement bindings
+// Records per-project enablement of installed extensions.
+model ExtensionProjectBindingRecord {
+  extensionId String   // canonical ExtensionId
+  projectId   String   // canonical ProjectId
+  enabled     Boolean               // per-project enablement flag
+  createdAt   BigInt                // epoch milliseconds
+  updatedAt   BigInt                // epoch milliseconds
+
+  @@id([extensionId, projectId])
+  @@index([projectId])
+  @@map("extension_project_bindings")
+}

@@ -129,6 +129,7 @@ export interface DesktopToolRouterDeps {
   readonly mcpExecutor?: ToolExecutorLike;
   readonly skillExecutor?: ToolExecutorLike;
   readonly builtinExecutor?: ToolExecutorLike;
+  readonly pluginExecutor?: ToolExecutorLike;
 }
 
 /**
@@ -142,12 +143,14 @@ export class DesktopToolRouter implements ToolInvoker {
   private readonly _mcpExecutor?: DesktopToolRouterDeps["mcpExecutor"];
   private readonly _skillExecutor?: DesktopToolRouterDeps["skillExecutor"];
   private readonly _builtinExecutor?: DesktopToolRouterDeps["builtinExecutor"];
+  private readonly _pluginExecutor?: DesktopToolRouterDeps["pluginExecutor"];
 
   constructor(deps: DesktopToolRouterDeps) {
     this._permissionManager = deps.permissionManager;
     this._mcpExecutor = deps.mcpExecutor;
     this._skillExecutor = deps.skillExecutor;
     this._builtinExecutor = deps.builtinExecutor;
+    this._pluginExecutor = deps.pluginExecutor;
     void this._permissionManager;
   }
 
@@ -167,11 +170,13 @@ export class DesktopToolRouter implements ToolInvoker {
         timestamp: now(),
       } as ToolResult;
     }
-    const executor = toolName.startsWith("skill:")
-      ? this._skillExecutor
-      : toolName.startsWith("builtin:")
-        ? this._builtinExecutor
-        : this._mcpExecutor;
+    const executor = toolName.startsWith("plugin:")
+      ? this._pluginExecutor
+      : toolName.startsWith("skill:")
+        ? this._skillExecutor
+        : toolName.startsWith("builtin:")
+          ? this._builtinExecutor
+          : this._mcpExecutor;
     if (!executor) {
       return {
         toolCallId: context.toolCallId,
@@ -277,6 +282,7 @@ export interface AgentServiceDeps {
   readonly mcpExecutor?: DesktopToolRouterDeps["mcpExecutor"];
   readonly skillExecutor?: DesktopToolRouterDeps["skillExecutor"];
   readonly builtinExecutor?: DesktopToolRouterDeps["builtinExecutor"];
+  readonly pluginExecutor?: DesktopToolRouterDeps["pluginExecutor"];
   readonly maxNodeIterations?: number;
   readonly defaultModelId?: ModelId;
 }
@@ -299,6 +305,7 @@ export class AgentService {
         mcpExecutor: deps.mcpExecutor,
         skillExecutor: deps.skillExecutor,
         builtinExecutor: deps.builtinExecutor,
+        pluginExecutor: deps.pluginExecutor,
       }),
       eventSink,
       memoryProvider: new DesktopMemoryProvider({ memoryService: deps.memoryService }),

@@ -7,11 +7,13 @@ import React from "react";
 import type { WorkspaceStore } from "../../workspace/store.js";
 import { ChatSurface } from "./surfaces/ChatSurface.js";
 import { CodingSurface } from "./surfaces/CodingSurface.js";
+import { ExtensionsSurface } from "./surfaces/ExtensionsSurface.js";
 import { ActivitySurface, FilesSurface, TasksSurface } from "./surfaces/TaskSurfaces.js";
 import type {
   ActivityEventView,
   ChatSurfaceProps,
   CodingSurfaceProps,
+  ExtensionsSurfaceProps,
   FileEntryView,
   TasksSurfaceProps,
 } from "./surfaces/surface-props.js";
@@ -23,6 +25,7 @@ interface WorkspaceMainProps {
   readonly tasks: TasksSurfaceProps;
   readonly activity: ActivityEventView[];
   readonly files: FileEntryView[];
+  readonly extensions: ExtensionsSurfaceProps;
 }
 
 export function WorkspaceMain({
@@ -32,6 +35,7 @@ export function WorkspaceMain({
   tasks,
   activity,
   files,
+  extensions,
 }: WorkspaceMainProps): React.ReactElement {
   const surface = store.state.activeSurface;
   if (surface === "coding") {
@@ -45,6 +49,9 @@ export function WorkspaceMain({
   }
   if (surface === "files") {
     return <FilesSurface activeProjectId={store.state.activeProjectId} touchedFiles={files} />;
+  }
+  if (surface === "extensions") {
+    return <ExtensionsSurface {...extensions} />;
   }
   return <ChatSurface {...chat} />;
 }

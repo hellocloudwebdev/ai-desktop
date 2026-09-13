@@ -1,6 +1,6 @@
 # ai-desktop
 
-A desktop AI assistant. This repository is currently at **PR31 — Workspace**:
+A desktop AI assistant. This repository is currently at **PR32 — Extensions**:
 shared primitives, canonical AI domain contracts, projections, in-process EventBus,
 permission checkpoint, SQLite WAL event repository, OS-backed credential store, canonical
 provider contracts, concrete `AnthropicAdapter`, concrete `GeminiAdapter`, Electron 44 desktop
@@ -35,8 +35,14 @@ execution through `ExecutionManager`, `CodingAgentService` composing the PR29 ru
 composition layer (three-column shell extracted verbatim from the single-column App:
 sidebar navigation, main surfaces for chat/coding/tasks/activity/files, selection-driven
 inspector, surface-aware composer, collapsible/keyboard-resizable panels with versioned
-localStorage persistence, per-surface error boundaries, no new backend/IPC/domain) are
-implemented. Future packages remain empty shells awaiting their respective
+localStorage persistence, per-surface error boundaries, no new backend/IPC/domain), and the
+Extension / Plugin ecosystem foundation (canonical manifest with SemVer + capability
+declarations + secret rejection, lifecycle Installed→Enabled→Active→Disabled→Uninstalled,
+ExtensionRegistry with SHA-256 trust hashes, SQLite persistence with per-project bindings,
+capability-gated host context, `plugin:*` tool contributions through the canonical
+ToolRegistry and universal ToolExecutor lifecycle, `extension.custom` event boundary that
+cannot forge core events, `extension:*` typed IPC with narrow preload bridge and workspace
+Extensions surface) are implemented. Future packages remain empty shells awaiting their respective
 implementation PRs — see [docs/architecture/phase-0.md](docs/architecture/phase-0.md) for the honest list of what is
 and is not implemented.
 

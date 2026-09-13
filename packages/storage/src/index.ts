@@ -49,6 +49,19 @@ export { PrismaPermissionRepository } from "./permissions/prisma-permission-repo
 export type { SkillRepository, StoredSkill, CreateSkillData } from "./skills/skill-repository.js";
 export { PrismaSkillRepository } from "./skills/prisma-skill-repository.js";
 
+// PR32: Extension metadata and project bindings persistence
+export type {
+  ExtensionRepository,
+  StoredExtension,
+  CreateExtensionData,
+} from "./extensions/extension-repository.js";
+export { PrismaExtensionRepository } from "./extensions/prisma-extension-repository.js";
+export type {
+  ExtensionProjectBindingRepository,
+  StoredExtensionProjectBinding,
+} from "./extensions/extension-project-binding-repository.js";
+export { PrismaExtensionProjectBindingRepository } from "./extensions/prisma-extension-project-binding-repository.js";
+
 // PR28: Scoped import_guard facts persistence
 export type {
   MemoryRepository,

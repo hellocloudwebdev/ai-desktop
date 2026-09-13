@@ -8,9 +8,11 @@ import type {
   PermissionRequest,
 } from "@ai-desktop/ai-core";
 import { useWorkspaceStore } from "./workspace/store.js";
+import { fetchExtensionList, getExtensionCommands } from "./workspace/extensions.js";
 import { WorkspaceShell } from "./components/workspace/Workspace.js";
 import type {
   ActivityEventView,
+  ExtensionView,
   FileEntryView,
 } from "./components/workspace/surfaces/surface-props.js";
 
@@ -63,7 +65,78 @@ export function App(): React.ReactElement {
   const [activityEvents, setActivityEvents] = useState<ActivityEventView[]>([]);
   // Touched files derive from tool results in canonical events (PR31.11).
   const [touchedFiles, setTouchedFiles] = useState<FileEntryView[]>([]);
+  // PR32: extensions list + selection (App-owned backend state, surface is a
+  // pure view; commands arrive via the preload bridge).
+  const [extensions, setExtensions] = useState<ExtensionView[]>([]);
+  const [selectedExtensionId, setSelectedExtensionId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  // PR32: load the extension list through the preload bridge. No-ops when
+  // the bridge is absent (preload not yet updated, or non-Electron hosts).
+  const refreshExtensions = useCallback(async () => {
+    try {
+      const commands = getExtensionCommands();
+      if (!commands) return;
+      setExtensions(await fetchExtensionList(commands));
+    } catch (err) {
+      console.warn("Failed to list extensions:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshExtensions();
+  }, [refreshExtensions]);
+
+  // PR32: extension mutation handlers (mutate via bridge, then refresh).
+  const handleEnableExtension = useCallback(
+    async (extensionId: string) => {
+      const commands = getExtensionCommands();
+      if (!commands) return;
+      try {
+        await commands.enableExtension({ extensionId });
+        await refreshExtensions();
+      } catch (err) {
+        console.warn("Failed to enable extension:", err);
+      }
+    },
+    [refreshExtensions],
+  );
+
+  const handleDisableExtension = useCallback(
+    async (extensionId: string) => {
+      const commands = getExtensionCommands();
+      if (!commands) return;
+      try {
+        await commands.disableExtension({ extensionId });
+        await refreshExtensions();
+      } catch (err) {
+        console.warn("Failed to disable extension:", err);
+      }
+    },
+    [refreshExtensions],
+  );
+
+  const handleExtensionProjectToggle = useCallback(
+    async (extensionId: string, enabled: boolean) => {
+      const commands = getExtensionCommands();
+      if (!commands) return;
+      try {
+        await commands.setExtensionProjectEnabled({
+          extensionId,
+          projectId: workspace.state.activeProjectId,
+          enabled,
+        });
+        await refreshExtensions();
+      } catch (err) {
+        console.warn("Failed to toggle extension project:", err);
+      }
+    },
+    [refreshExtensions, workspace.state.activeProjectId],
+  );
+
+  const handleSelectExtension = useCallback((extensionId: string | null) => {
+    setSelectedExtensionId(extensionId);
+  }, []);
 
   // Auto-scroll to latest message
   const scrollToBottom = useCallback(() => {
@@ -668,6 +741,11 @@ export function App(): React.ReactElement {
         memories,
         onToggleSkill: (skillId, enabled) => void handleToggleSkill(skillId, enabled),
         onDeleteMemory: (factId) => void handleDeleteMemory(factId),
+        extensionsSummary: {
+          total: extensions.length,
+          active: extensions.filter((e) => e.lifecycle === "enabled" || e.lifecycle === "active")
+            .length,
+        },
       }}
       chat={{
         messages,
@@ -705,6 +783,16 @@ export function App(): React.ReactElement {
       }}
       activity={activityEvents}
       files={touchedFiles}
+      extensions={{
+        extensions,
+        activeProjectId: workspace.state.activeProjectId,
+        selectedExtensionId,
+        onSelectExtension: handleSelectExtension,
+        onEnable: (extensionId) => void handleEnableExtension(extensionId),
+        onDisable: (extensionId) => void handleDisableExtension(extensionId),
+        onProjectToggle: (extensionId, enabled) =>
+          void handleExtensionProjectToggle(extensionId, enabled),
+      }}
       inspector={{
         activeTask: activeTaskEntry,
         activeConversationId: conversationId,
