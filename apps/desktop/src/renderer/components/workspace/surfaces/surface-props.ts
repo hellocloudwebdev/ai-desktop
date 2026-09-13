@@ -101,6 +101,36 @@ export interface MemoryView {
   readonly projectId?: string | null;
 }
 
+export interface ExtensionView {
+  readonly id: string;
+  readonly name: string;
+  readonly version: string;
+  readonly displayName?: string;
+  readonly description?: string;
+  readonly capabilities: string[];
+  readonly lifecycle: "installed" | "enabled" | "active" | "disabled";
+  readonly trust: string;
+  readonly manifestHash: string;
+  readonly installedAt: string;
+  readonly updatedAt: string;
+  readonly enabledProjects: string[];
+}
+
+export interface ExtensionsSurfaceProps {
+  readonly extensions: ExtensionView[];
+  readonly activeProjectId: string;
+  readonly selectedExtensionId?: string | null;
+  onSelectExtension(extensionId: string | null): void;
+  onEnable(extensionId: string): void;
+  onDisable(extensionId: string): void;
+  onProjectToggle(extensionId: string, enabled: boolean): void;
+}
+
+export interface ExtensionsSummary {
+  readonly total: number;
+  readonly active: number;
+}
+
 export interface SidebarProps {
   readonly activeSurface: string;
   readonly activeProjectId: string;
@@ -109,7 +139,7 @@ export interface SidebarProps {
   readonly codingActiveCount: number;
   readonly leftVisible: boolean;
   readonly rightVisible: boolean;
-  onSelectSurface(surface: "chat" | "coding" | "tasks" | "activity" | "files"): void;
+  onSelectSurface(surface: "chat" | "coding" | "tasks" | "activity" | "files" | "extensions"): void;
   onSelectProject(projectId: string): void;
   onToggleLeft(): void;
   onToggleRight(): void;
@@ -121,6 +151,7 @@ export interface SidebarProps {
   readonly memories: MemoryView[];
   onToggleSkill(skillId: string, currentlyEnabled: boolean): void;
   onDeleteMemory(factId: string): void;
+  readonly extensionsSummary: ExtensionsSummary;
 }
 
 export interface ComposerProps {

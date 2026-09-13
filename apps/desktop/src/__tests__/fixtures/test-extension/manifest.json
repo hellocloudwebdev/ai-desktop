@@ -1,0 +1,23 @@
+{
+  "id": "test-extension",
+  "name": "Test Extension",
+  "version": "1.0.0",
+  "displayName": "Test Extension",
+  "description": "Fixture extension for desktop PR32 tests",
+  "capabilities": ["tool.register"],
+  "contributes": {
+    "tools": [
+      {
+        "name": "echo",
+        "description": "Echoes the input back",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "text": { "type": "string" }
+          },
+          "required": ["text"]
+        }
+      }
+    ]
+  }
+}

@@ -15,6 +15,7 @@ import type {
   ChatSurfaceProps,
   CodingSurfaceProps,
   ComposerProps,
+  ExtensionsSurfaceProps,
   InspectorProps,
   SidebarProps,
   TasksSurfaceProps,
@@ -33,6 +34,7 @@ export interface WorkspaceShellProps {
   readonly tasks: TasksSurfaceProps;
   readonly activity: ActivityEventView[];
   readonly files: FileEntryView[];
+  readonly extensions: ExtensionsSurfaceProps;
   readonly inspector: InspectorProps;
   readonly composer: ComposerProps;
 }
@@ -48,6 +50,7 @@ export function WorkspaceShell({
   tasks,
   activity,
   files,
+  extensions,
   inspector,
   composer,
 }: WorkspaceShellProps): React.ReactElement {
@@ -119,6 +122,7 @@ export function WorkspaceShell({
               tasks={tasks}
               activity={activity}
               files={files}
+              extensions={extensions}
             />
           </WorkspaceErrorBoundary>
         </div>

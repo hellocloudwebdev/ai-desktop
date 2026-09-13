@@ -12,6 +12,7 @@ export default defineConfig({
       "@ai-desktop/execution": path.resolve(__dirname, "../../packages/execution/src/index.ts"),
       "@ai-desktop/memory": path.resolve(__dirname, "../../packages/memory/src/index.ts"),
       "@ai-desktop/permissions": path.resolve(__dirname, "../../packages/permissions/src/index.ts"),
+      "@ai-desktop/plugins": path.resolve(__dirname, "../../packages/plugins/src/index.ts"),
       "@ai-desktop/providers": path.resolve(__dirname, "../../packages/providers/src/index.ts"),
       "@ai-desktop/skills": path.resolve(__dirname, "../../packages/skills/src/index.ts"),
       "@ai-desktop/storage": path.resolve(__dirname, "../../packages/storage/src/index.ts"),

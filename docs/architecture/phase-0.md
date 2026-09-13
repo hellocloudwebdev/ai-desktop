@@ -1,10 +1,11 @@
 # Phase 0 — What Exists and What Does Not
 
 This document prevents the repository (and its documentation) from claiming functionality
-that does not exist. It reflects the state after **PR31 (Workspace)** and
+that does not exist. It reflects the state after **PR32 (Extension / Plugin
+Ecosystem Foundation)** and
 is updated as each PR lands.
 
-## Implemented (as of PR31)
+## Implemented (as of PR32)
 
 - Repository foundation: pnpm workspace + Turborepo task graph (`build`, `dev`,
   `typecheck`, `lint`, `test`).
@@ -486,6 +487,28 @@ node.completed/node.failed/blocked/replan/completed/failed/cancelled` plus the
     no-new-IPC/no-new-domain proofs, E2E composition over real
     CodingAgentService); 630 total tests passing workspace-wide. Full design
     in `docs/architecture/pr-31-workspace.md`.
+- Extension / plugin ecosystem foundation (`@ai-desktop/plugins`, PR32):
+  - Canonical manifest (`ExtensionManifestSchema`: slug id, SemVer, closed
+    capability enum, `contributes.tools` ≤16, 64KB cap, secret-scan),
+    lifecycle (`installed → enabled → active` + `disabled`/`uninstalled`),
+    metadata-only `ExtensionRegistry`, deterministic SHA-256 definition hash
+    with trust invalidation (`trust ≠ permission`), `extension.custom`-only
+    event factory (core-event forgery impossible), `plugin:<id>/<tool>`
+    tool contributions (`ToolSource = "plugin"`, MCP-style definition hash),
+    `PluginToolExecutor` (resolve → validate → project gate → permission →
+    host handler), and `ExtensionManager`/`ExtensionInstaller` over
+    repository interfaces.
+  - Persistence: `ExtensionRecord` + `ExtensionProjectBindingRecord` Prisma
+    models with migration; per-project enablement bindings defaulting to
+    false; restart recovery via `ExtensionService.restore()`.
+  - Desktop: `ExtensionService` composing plugins domain + storage repos +
+    PermissionManager + host handlers; 8 typed `extension:*` IPC channels
+    (no `extension:execute`); preload bridge; `plugin:` branch in
+    `DesktopToolRouter`; additive `extensions` workspace surface (list +
+    details, enable/disable, per-project toggle) with stale-surface fallback.
+  - 80 plugins tests, 10 storage tests, 9 desktop tests (service + IPC),
+    6 renderer tests, package boundary test; full design in
+    `docs/architecture/pr-32-extensions.md`.
 - All remaining canonical packages stay **empty shells** (`package.json`, `tsconfig.json`,
   `src/index.ts` placeholder) — deliberately no premature domain functionality inside them.
 - Toolchain: TypeScript 5.9.3, ESLint 10.10.0, Vitest 4.1.10, Vite 8.1.0, Prettier 3.9.6,
@@ -494,7 +517,9 @@ node.completed/node.failed/blocked/replan/completed/failed/cancelled` plus the
 
 ## Not yet implemented
 
-- Extensions / plugin ecosystem (PR32+) — no plugin architecture exists yet.
+- Plugin marketplace, remote registry, auto-update, extension sandbox
+  process, browser automation, MCP Apps, GitHub App integration, cloud
+  plugin sync, accounts/billing (PR33+).
 
 ## Verification
 
@@ -504,7 +529,7 @@ The claims above are checkable:
 pnpm install && pnpm typecheck && pnpm lint && pnpm test && pnpm build
 ```
 
-All five succeed across the shared, ai-core, agent-runtime (EventBus), permissions, storage, providers, mcp, skills, execution, memory, and desktop packages,
+All five succeed across the shared, ai-core, agent-runtime (EventBus), permissions, storage, providers, mcp, skills, execution, memory, plugins, and desktop packages,
 while future packages remain shells. A repository search finds no future runtime
 classes (`AgentLoop`) anywhere in implementation files.
 `@modelcontextprotocol/sdk` is strictly isolated within `packages/mcp`; `@anthropic-ai/sdk` and `@google/genai` are strictly isolated within `packages/providers`; Prisma remains confined to `packages/storage`; `electron` is strictly isolated within `apps/desktop`.

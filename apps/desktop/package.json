@@ -18,6 +18,7 @@
     "@ai-desktop/execution": "workspace:*",
     "@ai-desktop/memory": "workspace:*",
     "@ai-desktop/permissions": "workspace:*",
+    "@ai-desktop/plugins": "workspace:*",
     "@ai-desktop/providers": "workspace:*",
     "@ai-desktop/shared": "workspace:*",
     "@ai-desktop/skills": "workspace:*",

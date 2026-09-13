@@ -35,21 +35,21 @@ document is the reference a reviewer checks against.
 A package may only depend on the packages listed below (plus itself). Anything not listed
 is forbidden.
 
-| Package         | May depend on                                                                                                             |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `shared`        | —                                                                                                                         |
-| `ai-core`       | `shared`                                                                                                                  |
-| `providers`     | `ai-core`, `shared`                                                                                                       |
-| `storage`       | `ai-core`, `shared`                                                                                                       |
-| `permissions`   | `ai-core`, `storage`, `shared`                                                                                            |
-| `mcp`           | `ai-core`, `storage`, `permissions`, `shared`                                                                             |
-| `skills`        | `ai-core`, `storage`, `shared`                                                                                            |
-| `execution`     | `ai-core`, `permissions`, `storage`, `shared`                                                                             |
-| `memory`        | `ai-core`, `storage`, `providers`, `shared`                                                                               |
-| `agent-runtime` | `ai-core`, `providers`, `permissions`, `mcp`, `skills`, `execution`, `memory`, `storage`, `shared`                        |
-| `workspace`     | not yet defined — edges are added in later PRs as workspace UI dependencies are locked                                    |
-| `desktop`       | `agent-runtime`, `ai-core`, `permissions`, `providers`, `shared`, `storage` (and, transitively, everything above)         |
-| `plugins`       | not yet defined — the plugin architecture is a later decision; no dependency edges are locked for this package in Phase 0 |
+| Package         | May depend on                                                                                                                                                                                                        |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `shared`        | —                                                                                                                                                                                                                    |
+| `ai-core`       | `shared`                                                                                                                                                                                                             |
+| `providers`     | `ai-core`, `shared`                                                                                                                                                                                                  |
+| `storage`       | `ai-core`, `shared`                                                                                                                                                                                                  |
+| `permissions`   | `ai-core`, `storage`, `shared`                                                                                                                                                                                       |
+| `mcp`           | `ai-core`, `storage`, `permissions`, `shared`                                                                                                                                                                        |
+| `skills`        | `ai-core`, `storage`, `shared`                                                                                                                                                                                       |
+| `execution`     | `ai-core`, `permissions`, `storage`, `shared`                                                                                                                                                                        |
+| `memory`        | `ai-core`, `storage`, `providers`, `shared`                                                                                                                                                                          |
+| `agent-runtime` | `ai-core`, `providers`, `permissions`, `mcp`, `skills`, `execution`, `memory`, `storage`, `shared`                                                                                                                   |
+| `workspace`     | not yet defined — edges are added in later PRs as workspace UI dependencies are locked                                                                                                                               |
+| `desktop`       | `agent-runtime`, `ai-core`, `permissions`, `plugins`, `providers`, `shared`, `storage` (and, transitively, everything above)                                                                                         |
+| `plugins`       | `ai-core`, `shared` — PR32 extension/plugin ecosystem foundation (manifest, capability, lifecycle, registry, trust, event, tool-contribution contracts; storage + permission mediation stay host-owned in `desktop`) |
 
 ## Deliberate, non-obvious edges
 

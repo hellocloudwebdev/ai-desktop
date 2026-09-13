@@ -50,6 +50,14 @@ import {
   CodingCancelCommandSchema,
   CodingGetCommandSchema,
   CodingListCommandSchema,
+  ExtensionListCommandSchema,
+  ExtensionGetCommandSchema,
+  ExtensionInstallCommandSchema,
+  ExtensionUninstallCommandSchema,
+  ExtensionEnableCommandSchema,
+  ExtensionDisableCommandSchema,
+  ExtensionProjectEnableCommandSchema,
+  ExtensionProjectDisableCommandSchema,
   type ChatCancelCommand,
   type ChatSendCommand,
   type ChatStreamEvent,
@@ -87,6 +95,14 @@ import {
   type CodingCancelCommand,
   type CodingGetCommand,
   type CodingListCommand,
+  type ExtensionListCommand,
+  type ExtensionGetCommand,
+  type ExtensionInstallCommand,
+  type ExtensionUninstallCommand,
+  type ExtensionEnableCommand,
+  type ExtensionDisableCommand,
+  type ExtensionProjectEnableCommand,
+  type ExtensionProjectDisableCommand,
   type IpcResponseEnvelope,
 } from "@ai-desktop/shared";
 import {
@@ -101,6 +117,7 @@ import type { SkillInstaller, SkillManager } from "@ai-desktop/skills";
 import type { MemoryService } from "@ai-desktop/memory";
 import type { AgentService } from "../agent/index.js";
 import type { CodingAgentService } from "../agent/index.js";
+import type { ExtensionService } from "../extensions/index.js";
 import type { ActiveStreamRegistry, ChatService, ModelSelectionService } from "../chat/index.js";
 import type { IpcBatcher } from "./batcher.js";
 
@@ -152,6 +169,17 @@ export interface RegisteredCommands {
   onCodingCancel?: CommandHandler<CodingCancelCommand, { cancelled: boolean }>;
   onCodingGet?: CommandHandler<CodingGetCommand, { task: unknown }>;
   onCodingList?: CommandHandler<CodingListCommand, { taskIds: string[] }>;
+  onExtensionList?: CommandHandler<ExtensionListCommand, { extensions: unknown[] }>;
+  onExtensionGet?: CommandHandler<ExtensionGetCommand, { extension: unknown }>;
+  onExtensionInstall?: CommandHandler<ExtensionInstallCommand, { extension: unknown }>;
+  onExtensionUninstall?: CommandHandler<ExtensionUninstallCommand, { uninstalled: boolean }>;
+  onExtensionEnable?: CommandHandler<ExtensionEnableCommand, { extension: unknown }>;
+  onExtensionDisable?: CommandHandler<ExtensionDisableCommand, { extension: unknown }>;
+  onExtensionProjectEnable?: CommandHandler<ExtensionProjectEnableCommand, { extension: unknown }>;
+  onExtensionProjectDisable?: CommandHandler<
+    ExtensionProjectDisableCommand,
+    { extension: unknown }
+  >;
 }
 
 export interface RegisterIpcOptions {
@@ -166,6 +194,7 @@ export interface RegisterIpcOptions {
   memoryService?: MemoryService;
   agentService?: AgentService;
   codingAgentService?: CodingAgentService;
+  extensionService?: ExtensionService;
 }
 
 export class IpcRegistry {
@@ -403,6 +432,8 @@ export function registerIpcHandlers(
     options && "agentService" in options ? options.agentService : undefined;
   const codingAgentService: CodingAgentService | undefined =
     options && "codingAgentService" in options ? options.codingAgentService : undefined;
+  const extensionService: ExtensionService | undefined =
+    options && "extensionService" in options ? options.extensionService : undefined;
   if (batcher) {
     registry.attachBatcher(batcher);
   }
@@ -1132,6 +1163,144 @@ export function registerIpcHandlers(
         return { taskIds: codingAgentService.listCodingTasks() };
       }
       throw new Error("CodingAgentService is not available");
+    },
+  );
+
+  // 40. Extension List command (PR32)
+  registry.registerCommand(
+    IPC_CHANNELS.EXTENSION_LIST,
+    ExtensionListCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onExtensionList) {
+        return callbacks.onExtensionList(input, event);
+      }
+      if (extensionService) {
+        const extensions = await extensionService.listExtensions(input.projectId);
+        return { extensions: [...extensions] };
+      }
+      return { extensions: [] };
+    },
+  );
+
+  // 41. Extension Get command (PR32)
+  registry.registerCommand(
+    IPC_CHANNELS.EXTENSION_GET,
+    ExtensionGetCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onExtensionGet) {
+        return callbacks.onExtensionGet(input, event);
+      }
+      if (extensionService) {
+        const extension = await extensionService.getExtension(input.extensionId);
+        return { extension: extension ?? null };
+      }
+      return { extension: null };
+    },
+  );
+
+  // 42. Extension Install command (PR32)
+  registry.registerCommand(
+    IPC_CHANNELS.EXTENSION_INSTALL,
+    ExtensionInstallCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onExtensionInstall) {
+        return callbacks.onExtensionInstall(input, event);
+      }
+      if (extensionService) {
+        const extension = await extensionService.installExtension(input.sourceDir, {
+          ...(input.projectId ? { projectId: input.projectId } : {}),
+        });
+        return { extension };
+      }
+      throw new Error("ExtensionService is not available");
+    },
+  );
+
+  // 43. Extension Uninstall command (PR32)
+  registry.registerCommand(
+    IPC_CHANNELS.EXTENSION_UNINSTALL,
+    ExtensionUninstallCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onExtensionUninstall) {
+        return callbacks.onExtensionUninstall(input, event);
+      }
+      if (extensionService) {
+        await extensionService.uninstallExtension(input.extensionId);
+        return { uninstalled: true };
+      }
+      return { uninstalled: true };
+    },
+  );
+
+  // 44. Extension Enable command (PR32)
+  registry.registerCommand(
+    IPC_CHANNELS.EXTENSION_ENABLE,
+    ExtensionEnableCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onExtensionEnable) {
+        return callbacks.onExtensionEnable(input, event);
+      }
+      if (extensionService) {
+        const extension = await extensionService.enableExtension(input.extensionId);
+        return { extension };
+      }
+      throw new Error("ExtensionService is not available");
+    },
+  );
+
+  // 45. Extension Disable command (PR32)
+  registry.registerCommand(
+    IPC_CHANNELS.EXTENSION_DISABLE,
+    ExtensionDisableCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onExtensionDisable) {
+        return callbacks.onExtensionDisable(input, event);
+      }
+      if (extensionService) {
+        const extension = await extensionService.disableExtension(input.extensionId);
+        return { extension };
+      }
+      throw new Error("ExtensionService is not available");
+    },
+  );
+
+  // 46. Extension Project Enable command (PR32)
+  registry.registerCommand(
+    IPC_CHANNELS.EXTENSION_PROJECT_ENABLE,
+    ExtensionProjectEnableCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onExtensionProjectEnable) {
+        return callbacks.onExtensionProjectEnable(input, event);
+      }
+      if (extensionService) {
+        const extension = await extensionService.setProjectEnabled(
+          input.extensionId,
+          input.projectId,
+          true,
+        );
+        return { extension };
+      }
+      throw new Error("ExtensionService is not available");
+    },
+  );
+
+  // 47. Extension Project Disable command (PR32)
+  registry.registerCommand(
+    IPC_CHANNELS.EXTENSION_PROJECT_DISABLE,
+    ExtensionProjectDisableCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onExtensionProjectDisable) {
+        return callbacks.onExtensionProjectDisable(input, event);
+      }
+      if (extensionService) {
+        const extension = await extensionService.setProjectEnabled(
+          input.extensionId,
+          input.projectId,
+          false,
+        );
+        return { extension };
+      }
+      throw new Error("ExtensionService is not available");
     },
   );
 }

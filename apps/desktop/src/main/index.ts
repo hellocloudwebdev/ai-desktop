@@ -31,12 +31,16 @@ import {
   PrismaPermissionRepository,
   PrismaSkillRepository,
   PrismaMemoryRepository,
+  PrismaExtensionRepository,
+  PrismaExtensionProjectBindingRepository,
   type EventRepository,
   type ProviderProfileRepository,
   type ConversationModelRepository,
   type PermissionRepository,
   type SkillRepository,
   type MemoryRepository,
+  type ExtensionRepository,
+  type ExtensionProjectBindingRepository,
 } from "@ai-desktop/storage";
 import { DefaultPermissionManager, type PermissionManager } from "@ai-desktop/permissions";
 import { SkillInstaller, SkillManager, SkillToolRegistry } from "@ai-desktop/skills";
@@ -45,6 +49,7 @@ import { DefaultExecutionManager, LocalProcessSandboxProvider } from "@ai-deskto
 import { ActiveStreamRegistry, ChatService, ModelSelectionService } from "./chat/index.js";
 import { AgentService } from "./agent/index.js";
 import { CodingAgentService, CodingToolExecutor } from "./agent/index.js";
+import { ExtensionService, PluginToolRegistry } from "./extensions/index.js";
 import { IpcBatcher } from "./ipc/batcher.js";
 import { IpcRegistry, registerIpcHandlers } from "./ipc/index.js";
 
@@ -75,6 +80,10 @@ let skillInstaller: SkillInstaller | null = null;
 let agentService: AgentService | null = null;
 let codingToolExecutor: CodingToolExecutor | null = null;
 let codingAgentService: CodingAgentService | null = null;
+let extensionRepository: ExtensionRepository | null = null;
+let extensionBindingRepository: ExtensionProjectBindingRepository | null = null;
+let extensionToolRegistry: PluginToolRegistry | null = null;
+let extensionService: ExtensionService | null = null;
 
 export function getProviderRegistry(): ProviderRegistry {
   if (!providerRegistry) {
@@ -320,8 +329,10 @@ export function getAgentService(options?: {
   mcpExecutor?: ConstructorParameters<typeof AgentService>[0]["mcpExecutor"];
   skillExecutor?: ConstructorParameters<typeof AgentService>[0]["skillExecutor"];
   builtinExecutor?: ConstructorParameters<typeof AgentService>[0]["builtinExecutor"];
+  pluginExecutor?: ConstructorParameters<typeof AgentService>[0]["pluginExecutor"];
 }): AgentService {
   if (!agentService || options) {
+    const pluginExecutor = options?.pluginExecutor ?? getExtensionService().pluginExecutor;
     const service = new AgentService({
       modelSelectionService: getModelSelectionService(),
       permissionManager: getPermissionManager(),
@@ -331,6 +342,7 @@ export function getAgentService(options?: {
       ...(options?.mcpExecutor ? { mcpExecutor: options.mcpExecutor } : {}),
       ...(options?.skillExecutor ? { skillExecutor: options.skillExecutor } : {}),
       ...(options?.builtinExecutor ? { builtinExecutor: options.builtinExecutor } : {}),
+      pluginExecutor,
     });
     if (!options) {
       agentService = service;
@@ -373,6 +385,55 @@ export function getCodingAgentService(): CodingAgentService {
     });
   }
   return codingAgentService;
+}
+
+export function getExtensionRepository(): ExtensionRepository {
+  if (!extensionRepository) {
+    const { database: db } = getStorage();
+    extensionRepository = new PrismaExtensionRepository(db);
+  }
+  return extensionRepository;
+}
+
+export function getExtensionBindingRepository(): ExtensionProjectBindingRepository {
+  if (!extensionBindingRepository) {
+    const { database: db } = getStorage();
+    extensionBindingRepository = new PrismaExtensionProjectBindingRepository(db);
+  }
+  return extensionBindingRepository;
+}
+
+export function getExtensionToolRegistry(): PluginToolRegistry {
+  if (!extensionToolRegistry) {
+    extensionToolRegistry = new PluginToolRegistry();
+  }
+  return extensionToolRegistry;
+}
+
+/**
+ * Desktop ExtensionService singleton (PR32): owns the local plugin adapters,
+ * durable extension repos, and the host tool-handler map. Restores prior
+ * installations from the same StorageDatabase on first construction.
+ */
+export function getExtensionService(): ExtensionService {
+  if (!extensionService) {
+    const baseDir =
+      app && typeof app.getPath === "function"
+        ? path.join(app.getPath("userData"), "extensions")
+        : path.resolve(process.cwd(), ".ai-desktop/extensions");
+
+    extensionService = new ExtensionService({
+      repository: getExtensionRepository(),
+      bindingRepository: getExtensionBindingRepository(),
+      permissionManager: getPermissionManager(),
+      installBaseDir: baseDir,
+      toolRegistry: getExtensionToolRegistry(),
+    });
+    void extensionService.restore().catch(() => {
+      // Restore is best-effort at startup; failures surface on first use.
+    });
+  }
+  return extensionService;
 }
 
 export function getSecureWebPreferences(preloadPath: string): Electron.WebPreferences {
@@ -429,6 +490,7 @@ export function initIpc(options?: {
   memoryService?: MemoryService;
   agentService?: AgentService;
   codingAgentService?: CodingAgentService;
+  extensionService?: ExtensionService;
 }): IpcRegistry {
   if (!ipcRegistry) {
     ipcRegistry = new IpcRegistry();
@@ -442,6 +504,7 @@ export function initIpc(options?: {
     const memory = options?.memoryService ?? getMemoryService();
     const agent = options?.agentService ?? getAgentService();
     const coding = options?.codingAgentService ?? getCodingAgentService();
+    const extensions = options?.extensionService ?? getExtensionService();
 
     registerIpcHandlers(ipcRegistry, {
       streamRegistry,
@@ -454,6 +517,7 @@ export function initIpc(options?: {
       memoryService: memory,
       agentService: agent,
       codingAgentService: coding,
+      extensionService: extensions,
     });
   }
   return ipcRegistry;

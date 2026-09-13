@@ -76,6 +76,16 @@ export const IPC_CHANNELS = {
   CODING_CANCEL: "coding:cancel",
   CODING_GET: "coding:get",
   CODING_LIST: "coding:list",
+
+  // Extension operations (PR32)
+  EXTENSION_LIST: "extension:list",
+  EXTENSION_GET: "extension:get",
+  EXTENSION_INSTALL: "extension:install",
+  EXTENSION_UNINSTALL: "extension:uninstall",
+  EXTENSION_ENABLE: "extension:enable",
+  EXTENSION_DISABLE: "extension:disable",
+  EXTENSION_PROJECT_ENABLE: "extension:project-enable",
+  EXTENSION_PROJECT_DISABLE: "extension:project-disable",
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];
@@ -527,6 +537,122 @@ export type CodingGetCommand = z.infer<typeof CodingGetCommandSchema>;
 export const CodingListCommandSchema = z.object({});
 
 export type CodingListCommand = z.infer<typeof CodingListCommandSchema>;
+
+// ---------------------------------------------------------------------------
+// Extension Commands (PR32)
+// ---------------------------------------------------------------------------
+
+/**
+ * Command to list installed extensions, optionally filtered by project enablement (PR32).
+ */
+export const ExtensionListCommandSchema = z
+  .object({
+    projectId: z.string().trim().min(1).max(256).optional(),
+  })
+  .optional()
+  .default({});
+
+export type ExtensionListCommand = z.infer<typeof ExtensionListCommandSchema>;
+
+/**
+ * Command to get a single extension's info payload (PR32).
+ */
+export const ExtensionGetCommandSchema = z.object({
+  extensionId: z.string().trim().min(1),
+});
+
+export type ExtensionGetCommand = z.infer<typeof ExtensionGetCommandSchema>;
+
+/**
+ * Command to install an extension from a local source directory (PR32).
+ */
+export const ExtensionInstallCommandSchema = z.object({
+  sourceDir: z.string().trim().min(1).max(1024),
+  projectId: z.string().trim().min(1).max(256).optional(),
+});
+
+export type ExtensionInstallCommand = z.infer<typeof ExtensionInstallCommandSchema>;
+
+/**
+ * Command to uninstall an installed extension (PR32).
+ */
+export const ExtensionUninstallCommandSchema = z.object({
+  extensionId: z.string().trim().min(1),
+});
+
+export type ExtensionUninstallCommand = z.infer<typeof ExtensionUninstallCommandSchema>;
+
+/**
+ * Command to enable an installed extension (PR32).
+ */
+export const ExtensionEnableCommandSchema = z.object({
+  extensionId: z.string().trim().min(1),
+});
+
+export type ExtensionEnableCommand = z.infer<typeof ExtensionEnableCommandSchema>;
+
+/**
+ * Command to disable an enabled extension (PR32).
+ */
+export const ExtensionDisableCommandSchema = z.object({
+  extensionId: z.string().trim().min(1),
+});
+
+export type ExtensionDisableCommand = z.infer<typeof ExtensionDisableCommandSchema>;
+
+/**
+ * Command to enable an extension for a specific project (PR32).
+ */
+export const ExtensionProjectEnableCommandSchema = z.object({
+  extensionId: z.string().trim().min(1),
+  projectId: z.string().trim().min(1).max(256),
+});
+
+export type ExtensionProjectEnableCommand = z.infer<typeof ExtensionProjectEnableCommandSchema>;
+
+/**
+ * Command to disable an extension for a specific project (PR32).
+ */
+export const ExtensionProjectDisableCommandSchema = z.object({
+  extensionId: z.string().trim().min(1),
+  projectId: z.string().trim().min(1).max(256),
+});
+
+export type ExtensionProjectDisableCommand = z.infer<typeof ExtensionProjectDisableCommandSchema>;
+
+// ---------------------------------------------------------------------------
+// Extension Payloads (PR32)
+// ---------------------------------------------------------------------------
+
+/**
+ * Renderer-facing extension info: lifecycle + trust + binding snapshot.
+ * NOTE: there is intentionally NO extension:execute channel — execution flows
+ * through the agent tool router (plugin: prefix), never through IPC.
+ */
+export const ExtensionLifecycleSchema = z.enum(["installed", "enabled", "active", "disabled"]);
+
+export type ExtensionLifecycle = z.infer<typeof ExtensionLifecycleSchema>;
+
+export const ExtensionTrustSchema = z.enum(["untrusted", "trusted", "blocked"]);
+
+export type ExtensionTrust = z.infer<typeof ExtensionTrustSchema>;
+
+export const ExtensionInfoPayloadSchema = z.object({
+  id: z.string().trim().min(1),
+  name: z.string().trim().min(1),
+  version: z.string().trim().min(1),
+  displayName: z.string().trim().min(1).optional(),
+  description: z.string().trim().min(1).optional(),
+  capabilities: z.array(z.string()),
+  lifecycle: ExtensionLifecycleSchema,
+  trust: ExtensionTrustSchema,
+  manifestHash: z.string().trim().min(1),
+  installedAt: z.number(),
+  updatedAt: z.number(),
+  enabledProjects: z.array(z.string()),
+});
+
+export type ExtensionInfoPayload = z.infer<typeof ExtensionInfoPayloadSchema>;
 
 // ---------------------------------------------------------------------------
 // Event Contracts (Main Process -> Renderer)
