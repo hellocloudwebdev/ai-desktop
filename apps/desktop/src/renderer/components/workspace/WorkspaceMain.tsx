@@ -8,6 +8,7 @@ import type { WorkspaceStore } from "../../workspace/store.js";
 import { ChatSurface } from "./surfaces/ChatSurface.js";
 import { CodingSurface } from "./surfaces/CodingSurface.js";
 import { ExtensionsSurface } from "./surfaces/ExtensionsSurface.js";
+import { RichSurfaceHost } from "./surfaces/RichSurfaceHost.js";
 import { ActivitySurface, FilesSurface, TasksSurface } from "./surfaces/TaskSurfaces.js";
 import type {
   ActivityEventView,
@@ -15,6 +16,7 @@ import type {
   CodingSurfaceProps,
   ExtensionsSurfaceProps,
   FileEntryView,
+  SurfaceHostProps,
   TasksSurfaceProps,
 } from "./surfaces/surface-props.js";
 
@@ -26,6 +28,8 @@ interface WorkspaceMainProps {
   readonly activity: ActivityEventView[];
   readonly files: FileEntryView[];
   readonly extensions: ExtensionsSurfaceProps;
+  // PR33.8: renderer — optional rich-surface branch (additive).
+  readonly surfaceHost?: SurfaceHostProps;
 }
 
 export function WorkspaceMain({
@@ -36,8 +40,27 @@ export function WorkspaceMain({
   activity,
   files,
   extensions,
+  surfaceHost,
 }: WorkspaceMainProps): React.ReactElement {
   const surface = store.state.activeSurface;
+  // PR33.8: renderer — a selected rich-surface instance takes over the main
+  // area. Missing view for a selection renders a placeholder, never crashes.
+  if (store.state.selectedSurfaceId) {
+    if (!surfaceHost || !surfaceHost.surfaceView) {
+      return (
+        <div className="flex h-full items-center justify-center p-6">
+          <p className="text-xs text-slate-500">Surface unavailable.</p>
+        </div>
+      );
+    }
+    return (
+      <RichSurfaceHost
+        surface={surfaceHost.surfaceView}
+        onAction={surfaceHost.onSurfaceAction}
+        onDispose={surfaceHost.onSurfaceDispose}
+      />
+    );
+  }
   if (surface === "coding") {
     return <CodingSurface {...coding} />;
   }

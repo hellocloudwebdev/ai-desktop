@@ -83,6 +83,10 @@ export interface InspectorProps {
   readonly files: FileEntryView[];
   readonly activity: ActivityEventView[];
   onCancelTask(kind: "agent" | "coding", taskId: string): void;
+  // PR33.1: renderer — optional rich-surface selection (additive).
+  readonly surfaces?: SurfaceView[];
+  readonly selectedSurfaceId?: string | null;
+  onSelectSurface?(id: string | null): void;
 }
 
 export interface SkillView {
@@ -166,4 +170,46 @@ export interface ComposerProps {
   onSend(e?: React.FormEvent): void;
   onCancel(): void;
   onStartCoding(): void;
+}
+
+// PR33.1: renderer — Rich surface contract (ai-core parallel module)
+//
+// SurfaceView is the presentation projection of a backend-owned surface
+// instance. Surfaces own no domain behavior: data arrives via props and
+// user intent leaves via onAction/onDispose callbacks (App owns the
+// preload bridge).
+
+export type SurfaceKind = "document" | "table" | "form" | "chart" | "application";
+
+export interface SurfaceActionView {
+  readonly actionId: string;
+  readonly type: string;
+  readonly toolName: string;
+  readonly title?: string;
+}
+
+export interface SurfaceView {
+  readonly instanceId: string;
+  readonly kind: string;
+  readonly title?: string;
+  readonly status: string;
+  readonly provenance: {
+    readonly source: string;
+    readonly originId: string;
+    readonly projectId?: string;
+  };
+  readonly data: unknown;
+  readonly actions: SurfaceActionView[];
+}
+
+export interface SurfaceHostProps {
+  readonly surfaceView: SurfaceView | null;
+  onSurfaceAction(actionId: string, input: unknown): void;
+  onSurfaceDispose(instanceId: string): void;
+}
+
+export interface InspectorSurfaceSelection {
+  readonly surfaces: SurfaceView[];
+  readonly selectedSurfaceId: string | null;
+  onSelectSurface(id: string | null): void;
 }

@@ -58,6 +58,10 @@ import {
   ExtensionDisableCommandSchema,
   ExtensionProjectEnableCommandSchema,
   ExtensionProjectDisableCommandSchema,
+  SurfaceGetCommandSchema,
+  SurfaceActionCommandSchema,
+  SurfaceDisposeCommandSchema,
+  SurfaceListCommandSchema,
   type ChatCancelCommand,
   type ChatSendCommand,
   type ChatStreamEvent,
@@ -103,6 +107,10 @@ import {
   type ExtensionDisableCommand,
   type ExtensionProjectEnableCommand,
   type ExtensionProjectDisableCommand,
+  type SurfaceGetCommand,
+  type SurfaceActionCommand,
+  type SurfaceDisposeCommand,
+  type SurfaceListCommand,
   type IpcResponseEnvelope,
 } from "@ai-desktop/shared";
 import {
@@ -118,6 +126,7 @@ import type { MemoryService } from "@ai-desktop/memory";
 import type { AgentService } from "../agent/index.js";
 import type { CodingAgentService } from "../agent/index.js";
 import type { ExtensionService } from "../extensions/index.js";
+import type { SurfaceService } from "../surfaces/surface-service.js";
 import type { ActiveStreamRegistry, ChatService, ModelSelectionService } from "../chat/index.js";
 import type { IpcBatcher } from "./batcher.js";
 
@@ -180,6 +189,10 @@ export interface RegisteredCommands {
     ExtensionProjectDisableCommand,
     { extension: unknown }
   >;
+  onSurfaceGet?: CommandHandler<SurfaceGetCommand, { surface: unknown }>;
+  onSurfaceAction?: CommandHandler<SurfaceActionCommand, { result: unknown }>;
+  onSurfaceDispose?: CommandHandler<SurfaceDisposeCommand, { disposed: boolean }>;
+  onSurfaceList?: CommandHandler<SurfaceListCommand, { surfaces: unknown[] }>;
 }
 
 export interface RegisterIpcOptions {
@@ -195,6 +208,7 @@ export interface RegisterIpcOptions {
   agentService?: AgentService;
   codingAgentService?: CodingAgentService;
   extensionService?: ExtensionService;
+  surfaceService?: SurfaceService;
 }
 
 export class IpcRegistry {
@@ -434,6 +448,8 @@ export function registerIpcHandlers(
     options && "codingAgentService" in options ? options.codingAgentService : undefined;
   const extensionService: ExtensionService | undefined =
     options && "extensionService" in options ? options.extensionService : undefined;
+  const surfaceService: SurfaceService | undefined =
+    options && "surfaceService" in options ? options.surfaceService : undefined;
   if (batcher) {
     registry.attachBatcher(batcher);
   }
@@ -1301,6 +1317,85 @@ export function registerIpcHandlers(
         return { extension };
       }
       throw new Error("ExtensionService is not available");
+    },
+  );
+
+  // 48. Surface List command (PR33): scoped instance snapshots for the
+  // workspace host. Project filter is optional; unscoped callers see only
+  // unscoped instances (registry is already per-task capped).
+  registry.registerCommand(
+    IPC_CHANNELS.SURFACE_LIST,
+    SurfaceListCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onSurfaceList) {
+        return callbacks.onSurfaceList(input, event);
+      }
+      if (surfaceService) {
+        const surfaces = input.projectId
+          ? surfaceService.listByProject(input.projectId)
+          : surfaceService.listAll();
+        return { surfaces };
+      }
+      throw new Error("SurfaceService is not available");
+    },
+  );
+
+  // 49. Surface Get command (PR33): instance snapshot; unknown ids return
+  // null (renderer polls) rather than throwing.
+  registry.registerCommand(
+    IPC_CHANNELS.SURFACE_GET,
+    SurfaceGetCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onSurfaceGet) {
+        return callbacks.onSurfaceGet(input, event);
+      }
+      if (surfaceService) {
+        const surface = surfaceService.getInstance(
+          input.instanceId as unknown as import("@ai-desktop/ai-core").SurfaceInstanceId,
+        );
+        return { surface: surface ?? null };
+      }
+      throw new Error("SurfaceService is not available");
+    },
+  );
+
+  // 49. Surface Action command (PR33): structured action → permission →
+  // existing ToolExecutor path. The channel itself never executes anything.
+  registry.registerCommand(
+    IPC_CHANNELS.SURFACE_ACTION,
+    SurfaceActionCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onSurfaceAction) {
+        return callbacks.onSurfaceAction(input, event);
+      }
+      if (surfaceService) {
+        const result = await surfaceService.invokeAction(
+          input.instanceId as unknown as import("@ai-desktop/ai-core").SurfaceInstanceId,
+          input.actionId,
+          input.input,
+          { ...(input.projectId ? { projectId: input.projectId } : {}) },
+        );
+        return { result };
+      }
+      throw new Error("SurfaceService is not available");
+    },
+  );
+
+  // 50. Surface Dispose command (PR33): idempotent cleanup.
+  registry.registerCommand(
+    IPC_CHANNELS.SURFACE_DISPOSE,
+    SurfaceDisposeCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onSurfaceDispose) {
+        return callbacks.onSurfaceDispose(input, event);
+      }
+      if (surfaceService) {
+        const disposed = surfaceService.dispose(
+          input.instanceId as unknown as import("@ai-desktop/ai-core").SurfaceInstanceId,
+        );
+        return { disposed };
+      }
+      throw new Error("SurfaceService is not available");
     },
   );
 }

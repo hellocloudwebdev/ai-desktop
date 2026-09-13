@@ -1,6 +1,6 @@
 # ai-desktop
 
-A desktop AI assistant. This repository is currently at **PR32 — Extensions**:
+A desktop AI assistant. This repository is currently at **PR33 — Rich Surfaces**:
 shared primitives, canonical AI domain contracts, projections, in-process EventBus,
 permission checkpoint, SQLite WAL event repository, OS-backed credential store, canonical
 provider contracts, concrete `AnthropicAdapter`, concrete `GeminiAdapter`, Electron 44 desktop
@@ -42,7 +42,11 @@ ExtensionRegistry with SHA-256 trust hashes, SQLite persistence with per-project
 capability-gated host context, `plugin:*` tool contributions through the canonical
 ToolRegistry and universal ToolExecutor lifecycle, `extension.custom` event boundary that
 cannot forge core events, `extension:*` typed IPC with narrow preload bridge and workspace
-Extensions surface) are implemented. Future packages remain empty shells awaiting their respective
+Extensions surface), and the Rich Surface foundation (canonical descriptors with SemVer +
+branded IDs + provenance, host registry with strict lifecycle and hash-match forgery guard,
+render/interact permission gates, additive MCP/plugin stamps, `surface:list/get/action/dispose`
+IPC with no execute channel, document/table/form renderer with no raw HTML, workspace host +
+inspector wiring) are implemented. Future packages remain empty shells awaiting their respective
 implementation PRs — see [docs/architecture/phase-0.md](docs/architecture/phase-0.md) for the honest list of what is
 and is not implemented.
 

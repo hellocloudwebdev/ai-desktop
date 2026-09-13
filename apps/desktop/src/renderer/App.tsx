@@ -9,11 +9,17 @@ import type {
 } from "@ai-desktop/ai-core";
 import { useWorkspaceStore } from "./workspace/store.js";
 import { fetchExtensionList, getExtensionCommands } from "./workspace/extensions.js";
+import {
+  disposeSurfaceInstance,
+  fetchSurfaceList,
+  invokeSurfaceAction,
+} from "./workspace/surfaces.js";
 import { WorkspaceShell } from "./components/workspace/Workspace.js";
 import type {
   ActivityEventView,
   ExtensionView,
   FileEntryView,
+  SurfaceView,
 } from "./components/workspace/surfaces/surface-props.js";
 
 const DEFAULT_CONVERSATION_ID = "01JM0000000000000000000001";
@@ -69,6 +75,9 @@ export function App(): React.ReactElement {
   // pure view; commands arrive via the preload bridge).
   const [extensions, setExtensions] = useState<ExtensionView[]>([]);
   const [selectedExtensionId, setSelectedExtensionId] = useState<string | null>(null);
+  // PR33: rich surfaces list (App-owned backend state, surface is a pure
+  // view; actions/dispose arrive via the preload bridge when present).
+  const [surfaces, setSurfaces] = useState<SurfaceView[]>([]);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   // PR32: load the extension list through the preload bridge. No-ops when
@@ -137,6 +146,50 @@ export function App(): React.ReactElement {
   const handleSelectExtension = useCallback((extensionId: string | null) => {
     setSelectedExtensionId(extensionId);
   }, []);
+
+  // PR33: load the rich-surface list through window.api.commands. Scoped to
+  // the active project; absent bridge (non-Electron hosts) yields [].
+  const refreshSurfaces = useCallback(async () => {
+    try {
+      setSurfaces(await fetchSurfaceList(workspace.state.activeProjectId));
+    } catch (err) {
+      console.warn("Failed to list surfaces:", err);
+    }
+  }, [workspace.state.activeProjectId]);
+
+  useEffect(() => {
+    void refreshSurfaces();
+  }, [refreshSurfaces]);
+
+  // PR33: surface action/dispose handlers (invoke via bridge, then refresh).
+  const handleSurfaceAction = useCallback(
+    async (actionId: string, input: unknown) => {
+      const instanceId = surfaces.find(
+        (s) => s.instanceId === workspace.state.selectedSurfaceId,
+      )?.instanceId;
+      if (!instanceId) return;
+      try {
+        await invokeSurfaceAction(instanceId, actionId, input, workspace.state.activeProjectId);
+        await refreshSurfaces();
+      } catch (err) {
+        console.warn("Failed to invoke surface action:", err);
+      }
+    },
+    [refreshSurfaces, surfaces, workspace.state.activeProjectId, workspace.state.selectedSurfaceId],
+  );
+
+  const handleSurfaceDispose = useCallback(
+    async (instanceId: string) => {
+      try {
+        await disposeSurfaceInstance(instanceId);
+        workspace.selectSurfaceInstance(null);
+        await refreshSurfaces();
+      } catch (err) {
+        console.warn("Failed to dispose surface:", err);
+      }
+    },
+    [refreshSurfaces, workspace],
+  );
 
   // Auto-scroll to latest message
   const scrollToBottom = useCallback(() => {
@@ -709,12 +762,23 @@ export function App(): React.ReactElement {
     return null;
   })();
 
+  // PR33: selected rich-surface view derives from store selection.
+  const selectedSurfaceView =
+    workspace.state.selectedSurfaceId !== null
+      ? (surfaces.find((s) => s.instanceId === workspace.state.selectedSurfaceId) ?? null)
+      : null;
+
   return (
     <WorkspaceShell
       store={workspace}
       conversationId={conversationId}
       healthStatus={healthStatus}
       isStreaming={isStreaming}
+      surfaceHost={{
+        surfaceView: selectedSurfaceView,
+        onSurfaceAction: (actionId, input) => void handleSurfaceAction(actionId, input),
+        onSurfaceDispose: (instanceId) => void handleSurfaceDispose(instanceId),
+      }}
       sidebar={{
         activeSurface: workspace.state.activeSurface,
         activeProjectId: workspace.state.activeProjectId,
@@ -803,6 +867,9 @@ export function App(): React.ReactElement {
           if (kind === "agent") void handleCancelAgentTask(taskId);
           else void handleCancelCodingTask(taskId);
         },
+        surfaces,
+        selectedSurfaceId: workspace.state.selectedSurfaceId,
+        onSelectSurface: (id) => workspace.selectSurfaceInstance(id),
       }}
       composer={{
         activeSurface: workspace.state.activeSurface,

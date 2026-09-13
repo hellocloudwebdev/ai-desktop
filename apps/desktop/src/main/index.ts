@@ -50,6 +50,8 @@ import { ActiveStreamRegistry, ChatService, ModelSelectionService } from "./chat
 import { AgentService } from "./agent/index.js";
 import { CodingAgentService, CodingToolExecutor } from "./agent/index.js";
 import { ExtensionService, PluginToolRegistry } from "./extensions/index.js";
+import { SurfaceService } from "./surfaces/surface-service.js";
+import { DesktopToolRouter } from "./agent/index.js";
 import { IpcBatcher } from "./ipc/batcher.js";
 import { IpcRegistry, registerIpcHandlers } from "./ipc/index.js";
 
@@ -84,6 +86,7 @@ let extensionRepository: ExtensionRepository | null = null;
 let extensionBindingRepository: ExtensionProjectBindingRepository | null = null;
 let extensionToolRegistry: PluginToolRegistry | null = null;
 let extensionService: ExtensionService | null = null;
+let surfaceService: SurfaceService | null = null;
 
 export function getProviderRegistry(): ProviderRegistry {
   if (!providerRegistry) {
@@ -436,6 +439,37 @@ export function getExtensionService(): ExtensionService {
   return extensionService;
 }
 
+/**
+ * SurfaceService singleton (PR33.9): permission-gated surface lifecycle over
+ * the universal ToolExecutor path. The tool router reuses the coding + plugin
+ * executors already composed in this file; MCP/skill prefixes fail closed
+ * here (their executors attach in the agent runtime path, not the surface
+ * action path).
+ */
+export function getSurfaceService(): SurfaceService {
+  if (!surfaceService) {
+    const extensions = getExtensionService();
+    const router = new DesktopToolRouter({
+      permissionManager: getPermissionManager(),
+      builtinExecutor: getCodingToolExecutor(),
+      pluginExecutor: extensions.pluginExecutor,
+    });
+    surfaceService = new SurfaceService({
+      permissionManager: getPermissionManager(),
+      toolRouter: router,
+      extensionGate: {
+        isActive: async (extensionId: string) => {
+          const info = await extensions.getExtension(extensionId);
+          return info?.lifecycle === "active";
+        },
+        isEnabledForProject: (extensionId: string, projectId: string) =>
+          extensions.isEnabledForProject(extensionId, projectId),
+      },
+    });
+  }
+  return surfaceService;
+}
+
 export function getSecureWebPreferences(preloadPath: string): Electron.WebPreferences {
   return {
     preload: preloadPath,
@@ -491,6 +525,7 @@ export function initIpc(options?: {
   agentService?: AgentService;
   codingAgentService?: CodingAgentService;
   extensionService?: ExtensionService;
+  surfaceService?: SurfaceService;
 }): IpcRegistry {
   if (!ipcRegistry) {
     ipcRegistry = new IpcRegistry();
@@ -505,6 +540,7 @@ export function initIpc(options?: {
     const agent = options?.agentService ?? getAgentService();
     const coding = options?.codingAgentService ?? getCodingAgentService();
     const extensions = options?.extensionService ?? getExtensionService();
+    const surfaces = options?.surfaceService ?? getSurfaceService();
 
     registerIpcHandlers(ipcRegistry, {
       streamRegistry,
@@ -518,6 +554,7 @@ export function initIpc(options?: {
       agentService: agent,
       codingAgentService: coding,
       extensionService: extensions,
+      surfaceService: surfaces,
     });
   }
   return ipcRegistry;
