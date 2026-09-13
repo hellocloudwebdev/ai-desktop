@@ -15,6 +15,9 @@ function readRendererSources(): Array<{ file: string; content: string }> {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) {
+        // Test harnesses legitimately use node:fs; the boundary applies to
+        // shipped renderer code (PR31: __tests__ added under renderer/).
+        if (entry.name === "__tests__") continue;
         walk(full);
       } else if (entry.name.endsWith(".tsx") || entry.name.endsWith(".ts")) {
         out.push({ file: full, content: fs.readFileSync(full, "utf8") });

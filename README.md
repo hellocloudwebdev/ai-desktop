@@ -1,6 +1,6 @@
 # ai-desktop
 
-A desktop AI assistant. This repository is currently at **PR30 — Coding Agent**:
+A desktop AI assistant. This repository is currently at **PR31 — Workspace**:
 shared primitives, canonical AI domain contracts, projections, in-process EventBus,
 permission checkpoint, SQLite WAL event repository, OS-backed credential store, canonical
 provider contracts, concrete `AnthropicAdapter`, concrete `GeminiAdapter`, Electron 44 desktop
@@ -31,7 +31,12 @@ surface), and the Coding Agent foundation (canonical coding contracts, workspace
 path policy with symlink-escape rejection, bounded filesystem tools, five `builtin:*`
 coding tools with definition hashes, validate → permission → backend executor, command
 execution through `ExecutionManager`, `CodingAgentService` composing the PR29 runtime,
-`coding:start/cancel/get/list` IPC with renderer Coding surface) are implemented. Future packages remain empty shells awaiting their respective
+`coding:start/cancel/get/list` IPC with renderer Coding surface), and the Workspace
+composition layer (three-column shell extracted verbatim from the single-column App:
+sidebar navigation, main surfaces for chat/coding/tasks/activity/files, selection-driven
+inspector, surface-aware composer, collapsible/keyboard-resizable panels with versioned
+localStorage persistence, per-surface error boundaries, no new backend/IPC/domain) are
+implemented. Future packages remain empty shells awaiting their respective
 implementation PRs — see [docs/architecture/phase-0.md](docs/architecture/phase-0.md) for the honest list of what is
 and is not implemented.
 
