@@ -86,6 +86,14 @@ export const IPC_CHANNELS = {
   EXTENSION_DISABLE: "extension:disable",
   EXTENSION_PROJECT_ENABLE: "extension:project-enable",
   EXTENSION_PROJECT_DISABLE: "extension:project-disable",
+
+  // Rich surface operations (PR33). NOTE: there is intentionally NO
+  // surface:execute channel — surface actions route through the agent tool
+  // router (existing ToolExecutor lifecycle), never through IPC execution.
+  SURFACE_LIST: "surface:list",
+  SURFACE_GET: "surface:get",
+  SURFACE_ACTION: "surface:action",
+  SURFACE_DISPOSE: "surface:dispose",
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];
@@ -619,6 +627,53 @@ export const ExtensionProjectDisableCommandSchema = z.object({
 });
 
 export type ExtensionProjectDisableCommand = z.infer<typeof ExtensionProjectDisableCommandSchema>;
+
+// ---------------------------------------------------------------------------
+// Rich Surface Commands (PR33)
+// ---------------------------------------------------------------------------
+
+/**
+ * Command to list surface instance snapshots, optionally scoped to a
+ * project (PR33). Bounded by the registry's own per-task caps; not a
+ * getEverything dump.
+ */
+export const SurfaceListCommandSchema = z.object({
+  projectId: z.string().trim().min(1).max(256).optional(),
+});
+
+export type SurfaceListCommand = z.infer<typeof SurfaceListCommandSchema>;
+
+/**
+ * Command to fetch one surface instance snapshot (PR33).
+ */
+export const SurfaceGetCommandSchema = z.object({
+  instanceId: z.string().trim().min(1).max(64),
+});
+
+export type SurfaceGetCommand = z.infer<typeof SurfaceGetCommandSchema>;
+
+/**
+ * Command to invoke a structured surface action (PR33). The action routes
+ * through permission + the existing ToolExecutor path in main; the channel
+ * itself never executes anything.
+ */
+export const SurfaceActionCommandSchema = z.object({
+  instanceId: z.string().trim().min(1).max(64),
+  actionId: z.string().trim().min(1).max(64),
+  input: z.unknown().optional(),
+  projectId: z.string().trim().min(1).max(256).optional(),
+});
+
+export type SurfaceActionCommand = z.infer<typeof SurfaceActionCommandSchema>;
+
+/**
+ * Command to dispose a surface instance (PR33). Idempotent.
+ */
+export const SurfaceDisposeCommandSchema = z.object({
+  instanceId: z.string().trim().min(1).max(64),
+});
+
+export type SurfaceDisposeCommand = z.infer<typeof SurfaceDisposeCommandSchema>;
 
 // ---------------------------------------------------------------------------
 // Extension Payloads (PR32)

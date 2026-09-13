@@ -1,11 +1,11 @@
 # Phase 0 — What Exists and What Does Not
 
 This document prevents the repository (and its documentation) from claiming functionality
-that does not exist. It reflects the state after **PR32 (Extension / Plugin
-Ecosystem Foundation)** and
+that does not exist. It reflects the state after **PR33 (Rich Tool / MCP App
+Surface Foundation)** and
 is updated as each PR lands.
 
-## Implemented (as of PR32)
+## Implemented (as of PR33)
 
 - Repository foundation: pnpm workspace + Turborepo task graph (`build`, `dev`,
   `typecheck`, `lint`, `test`).
@@ -509,6 +509,28 @@ node.completed/node.failed/blocked/replan/completed/failed/cancelled` plus the
   - 80 plugins tests, 10 storage tests, 9 desktop tests (service + IPC),
     6 renderer tests, package boundary test; full design in
     `docs/architecture/pr-32-extensions.md`.
+- Rich Tool / MCP App Surface foundation (`packages/ai-core`, `packages/mcp`,
+  `packages/plugins`, `apps/desktop`, PR33):
+  - Canonical `RichSurfaceDescriptor` contract in `ai-core` (`rich-surface.ts`):
+    five kinds, renderable subset (document/table/form), SemVer, branded
+    `SurfaceId`/`SurfaceInstanceId`, provenance (source/origin/toolCallId/
+    project), strict lifecycle, structured `SurfaceAction`s, dangerous-URL and
+    traversal guards, raw-credential rejection, bounded limits, additive
+    `metadata.surface` convention with forgery-proof extraction.
+  - Host-owned `SurfaceRegistry` (strict lifecycle, per-task cap, SHA-256
+    hashes) and `SurfaceService` (registered-binding hash match, render/interact
+    permission gates, plugin active/project-enabled gate, host-side row/column/
+    field/descriptor caps, actions via the universal ToolInvoker path).
+  - MCP/plugin integration: additive `metadata.surface` stamps on executor
+    success paths; manifest `contributes.surfaces` (max 8, renderable kinds).
+  - Typed IPC: `surface:list/get/action/dispose` (no `surface:execute`);
+    narrow preload bridge; `RichSurfaceHost` + document/table/form components
+    (no raw HTML, unsafe links degrade to text, per-kind error boundaries);
+    inspector Surfaces section; store-selected instance rendering.
+  - 11 ai-core tests, 4 plugin contribution tests, 2 MCP stamp tests,
+    15 registry/service tests, 8 desktop tests (E2E + IPC); 800 total tests
+    passing workspace-wide. Full design in
+    `docs/architecture/pr-33-rich-surfaces.md`.
 - All remaining canonical packages stay **empty shells** (`package.json`, `tsconfig.json`,
   `src/index.ts` placeholder) — deliberately no premature domain functionality inside them.
 - Toolchain: TypeScript 5.9.3, ESLint 10.10.0, Vitest 4.1.10, Vite 8.1.0, Prettier 3.9.6,
@@ -518,8 +540,8 @@ node.completed/node.failed/blocked/replan/completed/failed/cancelled` plus the
 ## Not yet implemented
 
 - Plugin marketplace, remote registry, auto-update, extension sandbox
-  process, browser automation, MCP Apps, GitHub App integration, cloud
-  plugin sync, accounts/billing (PR33+).
+  process, browser automation, full MCP Apps runtime, GitHub App integration,
+  cloud plugin sync, accounts/billing (future ecosystem).
 
 ## Verification
 

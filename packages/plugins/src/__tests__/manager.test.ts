@@ -17,8 +17,8 @@ function manifest(id = "ext-a"): ExtensionManifest {
     name: "Ext A",
     version: "1.0.0",
     capabilities: ["tool.register"],
-    contributes: { tools: [] },
-  } as ExtensionManifest;
+    contributes: { tools: [], surfaces: [] },
+  } as unknown as ExtensionManifest;
 }
 
 function inMemoryRepos() {

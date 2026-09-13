@@ -36,6 +36,8 @@ export interface WorkspacePresentationState {
   /** Presentation-side selection; conversation data stays backend-owned. */
   readonly activeConversationId: string | null;
   readonly activeTaskId: string | null;
+  /** PR33.2: renderer — selected rich-surface instance (presentation only). */
+  readonly selectedSurfaceId: string | null;
   readonly leftPanel: WorkspacePanelState;
   readonly rightPanel: WorkspacePanelState;
 }
@@ -53,6 +55,7 @@ export const DEFAULT_WORKSPACE_STATE: WorkspacePresentationState = {
   activeProjectId: "sample-project",
   activeConversationId: null,
   activeTaskId: null,
+  selectedSurfaceId: null,
   leftPanel: { visible: true, width: WORKSPACE_PANEL_LIMITS.left.defaultWidth },
   rightPanel: { visible: true, width: WORKSPACE_PANEL_LIMITS.right.defaultWidth },
 };
@@ -87,6 +90,11 @@ export function parseWorkspaceState(raw: unknown): WorkspacePresentationState {
     typeof data.activeTaskId === "string" && data.activeTaskId.length > 0
       ? data.activeTaskId
       : null;
+  // PR33.2: renderer — accept string or null, else null.
+  const selectedSurfaceId =
+    typeof data.selectedSurfaceId === "string" && data.selectedSurfaceId.length > 0
+      ? data.selectedSurfaceId
+      : null;
 
   const parsePanel = (panel: "left" | "right", value: unknown): WorkspacePanelState => {
     const fallback =
@@ -105,6 +113,7 @@ export function parseWorkspaceState(raw: unknown): WorkspacePresentationState {
     activeProjectId,
     activeConversationId,
     activeTaskId,
+    selectedSurfaceId,
     leftPanel: parsePanel("left", data.leftPanel),
     rightPanel: parsePanel("right", data.rightPanel),
   };

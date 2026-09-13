@@ -14,7 +14,7 @@
 //      processes and never reads process.env wholesale.
 
 import { createToolCallId, now, ValidationError, type ToolCallId } from "@ai-desktop/shared";
-import type { PermissionManager, ToolResult } from "@ai-desktop/ai-core";
+import { buildSurfaceMetadata, type PermissionManager, type ToolResult } from "@ai-desktop/ai-core";
 import type { PluginToolRegistry } from "../tools/extension-tool-contribution.js";
 import { parseCanonicalPluginToolId } from "../tools/extension-tool-contribution.js";
 
@@ -34,6 +34,15 @@ export interface PluginToolExecutorOptions {
   readonly handlers: ReadonlyMap<string, PluginToolHandler>;
   readonly isEnabledForProject: (extensionId: string, projectId: string) => boolean;
   readonly isExtensionActive?: (extensionId: string) => boolean;
+  /**
+   * Optional surface provider (PR33): maps a canonical tool name to an
+   * already-validated RichSurfaceDescriptor, stamped additively into
+   * metadata.surface. The SurfaceService enforces registered-binding hash
+   * match independently, so this stamp alone creates nothing.
+   */
+  readonly surfaceProvider?: (
+    toolName: string,
+  ) => import("@ai-desktop/ai-core").RichSurfaceDescriptor | undefined;
 }
 
 function validateToolInput(parameters: Record<string, unknown>, input: unknown): void {
@@ -84,6 +93,7 @@ export class PluginToolExecutor {
   private readonly _handlers: ReadonlyMap<string, PluginToolHandler>;
   private readonly _isEnabledForProject: (extensionId: string, projectId: string) => boolean;
   private readonly _isExtensionActive?: (extensionId: string) => boolean;
+  private readonly _surfaceProvider?: PluginToolExecutorOptions["surfaceProvider"];
 
   constructor(options: PluginToolExecutorOptions) {
     this._registry = options.toolRegistry;
@@ -91,6 +101,7 @@ export class PluginToolExecutor {
     this._handlers = options.handlers;
     this._isEnabledForProject = options.isEnabledForProject;
     this._isExtensionActive = options.isExtensionActive;
+    this._surfaceProvider = options.surfaceProvider;
   }
 
   async execute(
@@ -214,6 +225,7 @@ export class PluginToolExecutor {
         isError: false,
         durationMs: Date.now() - startTime,
         timestamp: now(),
+        metadata: this._surfaceMetadata(toolName),
       };
     } catch (handlerErr: unknown) {
       return {
@@ -225,5 +237,12 @@ export class PluginToolExecutor {
         timestamp: now(),
       };
     }
+  }
+
+  private _surfaceMetadata(toolName: string): Record<string, unknown> {
+    if (!this._surfaceProvider) return {};
+    const descriptor = this._surfaceProvider(toolName);
+    if (!descriptor) return {};
+    return buildSurfaceMetadata(descriptor);
   }
 }

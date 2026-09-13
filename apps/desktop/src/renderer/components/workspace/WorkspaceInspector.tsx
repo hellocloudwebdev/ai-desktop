@@ -15,7 +15,12 @@ export function WorkspaceInspector({
   files,
   activity,
   onCancelTask,
+  surfaces,
+  selectedSurfaceId,
+  onSelectSurface,
 }: InspectorProps): React.ReactElement {
+  const surfaceList = surfaces ?? [];
+  const canSelectSurface = typeof onSelectSurface === "function";
   return (
     <aside
       aria-label="Context inspector"
@@ -92,6 +97,47 @@ export function WorkspaceInspector({
                 {f.detail && <span className="text-slate-500 ml-1">{f.detail}</span>}
               </li>
             ))}
+          </ul>
+        )}
+      </section>
+
+      <section aria-label="Surfaces">
+        <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-1.5">
+          Surfaces
+        </p>
+        {surfaceList.length === 0 ? (
+          <p className="text-slate-500">No surfaces available.</p>
+        ) : (
+          <ul className="space-y-1">
+            {surfaceList.map((surface) => {
+              const active = surface.instanceId === (selectedSurfaceId ?? null);
+              return (
+                <li key={surface.instanceId}>
+                  <button
+                    type="button"
+                    disabled={!canSelectSurface}
+                    onClick={() =>
+                      canSelectSurface && onSelectSurface?.(active ? null : surface.instanceId)
+                    }
+                    aria-pressed={active}
+                    className={`w-full text-left rounded-lg px-2 py-1.5 transition-colors focus:outline-none focus:ring-1 focus:ring-indigo-500 ${
+                      active
+                        ? "bg-indigo-700 text-white font-medium"
+                        : "text-slate-300 hover:bg-slate-800"
+                    }`}
+                  >
+                    <span className="block font-mono text-[11px] break-all">
+                      {surface.instanceId.slice(0, 8)}… · {surface.kind} · {surface.status}
+                    </span>
+                    {surface.title && (
+                      <span className="block text-[11px] text-slate-400 truncate">
+                        {surface.title}
+                      </span>
+                    )}
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>

@@ -18,6 +18,7 @@ import type {
   ExtensionsSurfaceProps,
   InspectorProps,
   SidebarProps,
+  SurfaceHostProps,
   TasksSurfaceProps,
   ActivityEventView,
   FileEntryView,
@@ -37,6 +38,8 @@ export interface WorkspaceShellProps {
   readonly extensions: ExtensionsSurfaceProps;
   readonly inspector: InspectorProps;
   readonly composer: ComposerProps;
+  // PR33.8: renderer — rich-surface host view (additive pass-through).
+  readonly surfaceHost?: SurfaceHostProps;
 }
 
 export function WorkspaceShell({
@@ -53,6 +56,7 @@ export function WorkspaceShell({
   extensions,
   inspector,
   composer,
+  surfaceHost,
 }: WorkspaceShellProps): React.ReactElement {
   const { state } = store;
 
@@ -123,6 +127,7 @@ export function WorkspaceShell({
               activity={activity}
               files={files}
               extensions={extensions}
+              surfaceHost={surfaceHost}
             />
           </WorkspaceErrorBoundary>
         </div>

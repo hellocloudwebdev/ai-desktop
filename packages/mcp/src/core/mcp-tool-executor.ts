@@ -9,7 +9,7 @@
 //   6. Returns canonical ToolResult (never raw MCP CallToolResult).
 
 import { createToolCallId, now, ValidationError, type ToolCallId } from "@ai-desktop/shared";
-import type { ToolResult } from "@ai-desktop/ai-core";
+import { buildSurfaceMetadata, type ToolResult } from "@ai-desktop/ai-core";
 import type { PermissionManager } from "@ai-desktop/permissions";
 import type { MCPHost } from "./mcp-host.js";
 import { parseCanonicalToolId } from "./tool-converter.js";
@@ -29,6 +29,17 @@ export interface ExecuteMcpToolOptions {
 export interface McpToolExecutorEvents {
   onSoftTimeout?: (toolName: string, durationMs: number) => void;
 }
+
+/**
+ * Optional surface provider (PR33): maps a canonical tool name to an
+ * already-validated RichSurfaceDescriptor. The executor stamps it into
+ * metadata.surface additively; the SurfaceService independently enforces
+ * that only registered bindings materialize (hash match), so a forged
+ * stamp can never create a surface.
+ */
+export type McpSurfaceProvider = (
+  toolName: string,
+) => import("@ai-desktop/ai-core").RichSurfaceDescriptor | undefined;
 
 /**
  * Validates input arguments against the tool parameters schema.
@@ -52,17 +63,20 @@ export class McpToolExecutor {
   private readonly _permissionManager: PermissionManager;
   private readonly _mcpHost: MCPHost;
   private readonly _events?: McpToolExecutorEvents;
+  private readonly _surfaceProvider?: McpSurfaceProvider;
 
   constructor(
     registry: ToolRegistry,
     permissionManager: PermissionManager,
     mcpHost: MCPHost,
     events?: McpToolExecutorEvents,
+    surfaceProvider?: McpSurfaceProvider,
   ) {
     this._registry = registry;
     this._permissionManager = permissionManager;
     this._mcpHost = mcpHost;
     this._events = events;
+    this._surfaceProvider = surfaceProvider;
   }
 
   /**
@@ -225,6 +239,7 @@ export class McpToolExecutor {
             ...mcpResult.metadata,
             truncated: true,
             originalBytes: resultBytes,
+            ...this._surfaceMetadata(toolName),
           },
         };
       }
@@ -233,6 +248,10 @@ export class McpToolExecutor {
         ...mcpResult,
         toolCallId,
         durationMs,
+        metadata: {
+          ...mcpResult.metadata,
+          ...this._surfaceMetadata(toolName),
+        },
       };
     } catch (err: unknown) {
       clearTimeout(softTimer);
@@ -254,5 +273,18 @@ export class McpToolExecutor {
         },
       };
     }
+  }
+
+  /**
+   * Additive surface stamp (PR33): returns { surface } when a provider is
+   * configured for this tool, else {}. The SurfaceService independently
+   * enforces registered-binding hash match, so this stamp alone creates
+   * nothing.
+   */
+  private _surfaceMetadata(toolName: string): Record<string, unknown> {
+    if (!this._surfaceProvider) return {};
+    const descriptor = this._surfaceProvider(toolName);
+    if (!descriptor) return {};
+    return buildSurfaceMetadata(descriptor);
   }
 }

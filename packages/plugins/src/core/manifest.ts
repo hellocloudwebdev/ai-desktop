@@ -11,6 +11,43 @@
 
 import { z } from "zod";
 import { ExtensionCapabilitySchema, normalizeCapabilities } from "./capabilities.js";
+import { RENDERABLE_KINDS, type SurfaceKind } from "@ai-desktop/ai-core";
+
+/**
+ * Surface contribution (PR33): an extension declares which of its tools may
+ * produce a rich surface, with a pre-validated descriptor shape. The host
+ * SurfaceService independently validates, hash-checks, permission-gates,
+ * and renders — the declaration alone creates nothing.
+ */
+export const PluginSurfaceContributionSchema = z.object({
+  toolName: z
+    .string()
+    .trim()
+    .min(1)
+    .max(64)
+    .regex(/^[a-z0-9-_]{1,64}$/, {
+      message: "Surface tool name must match ^[a-z0-9-_]{1,64}$",
+    }),
+  surfaceId: z
+    .string()
+    .trim()
+    .min(1)
+    .max(64)
+    .regex(/^[a-z0-9][a-z0-9._:-]*$/, {
+      message: "Surface id must be lowercase alphanumeric with optional dot/dash/underscore/colon",
+    }),
+  kind: z.enum(RENDERABLE_KINDS as unknown as [SurfaceKind, ...SurfaceKind[]]),
+  title: z.string().trim().min(1).max(200).optional(),
+  version: z
+    .string()
+    .regex(
+      /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/,
+      { message: "Surface version must be valid SemVer (e.g. 1.0.0)" },
+    )
+    .default("1.0.0"),
+});
+
+export type PluginSurfaceContribution = z.infer<typeof PluginSurfaceContributionSchema>;
 
 export const SEMVER_PATTERN =
   /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/;
@@ -80,8 +117,9 @@ export const ExtensionManifestSchema = z
     contributes: z
       .object({
         tools: z.array(PluginToolContributionSchema).max(16).default([]),
+        surfaces: z.array(PluginSurfaceContributionSchema).max(8).default([]),
       })
-      .default({ tools: [] }),
+      .default({ tools: [], surfaces: [] }),
     minimumHostVersion: z
       .string()
       .regex(SEMVER_PATTERN, { message: "minimumHostVersion must be valid SemVer" })

@@ -51,6 +51,10 @@ import {
   type ExtensionUninstallCommand,
   type ExtensionEnableCommand,
   type ExtensionDisableCommand,
+  type SurfaceGetCommand,
+  type SurfaceActionCommand,
+  type SurfaceDisposeCommand,
+  type SurfaceListCommand,
   type IpcResponseEnvelope,
 } from "@ai-desktop/shared";
 import type {
@@ -194,6 +198,19 @@ export interface DesktopApplicationApi {
       projectId: string;
       enabled: boolean;
     }): Promise<IpcResponseEnvelope<{ extension: unknown }>>;
+
+    // PR33: rich surface lifecycle (state queries + structured actions only;
+    // execution flows through the agent tool router, never through IPC).
+    listSurfaces(
+      command: SurfaceListCommand,
+    ): Promise<IpcResponseEnvelope<{ surfaces: unknown[] }>>;
+    getSurface(command: SurfaceGetCommand): Promise<IpcResponseEnvelope<{ surface: unknown }>>;
+    invokeSurfaceAction(
+      command: SurfaceActionCommand,
+    ): Promise<IpcResponseEnvelope<{ result: unknown }>>;
+    disposeSurface(
+      command: SurfaceDisposeCommand,
+    ): Promise<IpcResponseEnvelope<{ disposed: boolean }>>;
   };
 
   /**
@@ -355,6 +372,18 @@ export function createDesktopApi(): DesktopApplicationApi {
             : IPC_CHANNELS.EXTENSION_PROJECT_DISABLE,
           { extensionId: command.extensionId, projectId: command.projectId },
         );
+      },
+      async getSurface(command: SurfaceGetCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.SURFACE_GET, command);
+      },
+      async listSurfaces(command?: SurfaceListCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.SURFACE_LIST, command ?? {});
+      },
+      async invokeSurfaceAction(command: SurfaceActionCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.SURFACE_ACTION, command);
+      },
+      async disposeSurface(command: SurfaceDisposeCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.SURFACE_DISPOSE, command);
       },
     },
 

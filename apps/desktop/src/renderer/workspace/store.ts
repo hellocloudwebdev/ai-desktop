@@ -21,6 +21,11 @@ export { DEFAULT_WORKSPACE_STATE, WORKSPACE_STORAGE_KEY, isWorkspaceSurface };
 
 export type WorkspaceAction =
   | { type: "surface/select"; surface: WorkspaceSurface }
+  // PR33.2: renderer — rich-surface instance selection shares the
+  // "surface/select" tag with a surfaceId payload (the `surface` payload
+  // variant above is owned by workspace-surface switching and its tests).
+  // The reducer distinguishes the two via `"surfaceId" in action`.
+  | { type: "surface/select"; surfaceId: string | null }
   | { type: "project/select"; projectId: string }
   | { type: "conversation/select"; conversationId: string | null }
   | { type: "task/select"; taskId: string | null }
@@ -40,6 +45,12 @@ export function workspaceReducer(
 ): WorkspacePresentationState {
   switch (action.type) {
     case "surface/select":
+      // PR33.2: renderer — same tag carries either a workspace-surface
+      // switch (`surface`) or a rich-surface instance selection
+      // (`surfaceId`). Narrow via `in` since the tag is shared.
+      if ("surfaceId" in action) {
+        return { ...state, selectedSurfaceId: action.surfaceId };
+      }
       if (!isWorkspaceSurface(action.surface)) return state;
       return { ...state, activeSurface: action.surface };
     case "project/select": {
@@ -94,6 +105,8 @@ function loadInitialState(): WorkspacePresentationState {
 export interface WorkspaceStore {
   readonly state: WorkspacePresentationState;
   selectSurface(surface: WorkspaceSurface): void;
+  /** PR33.2: renderer — select a rich-surface instance (presentation only). */
+  selectSurfaceInstance(surfaceId: string | null): void;
   selectProject(projectId: string): void;
   selectConversation(conversationId: string | null): void;
   selectTask(taskId: string | null): void;
@@ -116,6 +129,10 @@ export function useWorkspaceStore(): WorkspaceStore {
 
   const selectSurface = useCallback(
     (surface: WorkspaceSurface) => dispatch({ type: "surface/select", surface }),
+    [],
+  );
+  const selectSurfaceInstance = useCallback(
+    (surfaceId: string | null) => dispatch({ type: "surface/select", surfaceId }),
     [],
   );
   const selectProject = useCallback(
@@ -148,6 +165,7 @@ export function useWorkspaceStore(): WorkspaceStore {
     () => ({
       state,
       selectSurface,
+      selectSurfaceInstance,
       selectProject,
       selectConversation,
       selectTask,
@@ -158,6 +176,7 @@ export function useWorkspaceStore(): WorkspaceStore {
     [
       state,
       selectSurface,
+      selectSurfaceInstance,
       selectProject,
       selectConversation,
       selectTask,
