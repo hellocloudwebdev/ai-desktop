@@ -46,6 +46,10 @@ import {
   AgentCancelCommandSchema,
   AgentGetCommandSchema,
   AgentListCommandSchema,
+  CodingStartCommandSchema,
+  CodingCancelCommandSchema,
+  CodingGetCommandSchema,
+  CodingListCommandSchema,
   type ChatCancelCommand,
   type ChatSendCommand,
   type ChatStreamEvent,
@@ -79,6 +83,10 @@ import {
   type AgentCancelCommand,
   type AgentGetCommand,
   type AgentListCommand,
+  type CodingStartCommand,
+  type CodingCancelCommand,
+  type CodingGetCommand,
+  type CodingListCommand,
   type IpcResponseEnvelope,
 } from "@ai-desktop/shared";
 import {
@@ -92,6 +100,7 @@ import type { PermissionManager } from "@ai-desktop/permissions";
 import type { SkillInstaller, SkillManager } from "@ai-desktop/skills";
 import type { MemoryService } from "@ai-desktop/memory";
 import type { AgentService } from "../agent/index.js";
+import type { CodingAgentService } from "../agent/index.js";
 import type { ActiveStreamRegistry, ChatService, ModelSelectionService } from "../chat/index.js";
 import type { IpcBatcher } from "./batcher.js";
 
@@ -139,6 +148,10 @@ export interface RegisteredCommands {
   onAgentCancel?: CommandHandler<AgentCancelCommand, { cancelled: boolean }>;
   onAgentGet?: CommandHandler<AgentGetCommand, { task: unknown }>;
   onAgentList?: CommandHandler<AgentListCommand, { taskIds: string[] }>;
+  onCodingStart?: CommandHandler<CodingStartCommand, { outcome: unknown }>;
+  onCodingCancel?: CommandHandler<CodingCancelCommand, { cancelled: boolean }>;
+  onCodingGet?: CommandHandler<CodingGetCommand, { task: unknown }>;
+  onCodingList?: CommandHandler<CodingListCommand, { taskIds: string[] }>;
 }
 
 export interface RegisterIpcOptions {
@@ -152,6 +165,7 @@ export interface RegisterIpcOptions {
   skillInstaller?: SkillInstaller;
   memoryService?: MemoryService;
   agentService?: AgentService;
+  codingAgentService?: CodingAgentService;
 }
 
 export class IpcRegistry {
@@ -387,6 +401,8 @@ export function registerIpcHandlers(
     options && "memoryService" in options ? options.memoryService : undefined;
   const agentService: AgentService | undefined =
     options && "agentService" in options ? options.agentService : undefined;
+  const codingAgentService: CodingAgentService | undefined =
+    options && "codingAgentService" in options ? options.codingAgentService : undefined;
   if (batcher) {
     registry.attachBatcher(batcher);
   }
@@ -1036,6 +1052,86 @@ export function registerIpcHandlers(
         return { taskIds: agentService.listTasks() };
       }
       throw new Error("AgentService is not available");
+    },
+  );
+
+  // 36. Coding Start command (PR30): workspace-bound project-scoped coding task.
+  registry.registerCommand(
+    IPC_CHANNELS.CODING_START,
+    CodingStartCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onCodingStart) {
+        return callbacks.onCodingStart(input, event);
+      }
+      if (codingAgentService) {
+        const outcome = await codingAgentService.startCodingTask({
+          projectId: input.projectId,
+          ...(input.workspaceRoot ? { workspaceRoot: input.workspaceRoot } : {}),
+          ...(input.cwd ? { cwd: input.cwd } : {}),
+          prompt: input.prompt,
+          ...(input.conversationId ? { conversationId: input.conversationId } : {}),
+          ...(input.modelId ? { modelId: input.modelId } : {}),
+          ...(input.maxNodeIterations ? { maxNodeIterations: input.maxNodeIterations } : {}),
+        });
+        return { outcome };
+      }
+      throw new Error("CodingAgentService is not available");
+    },
+  );
+
+  // 37. Coding Cancel command (PR30): downward-only cancellation.
+  registry.registerCommand(
+    IPC_CHANNELS.CODING_CANCEL,
+    CodingCancelCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onCodingCancel) {
+        return callbacks.onCodingCancel(input, event);
+      }
+      if (codingAgentService) {
+        const cancelled = codingAgentService.cancelCodingTask(input.taskId, input.reason);
+        return { cancelled };
+      }
+      throw new Error("CodingAgentService is not available");
+    },
+  );
+
+  // 38. Coding Get command (PR30): status snapshot + node checklist.
+  registry.registerCommand(
+    IPC_CHANNELS.CODING_GET,
+    CodingGetCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onCodingGet) {
+        return callbacks.onCodingGet(input, event);
+      }
+      if (codingAgentService) {
+        const status = codingAgentService.getCodingTaskStatus(input.taskId);
+        if (status === undefined) {
+          throw new Error(`Unknown coding task "${input.taskId}"`);
+        }
+        return {
+          task: {
+            taskId: input.taskId,
+            status,
+            graph: codingAgentService.getCodingTaskGraph(input.taskId) ?? null,
+          },
+        };
+      }
+      throw new Error("CodingAgentService is not available");
+    },
+  );
+
+  // 39. Coding List command (PR30): known in-process coding task ids.
+  registry.registerCommand(
+    IPC_CHANNELS.CODING_LIST,
+    CodingListCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onCodingList) {
+        return callbacks.onCodingList(input, event);
+      }
+      if (codingAgentService) {
+        return { taskIds: codingAgentService.listCodingTasks() };
+      }
+      throw new Error("CodingAgentService is not available");
     },
   );
 }

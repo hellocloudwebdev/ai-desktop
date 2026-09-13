@@ -41,8 +41,10 @@ import {
 import { DefaultPermissionManager, type PermissionManager } from "@ai-desktop/permissions";
 import { SkillInstaller, SkillManager, SkillToolRegistry } from "@ai-desktop/skills";
 import { MemoryService } from "@ai-desktop/memory";
+import { DefaultExecutionManager, LocalProcessSandboxProvider } from "@ai-desktop/execution";
 import { ActiveStreamRegistry, ChatService, ModelSelectionService } from "./chat/index.js";
 import { AgentService } from "./agent/index.js";
+import { CodingAgentService, CodingToolExecutor } from "./agent/index.js";
 import { IpcBatcher } from "./ipc/batcher.js";
 import { IpcRegistry, registerIpcHandlers } from "./ipc/index.js";
 
@@ -71,6 +73,8 @@ let skillToolRegistry: SkillToolRegistry | null = null;
 let skillManager: SkillManager | null = null;
 let skillInstaller: SkillInstaller | null = null;
 let agentService: AgentService | null = null;
+let codingToolExecutor: CodingToolExecutor | null = null;
+let codingAgentService: CodingAgentService | null = null;
 
 export function getProviderRegistry(): ProviderRegistry {
   if (!providerRegistry) {
@@ -315,6 +319,7 @@ export function getChatService(options?: {
 export function getAgentService(options?: {
   mcpExecutor?: ConstructorParameters<typeof AgentService>[0]["mcpExecutor"];
   skillExecutor?: ConstructorParameters<typeof AgentService>[0]["skillExecutor"];
+  builtinExecutor?: ConstructorParameters<typeof AgentService>[0]["builtinExecutor"];
 }): AgentService {
   if (!agentService || options) {
     const service = new AgentService({
@@ -325,6 +330,7 @@ export function getAgentService(options?: {
       storage: getStorage().repository,
       ...(options?.mcpExecutor ? { mcpExecutor: options.mcpExecutor } : {}),
       ...(options?.skillExecutor ? { skillExecutor: options.skillExecutor } : {}),
+      ...(options?.builtinExecutor ? { builtinExecutor: options.builtinExecutor } : {}),
     });
     if (!options) {
       agentService = service;
@@ -332,6 +338,41 @@ export function getAgentService(options?: {
     return service;
   }
   return agentService;
+}
+
+/**
+ * Coding builtin executor singleton (PR30.7): validate -> permission ->
+ * backend, backed by LocalProcessSandboxProvider through DefaultExecutionManager.
+ * Workspace resolution delegates to the CodingAgentService registry so tasks
+ * stay project-bound (unregistered projects fail closed).
+ */
+export function getCodingToolExecutor(): CodingToolExecutor {
+  if (!codingToolExecutor) {
+    codingToolExecutor = new CodingToolExecutor({
+      permissionManager: getPermissionManager(),
+      executionManager: new DefaultExecutionManager({
+        sandboxProvider: new LocalProcessSandboxProvider(),
+      }),
+      resolveWorkspace: (projectId?: string) =>
+        projectId ? codingAgentService?.resolveWorkspace(projectId) : undefined,
+    });
+  }
+  return codingToolExecutor;
+}
+
+/**
+ * CodingAgentService singleton (PR30.9): desktop composition of the PR29
+ * runtime for coding tasks. Never implements its own ReAct loop.
+ */
+export function getCodingAgentService(): CodingAgentService {
+  if (!codingAgentService) {
+    const executor = getCodingToolExecutor();
+    codingAgentService = new CodingAgentService({
+      agentService: getAgentService({ builtinExecutor: executor }),
+      codingToolExecutor: executor,
+    });
+  }
+  return codingAgentService;
 }
 
 export function getSecureWebPreferences(preloadPath: string): Electron.WebPreferences {
@@ -387,6 +428,7 @@ export function initIpc(options?: {
   skillInstaller?: SkillInstaller;
   memoryService?: MemoryService;
   agentService?: AgentService;
+  codingAgentService?: CodingAgentService;
 }): IpcRegistry {
   if (!ipcRegistry) {
     ipcRegistry = new IpcRegistry();
@@ -399,6 +441,7 @@ export function initIpc(options?: {
     const installer = options?.skillInstaller ?? getSkillInstaller();
     const memory = options?.memoryService ?? getMemoryService();
     const agent = options?.agentService ?? getAgentService();
+    const coding = options?.codingAgentService ?? getCodingAgentService();
 
     registerIpcHandlers(ipcRegistry, {
       streamRegistry,
@@ -410,6 +453,7 @@ export function initIpc(options?: {
       skillInstaller: installer,
       memoryService: memory,
       agentService: agent,
+      codingAgentService: coding,
     });
   }
   return ipcRegistry;

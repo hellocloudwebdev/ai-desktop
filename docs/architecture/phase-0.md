@@ -1,10 +1,10 @@
 # Phase 0 — What Exists and What Does Not
 
 This document prevents the repository (and its documentation) from claiming functionality
-that does not exist. It reflects the state after **PR29 (Agent Runtime)** and
+that does not exist. It reflects the state after **PR30 (Coding Agent)** and
 is updated as each PR lands.
 
-## Implemented (as of PR29)
+## Implemented (as of PR30)
 
 - Repository foundation: pnpm workspace + Turborepo task graph (`build`, `dev`,
   `typecheck`, `lint`, `test`).
@@ -422,6 +422,41 @@ node.completed/node.failed/blocked/replan/completed/failed/cancelled` plus the
     list, per-node status checklist, and Cancel.
   - 53 tests in agent-runtime, 131 in desktop (incl. provider/tool/security integration);
     560 total tests passing workspace-wide.
+- Coding Agent foundation (`packages/ai-core`, `apps/desktop`, PR30):
+  - Canonical coding contracts in `ai-core` (`coding.ts`): `CodingTaskRequest`
+    (project-scoped, explicit workspace root, credential-rejecting prompt),
+    `CodingAgentContext`, five `builtin:*` tool IDs, capability/risk maps
+    (reads low, writes medium, execution high). `execution` stays a ToolRuntime,
+    never a ToolSource.
+  - Workspace path policy (`apps/desktop/src/main/agent/filesystem/path-policy.ts`):
+    normalize → realpath-resolve → containment proof against the resolved root;
+    traversal, absolute outside paths, and symlink escapes rejected; missing-tail
+    write targets anchored through the nearest existing ancestor.
+  - Bounded filesystem backend (64 KB read/write, 50 results / 64 KB search
+    bytes, 500 lines; deterministic recursive search excluding `.git`,
+    `node_modules`, `dist`, `build`, `coverage`, `.next`, `.turbo`; no grep
+    shell-out).
+  - Five canonical builtins (`builtin:filesystem.list/search/read/write`,
+    `builtin:execution.run`) with SHA-256 definition hashes (MCP convention);
+    `CodingToolExecutor` enforces resolve → validate → `PermissionManager.check`
+    (coding capability/resource map, real toolCallId) → backend. Command
+    execution maps onto `ExecutionRequest` (`mode: "sandboxed"`, timeout
+    clamped to 120 s, `networkAllowed: false`) with the cwd resolved through
+    path-policy; never calls Docker directly.
+  - `CodingAgentService` desktop composition over the PR29 runtime (validates,
+    binds workspace, invokes `AgentService` with the coding operating contract
+    as system prompt: inspect → smallest change → validate → report only what
+    tool output proves). No second ReAct loop. Unregistered projects fail
+    closed before schema validation.
+  - No new event types: coding tasks reuse `task.*` / `tool.call.*`; file
+    changes surface as tool results, never event payloads.
+  - Typed IPC: `coding:start`, `coding:cancel`, `coding:get`, `coding:list`
+    with Zod validation; preload bridge; renderer Coding popover (project id +
+    prompt inputs, task list, per-node checklist, Cancel).
+  - 5 tests in ai-core, 44 new tests in desktop (path-policy, filesystem,
+    executor/permissions, service incl. mid-run replan, IPC dispatch, e2e
+    fix-failing-test + isolation, renderer boundary); 609 total tests passing
+    workspace-wide. Full design in `docs/architecture/pr-30-coding-agent.md`.
 - All remaining canonical packages stay **empty shells** (`package.json`, `tsconfig.json`,
   `src/index.ts` placeholder) — deliberately no premature domain functionality inside them.
 - Toolchain: TypeScript 5.9.3, ESLint 10.10.0, Vitest 4.1.10, Vite 8.1.0, Prettier 3.9.6,
@@ -430,8 +465,6 @@ node.completed/node.failed/blocked/replan/completed/failed/cancelled` plus the
 
 ## Not yet implemented
 
-- Claude-Code-style coding agent built on the runtime — Coding Agent milestone
-  (the PR29 TaskGraph + ReAct runtime is the orchestration foundation it consumes).
 - Full workspace multi-column layout — Workspace milestone.
 
 ## Verification

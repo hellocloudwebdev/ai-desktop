@@ -14,6 +14,7 @@ export * from "./memory.js";
 export * from "./permissions.js";
 export * from "./execution.js";
 export * from "./tasks.js";
+export * from "./coding.js";
 export * from "./events.js";
 export * from "./errors.js";
 export * from "./models.js";
