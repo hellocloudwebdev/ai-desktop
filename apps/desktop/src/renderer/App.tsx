@@ -7,10 +7,17 @@ import type {
   ModelDefinition,
   PermissionRequest,
 } from "@ai-desktop/ai-core";
+import { useWorkspaceStore } from "./workspace/store.js";
+import { WorkspaceShell } from "./components/workspace/Workspace.js";
+import type {
+  ActivityEventView,
+  FileEntryView,
+} from "./components/workspace/surfaces/surface-props.js";
 
 const DEFAULT_CONVERSATION_ID = "01JM0000000000000000000001";
 
 export function App(): React.ReactElement {
+  const workspace = useWorkspaceStore();
   const [conversationId] = useState<string>(DEFAULT_CONVERSATION_ID);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState<string>("");
@@ -24,7 +31,6 @@ export function App(): React.ReactElement {
   const [skills, setSkills] = useState<
     Array<{ id: string; name: string; state: string; enabled: boolean; active?: boolean }>
   >([]);
-  const [showSkills, setShowSkills] = useState<boolean>(false);
   const [memories, setMemories] = useState<
     Array<{
       id: string;
@@ -34,7 +40,6 @@ export function App(): React.ReactElement {
       projectId?: string | null;
     }>
   >([]);
-  const [showMemories, setShowMemories] = useState<boolean>(false);
   const [agentTasks, setAgentTasks] = useState<
     Array<{
       taskId: string;
@@ -42,7 +47,6 @@ export function App(): React.ReactElement {
       nodes: Array<{ id: string; goal: string; status: string }>;
     }>
   >([]);
-  const [showAgentTasks, setShowAgentTasks] = useState<boolean>(false);
   const [agentGoal, setAgentGoal] = useState<string>("");
   const [agentRunning, setAgentRunning] = useState<boolean>(false);
   const [codingTasks, setCodingTasks] = useState<
@@ -52,10 +56,13 @@ export function App(): React.ReactElement {
       nodes: Array<{ id: string; goal: string; status: string }>;
     }>
   >([]);
-  const [showCodingTasks, setShowCodingTasks] = useState<boolean>(false);
   const [codingPrompt, setCodingPrompt] = useState<string>("");
   const [codingProjectId, setCodingProjectId] = useState<string>("sample-project");
   const [codingRunning, setCodingRunning] = useState<boolean>(false);
+  // Activity feed: bounded view over subscribed conversation events (PR31.11).
+  const [activityEvents, setActivityEvents] = useState<ActivityEventView[]>([]);
+  // Touched files derive from tool results in canonical events (PR31.11).
+  const [touchedFiles, setTouchedFiles] = useState<FileEntryView[]>([]);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   // Auto-scroll to latest message
@@ -68,7 +75,36 @@ export function App(): React.ReactElement {
   }, [messages, scrollToBottom]);
 
   // Handle incoming stream events incrementally (§39.29, §39.33)
+  // Also appends a bounded activity entry per event (PR31.11 activity view).
   const handleStreamEvent = useCallback((event: AIEvent) => {
+    const eventType = (event as { type?: string }).type ?? "unknown";
+    if (eventType !== "message.delta") {
+      setActivityEvents((prev) => {
+        const entry: ActivityEventView = {
+          key: `${eventType}:${event.sequence}:${prev.length}`,
+          time: new Date(event.timestamp as string).toLocaleTimeString(),
+          label: describeActivityEvent(eventType, event as Record<string, unknown>),
+          kind: activityKindFor(eventType),
+        };
+        const next = [...prev, entry];
+        return next.length > 200 ? next.slice(next.length - 200) : next;
+      });
+    }
+    // Touched files: tool results carry JSON with "path" for filesystem ops.
+    if (eventType === "tool.call.completed") {
+      const result = (event as { result?: unknown }).result;
+      if (typeof result === "string") {
+        const match = /"path"\s*:\s*"([^"]+)"/.exec(result);
+        if (match) {
+          const filePath = match[1];
+          setTouchedFiles((prev) => {
+            if (prev.some((f) => f.path === filePath)) return prev;
+            const next = [...prev, { path: filePath }];
+            return next.length > 100 ? next.slice(next.length - 100) : next;
+          });
+        }
+      }
+    }
     setMessages((prevMessages) => {
       const updated = [...prevMessages];
       const anyEvent = event as {
@@ -205,6 +241,11 @@ export function App(): React.ReactElement {
     });
   }, []);
 
+  // PR31 subscription-identity correction: the event subscription depends only
+  // on the conversation/subscription lifecycle inputs it consumes. Model
+  // selection must not tear down and recreate the subscription.
+  // (Effect deps updated below: [conversationId, handleStreamEvent].)
+
   // Initial load and event subscription lifecycle (§39.37, §39.38)
   useEffect(() => {
     if (typeof window === "undefined" || !window.api) {
@@ -300,7 +341,7 @@ export function App(): React.ReactElement {
         unsubscribeFn();
       }
     };
-  }, [conversationId, handleStreamEvent, selectedModelId]);
+  }, [conversationId, handleStreamEvent]);
 
   // Model selection change handler (§42 / PR22.10)
   const handleModelChange = async (newModelId: string) => {
@@ -583,493 +624,164 @@ export function App(): React.ReactElement {
       .join("");
   }
 
+  // PR31: derived workspace views (presentation derivations, not backend state).
+  const activeTaskEntry = (() => {
+    const selected = workspace.state.activeTaskId;
+    if (selected) {
+      const agent = agentTasks.find((t) => t.taskId === selected);
+      if (agent) return { ...agent, kind: "agent" as const };
+      const coding = codingTasks.find((t) => t.taskId === selected);
+      if (coding) return { ...coding, kind: "coding" as const };
+    }
+    return null;
+  })();
+
   return (
-    <main className="flex h-screen w-screen flex-col bg-slate-950 text-slate-100 font-sans">
-      {/* Top Header */}
-      <header className="flex h-14 items-center justify-between border-b border-slate-800 bg-slate-900/60 px-6 backdrop-blur-sm">
-        <div className="flex items-center space-x-3">
-          <div className="h-3 w-3 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50" />
-          <h1 className="text-base font-semibold text-white">AI Desktop</h1>
-          <span className="rounded-full bg-slate-800 px-2.5 py-0.5 text-xs text-slate-400 font-mono">
-            {conversationId.slice(0, 10)}…
-          </span>
-        </div>
-
-        <div className="flex items-center space-x-4">
-          {/* Provider & Model Selector (PR22.10) */}
-          <div className="flex items-center space-x-2">
-            <label htmlFor="model-select" className="text-xs text-slate-400 font-medium">
-              Model:
-            </label>
-            <select
-              id="model-select"
-              value={selectedModelId}
-              onChange={(e) => handleModelChange(e.target.value)}
-              disabled={isStreaming}
-              className="rounded-lg bg-slate-800 border border-slate-700 px-2.5 py-1 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50 cursor-pointer"
-            >
-              {availableModels.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.displayName} ({m.providerId})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Skills Management Trigger (PR26.17) */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setShowSkills((v) => !v)}
-              className="rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 px-2.5 py-1 text-xs text-slate-200 focus:outline-none transition-colors"
-            >
-              Skills ({skills.filter((s) => s.enabled).length})
-            </button>
-            {showSkills && (
-              <div className="absolute right-0 mt-2 w-64 rounded-xl bg-slate-900 border border-slate-700 p-3 shadow-xl z-50">
-                <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800">
-                  <span className="font-semibold text-xs text-white">Installed Skills</span>
-                  <span className="text-[10px] text-slate-400 font-mono">
-                    {skills.length} packages
-                  </span>
-                </div>
-                {skills.length === 0 ? (
-                  <p className="text-xs text-slate-500 py-2">No skills installed.</p>
-                ) : (
-                  <ul className="space-y-2">
-                    {skills.map((s) => (
-                      <li key={s.id} className="flex items-center justify-between text-xs">
-                        <div>
-                          <div className="font-medium text-slate-200">{s.name}</div>
-                          <div className="text-[10px] text-slate-400">
-                            {s.active ? "Active" : s.enabled ? "Enabled" : "Disabled"}
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleToggleSkill(s.id, s.enabled)}
-                          className={`rounded px-2 py-0.5 text-[10px] font-medium ${
-                            s.enabled
-                              ? "bg-emerald-800 hover:bg-emerald-700 text-emerald-100"
-                              : "bg-slate-800 hover:bg-slate-700 text-slate-300"
-                          }`}
-                        >
-                          {s.enabled ? "Enabled" : "Enable"}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Memory Management Trigger (PR28.13) */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setShowMemories((v) => !v)}
-              className="rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 px-2.5 py-1 text-xs text-slate-200 focus:outline-none transition-colors"
-            >
-              Memory ({memories.length})
-            </button>
-            {showMemories && (
-              <div className="absolute right-0 mt-2 w-80 rounded-xl bg-slate-900 border border-slate-700 p-3 shadow-xl z-50 max-h-96 overflow-y-auto">
-                <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800">
-                  <span className="font-semibold text-xs text-white">Durable Memory</span>
-                  <span className="text-[10px] text-slate-400 font-mono">
-                    {memories.length} facts
-                  </span>
-                </div>
-                {memories.length === 0 ? (
-                  <p className="text-xs text-slate-500 py-2">No import_guard facts stored yet.</p>
-                ) : (
-                  <ul className="space-y-2">
-                    {memories.map((m) => (
-                      <li key={m.id} className="rounded-lg bg-slate-800/60 p-2 text-xs">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="rounded bg-slate-700 px-1.5 py-0.5 text-[10px] text-slate-300 font-mono">
-                            {m.scopeLevel === "project"
-                              ? `project:${m.projectId ?? "?"}`
-                              : "global"}
-                            /{m.category}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteMemory(m.id)}
-                            className="rounded px-1.5 py-0.5 text-[10px] font-medium bg-rose-900/60 hover:bg-rose-800 text-rose-200"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                        <div className="text-slate-200 leading-relaxed">{m.content}</div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Agent Tasks Trigger (PR29.17): TaskGraph progress + Cancel */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => {
-                setShowAgentTasks((v) => !v);
-                void refreshAgentTasks();
-              }}
-              className="rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 px-2.5 py-1 text-xs text-slate-200 focus:outline-none transition-colors"
-            >
-              Agent (
-              {agentTasks.filter((t) => t.status === "active" || t.status === "blocked").length})
-            </button>
-            {showAgentTasks && (
-              <div className="absolute right-0 mt-2 w-96 rounded-xl bg-slate-900 border border-slate-700 p-3 shadow-xl z-50 max-h-96 overflow-y-auto">
-                <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800">
-                  <span className="font-semibold text-xs text-white">Agent Tasks</span>
-                  <span className="text-[10px] text-slate-400 font-mono">
-                    {agentTasks.length} tasks
-                  </span>
-                </div>
-                <div className="flex items-center space-x-2 mb-3">
-                  <input
-                    type="text"
-                    value={agentGoal}
-                    onChange={(e) => setAgentGoal(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") void handleStartAgentTask();
-                    }}
-                    placeholder="Describe a multi-step goal…"
-                    disabled={agentRunning}
-                    className="flex-1 rounded-lg bg-slate-800 border border-slate-700 px-2.5 py-1.5 text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => void handleStartAgentTask()}
-                    disabled={agentRunning || !agentGoal.trim()}
-                    className="rounded-lg bg-indigo-700 hover:bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white transition-colors disabled:opacity-50"
-                  >
-                    {agentRunning ? "Starting…" : "Run"}
-                  </button>
-                </div>
-                {agentTasks.length === 0 ? (
-                  <p className="text-xs text-slate-500 py-2">No agent tasks yet.</p>
-                ) : (
-                  <ul className="space-y-2">
-                    {agentTasks.map((t) => (
-                      <li key={t.taskId} className="rounded-lg bg-slate-800/60 p-2 text-xs">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="rounded bg-slate-700 px-1.5 py-0.5 text-[10px] text-slate-300 font-mono">
-                            {t.taskId.slice(0, 8)}… · {t.status}
-                          </span>
-                          {(t.status === "active" || t.status === "blocked") && (
-                            <button
-                              type="button"
-                              onClick={() => void handleCancelAgentTask(t.taskId)}
-                              className="rounded px-1.5 py-0.5 text-[10px] font-medium bg-rose-900/60 hover:bg-rose-800 text-rose-200"
-                            >
-                              Cancel
-                            </button>
-                          )}
-                        </div>
-                        {t.nodes.length > 0 && (
-                          <ul className="space-y-1 mt-1">
-                            {t.nodes.map((n) => (
-                              <li
-                                key={n.id}
-                                className="flex items-center space-x-1.5 text-[11px] text-slate-300"
-                              >
-                                <span
-                                  className={`inline-block h-1.5 w-1.5 rounded-full ${
-                                    n.status === "completed"
-                                      ? "bg-emerald-400"
-                                      : n.status === "failed"
-                                        ? "bg-rose-400"
-                                        : n.status === "active"
-                                          ? "bg-amber-400 animate-pulse"
-                                          : n.status === "blocked"
-                                            ? "bg-orange-400"
-                                            : "bg-slate-500"
-                                  }`}
-                                />
-                                <span className="truncate">{n.goal}</span>
-                                <span className="text-slate-500 font-mono">[{n.status}]</span>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Coding Tasks Trigger (PR30.14): workspace-bound coding tasks */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => {
-                setShowCodingTasks((v) => !v);
-                void refreshCodingTasks();
-              }}
-              className="rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 px-2.5 py-1 text-xs text-slate-200 focus:outline-none transition-colors"
-            >
-              Coding (
-              {codingTasks.filter((t) => t.status === "active" || t.status === "blocked").length})
-            </button>
-            {showCodingTasks && (
-              <div className="absolute right-0 mt-2 w-96 rounded-xl bg-slate-900 border border-slate-700 p-3 shadow-xl z-50 max-h-96 overflow-y-auto">
-                <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800">
-                  <span className="font-semibold text-xs text-white">Coding Tasks</span>
-                  <span className="text-[10px] text-slate-400 font-mono">
-                    {codingTasks.length} tasks
-                  </span>
-                </div>
-                <div className="flex items-center space-x-2 mb-2">
-                  <input
-                    type="text"
-                    value={codingProjectId}
-                    onChange={(e) => setCodingProjectId(e.target.value)}
-                    placeholder="project id"
-                    disabled={codingRunning}
-                    className="w-28 rounded-lg bg-slate-800 border border-slate-700 px-2.5 py-1.5 text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
-                  />
-                  <input
-                    type="text"
-                    value={codingPrompt}
-                    onChange={(e) => setCodingPrompt(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") void handleStartCodingTask();
-                    }}
-                    placeholder="Describe the coding goal…"
-                    disabled={codingRunning}
-                    className="flex-1 rounded-lg bg-slate-800 border border-slate-700 px-2.5 py-1.5 text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => void handleStartCodingTask()}
-                    disabled={codingRunning || !codingPrompt.trim()}
-                    className="rounded-lg bg-indigo-700 hover:bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white transition-colors disabled:opacity-50"
-                  >
-                    {codingRunning ? "Starting…" : "Run"}
-                  </button>
-                </div>
-                {codingTasks.length === 0 ? (
-                  <p className="text-xs text-slate-500 py-2">No coding tasks yet.</p>
-                ) : (
-                  <ul className="space-y-2">
-                    {codingTasks.map((t) => (
-                      <li key={t.taskId} className="rounded-lg bg-slate-800/60 p-2 text-xs">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="rounded bg-slate-700 px-1.5 py-0.5 text-[10px] text-slate-300 font-mono">
-                            {t.taskId.slice(0, 8)}… · {t.status}
-                          </span>
-                          {(t.status === "active" || t.status === "blocked") && (
-                            <button
-                              type="button"
-                              onClick={() => void handleCancelCodingTask(t.taskId)}
-                              className="rounded px-1.5 py-0.5 text-[10px] font-medium bg-rose-900/60 hover:bg-rose-800 text-rose-200"
-                            >
-                              Cancel
-                            </button>
-                          )}
-                        </div>
-                        {t.nodes.length > 0 && (
-                          <ul className="space-y-1 mt-1">
-                            {t.nodes.map((n) => (
-                              <li
-                                key={n.id}
-                                className="flex items-center space-x-1.5 text-[11px] text-slate-300"
-                              >
-                                <span
-                                  className={`inline-block h-1.5 w-1.5 rounded-full ${
-                                    n.status === "completed"
-                                      ? "bg-emerald-400"
-                                      : n.status === "failed"
-                                        ? "bg-rose-400"
-                                        : n.status === "active"
-                                          ? "bg-amber-400 animate-pulse"
-                                          : n.status === "blocked"
-                                            ? "bg-orange-400"
-                                            : "bg-slate-500"
-                                  }`}
-                                />
-                                <span className="truncate">{n.goal}</span>
-                                <span className="text-slate-500 font-mono">[{n.status}]</span>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
-          </div>
-
-          <div className="flex items-center space-x-3 text-xs text-slate-400 font-mono">
-            <span>IPC: {healthStatus}</span>
-            {isStreaming && (
-              <span className="inline-flex items-center text-amber-400 animate-pulse">
-                ● streaming
-              </span>
-            )}
-          </div>
-        </div>
-      </header>
-
-      {/* Messages List Area */}
-      <section className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-        {messages.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center text-center text-slate-500">
-            <p className="text-sm">No messages yet in this conversation.</p>
-            <p className="text-xs mt-1">
-              Send a message below to start streaming with Claude 3.5 Sonnet.
-            </p>
-          </div>
-        ) : (
-          messages.map((msg) => {
-            const isUser = msg.role === "user";
-            const text = renderMessageText(msg.content);
-
-            return (
-              <div key={msg.id} className={`flex flex-col ${isUser ? "items-end" : "items-start"}`}>
-                <div
-                  className={`max-w-2xl rounded-2xl px-4 py-3 shadow-md ${
-                    isUser
-                      ? "bg-indigo-600 text-white"
-                      : "bg-slate-900 border border-slate-800 text-slate-100"
-                  }`}
-                >
-                  <div className="flex items-center space-x-2 mb-1.5 text-xs">
-                    <span className="font-semibold uppercase tracking-wider text-slate-300">
-                      {isUser ? "You" : "Assistant"}
-                    </span>
-                    {msg.status === "streaming" && (
-                      <span className="text-amber-400 text-[10px] animate-pulse">
-                        [generating…]
-                      </span>
-                    )}
-                    {msg.status === "cancelled" && (
-                      <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] text-amber-300 font-medium">
-                        cancelled
-                      </span>
-                    )}
-                    {msg.status === "failed" && (
-                      <span className="rounded bg-rose-500/20 px-1.5 py-0.5 text-[10px] text-rose-300 font-medium">
-                        failed
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="text-sm leading-relaxed whitespace-pre-wrap">
-                    {text || (msg.status === "streaming" ? "…" : "")}
-                  </div>
-                </div>
-              </div>
-            );
-          })
-        )}
-        <div ref={messagesEndRef} />
-      </section>
-
-      {/* Pending Permission Requests Prompt (PR24.9) */}
-      {pendingPermissions.length > 0 && (
-        <div className="mx-6 mb-3 rounded-xl bg-amber-950/80 border border-amber-700/60 p-4 text-xs text-amber-100 shadow-lg">
-          <div className="flex items-center justify-between mb-2">
-            <span className="font-semibold text-amber-300 uppercase tracking-wider text-[11px]">
-              Permission Request: {pendingPermissions[0].capability}
-            </span>
-            <span className="rounded bg-amber-900/60 px-2 py-0.5 text-[10px] text-amber-300 font-mono">
-              Risk: {pendingPermissions[0].risk}
-            </span>
-          </div>
-          <p className="mb-3 text-slate-200">
-            Action: <span className="font-mono text-amber-200">{pendingPermissions[0].action}</span>{" "}
-            on resource:{" "}
-            <span className="font-mono text-amber-200">{pendingPermissions[0].resource}</span>
-          </p>
-          <div className="flex items-center space-x-2">
-            <button
-              type="button"
-              onClick={() =>
-                handleResolvePermission(pendingPermissions[0].id, "granted", "allow_once")
-              }
-              className="rounded-lg bg-emerald-700 hover:bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition-colors"
-            >
-              Allow once
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                handleResolvePermission(pendingPermissions[0].id, "granted", "allow_session")
-              }
-              className="rounded-lg bg-emerald-800 hover:bg-emerald-700 px-3 py-1.5 text-xs font-medium text-white transition-colors"
-            >
-              Allow for session
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                handleResolvePermission(pendingPermissions[0].id, "granted", "allow_project")
-              }
-              className="rounded-lg bg-indigo-700 hover:bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white transition-colors"
-            >
-              Allow for project
-            </button>
-            <button
-              type="button"
-              onClick={() => handleResolvePermission(pendingPermissions[0].id, "denied", "deny")}
-              className="rounded-lg bg-rose-800 hover:bg-rose-700 px-3 py-1.5 text-xs font-medium text-white transition-colors"
-            >
-              Deny
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Error banner */}
-      {errorMessage && (
-        <div className="mx-6 mb-2 rounded-lg bg-rose-950/80 border border-rose-800 px-4 py-2 text-xs text-rose-200">
-          Error: {errorMessage}
-        </div>
-      )}
-
-      {/* Bottom Input & Control Area */}
-      <footer className="border-t border-slate-800 bg-slate-900/60 p-4 backdrop-blur-sm">
-        <form onSubmit={handleSend} className="mx-auto flex max-w-4xl items-center space-x-3">
-          <input
-            type="text"
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            placeholder={isStreaming ? "Assistant is streaming..." : "Type your message..."}
-            disabled={isStreaming}
-            className="flex-1 rounded-xl bg-slate-950 border border-slate-800 px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
-          />
-
-          {isStreaming ? (
-            <button
-              type="button"
-              onClick={handleCancel}
-              className="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-medium text-white shadow-md hover:bg-rose-500 active:scale-95 transition-all"
-            >
-              Stop
-            </button>
-          ) : (
-            <button
-              type="submit"
-              disabled={!inputText.trim()}
-              className="rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white shadow-md hover:bg-indigo-500 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-            >
-              Send
-            </button>
-          )}
-        </form>
-      </footer>
-    </main>
+    <WorkspaceShell
+      store={workspace}
+      conversationId={conversationId}
+      healthStatus={healthStatus}
+      isStreaming={isStreaming}
+      sidebar={{
+        activeSurface: workspace.state.activeSurface,
+        activeProjectId: workspace.state.activeProjectId,
+        conversationId,
+        agentActiveCount: agentTasks.filter((t) => t.status === "active" || t.status === "blocked")
+          .length,
+        codingActiveCount: codingTasks.filter(
+          (t) => t.status === "active" || t.status === "blocked",
+        ).length,
+        leftVisible: workspace.state.leftPanel.visible,
+        rightVisible: workspace.state.rightPanel.visible,
+        onSelectSurface: workspace.selectSurface,
+        onSelectProject: (projectId) => {
+          workspace.selectProject(projectId);
+          setCodingProjectId(projectId);
+        },
+        onToggleLeft: () => workspace.togglePanel("left"),
+        onToggleRight: () => workspace.togglePanel("right"),
+        availableModels,
+        selectedModelId,
+        isStreaming,
+        onModelChange: (modelId) => void handleModelChange(modelId),
+        skills,
+        memories,
+        onToggleSkill: (skillId, enabled) => void handleToggleSkill(skillId, enabled),
+        onDeleteMemory: (factId) => void handleDeleteMemory(factId),
+      }}
+      chat={{
+        messages,
+        errorMessage,
+        pendingPermissions,
+        messagesEndRef,
+        renderMessageText,
+        onResolvePermission: (requestId, decision, mode) =>
+          void handleResolvePermission(requestId, decision, mode),
+      }}
+      coding={{
+        codingTasks,
+        codingPrompt,
+        codingProjectId,
+        codingRunning,
+        onPromptChange: setCodingPrompt,
+        onProjectChange: (projectId) => {
+          setCodingProjectId(projectId);
+          workspace.selectProject(projectId);
+        },
+        onStart: () => void handleStartCodingTask(),
+        onCancel: (taskId) => void handleCancelCodingTask(taskId),
+      }}
+      tasks={{
+        agentTasks,
+        codingTasks,
+        activeTaskId: workspace.state.activeTaskId,
+        agentGoal,
+        agentRunning,
+        onSelectTask: workspace.selectTask,
+        onCancelAgent: (taskId) => void handleCancelAgentTask(taskId),
+        onCancelCoding: (taskId) => void handleCancelCodingTask(taskId),
+        onAgentGoalChange: setAgentGoal,
+        onStartAgent: () => void handleStartAgentTask(),
+      }}
+      activity={activityEvents}
+      files={touchedFiles}
+      inspector={{
+        activeTask: activeTaskEntry,
+        activeConversationId: conversationId,
+        activeProjectId: workspace.state.activeProjectId,
+        files: touchedFiles,
+        activity: activityEvents,
+        onCancelTask: (kind, taskId) => {
+          if (kind === "agent") void handleCancelAgentTask(taskId);
+          else void handleCancelCodingTask(taskId);
+        },
+      }}
+      composer={{
+        activeSurface: workspace.state.activeSurface,
+        inputText,
+        codingPrompt,
+        isStreaming,
+        codingRunning,
+        activeProjectId: workspace.state.activeProjectId,
+        onInputChange: setInputText,
+        onCodingPromptChange: setCodingPrompt,
+        onSend: (e) => void handleSend(e),
+        onCancel: () => void handleCancel(),
+        onStartCoding: () => void handleStartCodingTask(),
+      }}
+    />
   );
+}
+
+// PR31.11: canonical-event → human-readable activity labels (view only).
+function activityKindFor(eventType: string): string {
+  if (eventType.startsWith("task.")) return "task";
+  if (eventType.startsWith("tool.")) return "tool";
+  if (eventType.startsWith("execution.")) return "execution";
+  if (eventType.startsWith("permission.")) return "permission";
+  if (eventType.startsWith("message.")) return "message";
+  return "message";
+}
+
+function describeActivityEvent(eventType: string, event: Record<string, unknown>): string {
+  const toolName = typeof event.toolName === "string" ? event.toolName : null;
+  const nodeId = typeof event.taskNodeId === "string" ? event.taskNodeId.slice(0, 8) : null;
+  switch (eventType) {
+    case "task.created":
+      return "Task started";
+    case "task.completed":
+      return "Task completed";
+    case "task.failed":
+      return `Task failed: ${typeof event.error === "string" ? event.error.slice(0, 120) : "error"}`;
+    case "task.cancelled":
+      return "Task cancelled";
+    case "task.blocked":
+      return "Task blocked: approval required";
+    case "task.replan":
+      return "Plan revised";
+    case "task.node.started":
+      return nodeId ? `Node started (${nodeId}…)` : "Node started";
+    case "task.node.completed":
+      return nodeId ? `Node completed (${nodeId}…)` : "Node completed";
+    case "task.node.failed":
+      return "Node failed";
+    case "tool.call.started":
+      return toolName ? `Tool started: ${toolName}` : "Tool started";
+    case "tool.call.completed":
+      return toolName ? `Tool completed: ${toolName}` : "Tool completed";
+    case "tool.call.failed":
+      return toolName ? `Tool failed: ${toolName}` : "Tool failed";
+    case "message.started":
+      return "Assistant responding";
+    case "message.completed":
+      return "Message completed";
+    case "message.cancelled":
+      return "Message cancelled";
+    case "message.failed":
+      return "Message failed";
+    case "permission.requested":
+      return "Permission requested";
+    default:
+      return eventType;
+  }
 }

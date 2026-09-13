@@ -1,10 +1,10 @@
 # Phase 0 — What Exists and What Does Not
 
 This document prevents the repository (and its documentation) from claiming functionality
-that does not exist. It reflects the state after **PR30 (Coding Agent)** and
+that does not exist. It reflects the state after **PR31 (Workspace)** and
 is updated as each PR lands.
 
-## Implemented (as of PR30)
+## Implemented (as of PR31)
 
 - Repository foundation: pnpm workspace + Turborepo task graph (`build`, `dev`,
   `typecheck`, `lint`, `test`).
@@ -456,7 +456,36 @@ node.completed/node.failed/blocked/replan/completed/failed/cancelled` plus the
   - 5 tests in ai-core, 44 new tests in desktop (path-policy, filesystem,
     executor/permissions, service incl. mid-run replan, IPC dispatch, e2e
     fix-failing-test + isolation, renderer boundary); 609 total tests passing
-    workspace-wide. Full design in `docs/architecture/pr-30-coding-agent.md`.
+    workspace-wide at PR30. Full design in `docs/architecture/pr-30-coding-agent.md`.
+- Workspace composition layer (`apps/desktop/src/renderer`, PR31):
+  - Verbatim extraction of the 1,075-line `App()` into a three-column shell
+    (`WorkspaceShell`: sidebar | main surface | inspector + header + composer)
+    with zero behavior change: every handler, IPC call, subscription, and
+    projection path preserved; Skills/Memory features kept as sidebar sections.
+  - Renderer-local presentation store (`renderer/workspace/`: constrained
+    surface enum, `useReducer`, no new dependency): active surface/project/
+    conversation/task selection, panel visibility + clamped widths. Project
+    switch clears task selection (isolation visible).
+  - Persistence without new backend: versioned `localStorage`
+    (`ai-desktop.workspace.v1`); no Prisma migration, no new IPC channel, no
+    `ai-core` workspace domain (verified by tests). Malformed payloads fall
+    back to safe defaults.
+  - Surfaces: `ChatSurface` (existing conversation UI verbatim), `CodingSurface`
+    (existing coding UI verbatim), `TasksSurface` (agent + coding tasks with
+    node checklists + agent run input), `ActivitySurface` (bounded 200-item
+    view over canonical events with human-readable labels), `FilesSurface`
+    (read-only; touched files derived from tool-result paths in events).
+    Inspector derives the selected task from backend lists; composer routes
+    chat → `sendChatMessage`, coding → `startCodingTask`.
+  - Panels collapse independently and resize via drag + keyboard (Arrows
+    ±8px, Shift ±32px, Home resets) with ARIA labeling; error boundaries
+    isolate each surface; subscription effect deps corrected to
+    `[conversationId, handleStreamEvent]` so model selection no longer
+    recreates the event subscription.
+  - 21 new renderer tests (store, layout/navigation, integration incl.
+    no-new-IPC/no-new-domain proofs, E2E composition over real
+    CodingAgentService); 630 total tests passing workspace-wide. Full design
+    in `docs/architecture/pr-31-workspace.md`.
 - All remaining canonical packages stay **empty shells** (`package.json`, `tsconfig.json`,
   `src/index.ts` placeholder) — deliberately no premature domain functionality inside them.
 - Toolchain: TypeScript 5.9.3, ESLint 10.10.0, Vitest 4.1.10, Vite 8.1.0, Prettier 3.9.6,
@@ -465,7 +494,7 @@ node.completed/node.failed/blocked/replan/completed/failed/cancelled` plus the
 
 ## Not yet implemented
 
-- Full workspace multi-column layout — Workspace milestone.
+- Extensions / plugin ecosystem (PR32+) — no plugin architecture exists yet.
 
 ## Verification
 
