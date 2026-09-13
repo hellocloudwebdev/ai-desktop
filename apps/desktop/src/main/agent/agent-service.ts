@@ -116,22 +116,19 @@ export class DesktopModelInvoker implements ModelInvoker {
   }
 }
 
+export interface ToolExecutorLike {
+  execute(
+    toolName: string,
+    input: unknown,
+    options?: { toolCallId?: ToolCallId; projectId?: string; conversationId?: unknown },
+  ): Promise<ToolResult>;
+}
+
 export interface DesktopToolRouterDeps {
   readonly permissionManager: PermissionManager;
-  readonly mcpExecutor?: {
-    execute(
-      toolName: string,
-      input: unknown,
-      options?: { toolCallId?: ToolCallId },
-    ): Promise<ToolResult>;
-  };
-  readonly skillExecutor?: {
-    execute(
-      toolName: string,
-      input: unknown,
-      options?: { toolCallId?: ToolCallId },
-    ): Promise<ToolResult>;
-  };
+  readonly mcpExecutor?: ToolExecutorLike;
+  readonly skillExecutor?: ToolExecutorLike;
+  readonly builtinExecutor?: ToolExecutorLike;
 }
 
 /**
@@ -144,11 +141,13 @@ export class DesktopToolRouter implements ToolInvoker {
   private readonly _permissionManager: PermissionManager;
   private readonly _mcpExecutor?: DesktopToolRouterDeps["mcpExecutor"];
   private readonly _skillExecutor?: DesktopToolRouterDeps["skillExecutor"];
+  private readonly _builtinExecutor?: DesktopToolRouterDeps["builtinExecutor"];
 
   constructor(deps: DesktopToolRouterDeps) {
     this._permissionManager = deps.permissionManager;
     this._mcpExecutor = deps.mcpExecutor;
     this._skillExecutor = deps.skillExecutor;
+    this._builtinExecutor = deps.builtinExecutor;
     void this._permissionManager;
   }
 
@@ -168,7 +167,11 @@ export class DesktopToolRouter implements ToolInvoker {
         timestamp: now(),
       } as ToolResult;
     }
-    const executor = toolName.startsWith("skill:") ? this._skillExecutor : this._mcpExecutor;
+    const executor = toolName.startsWith("skill:")
+      ? this._skillExecutor
+      : toolName.startsWith("builtin:")
+        ? this._builtinExecutor
+        : this._mcpExecutor;
     if (!executor) {
       return {
         toolCallId: context.toolCallId,
@@ -179,7 +182,11 @@ export class DesktopToolRouter implements ToolInvoker {
         timestamp: now(),
       } as ToolResult;
     }
-    return executor.execute(toolName, input, { toolCallId: context.toolCallId });
+    return executor.execute(toolName, input, {
+      toolCallId: context.toolCallId,
+      projectId: context.projectId,
+      conversationId: context.conversationId,
+    });
   }
 }
 
@@ -269,6 +276,7 @@ export interface AgentServiceDeps {
   readonly streamRegistry?: ActiveStreamRegistry;
   readonly mcpExecutor?: DesktopToolRouterDeps["mcpExecutor"];
   readonly skillExecutor?: DesktopToolRouterDeps["skillExecutor"];
+  readonly builtinExecutor?: DesktopToolRouterDeps["builtinExecutor"];
   readonly maxNodeIterations?: number;
   readonly defaultModelId?: ModelId;
 }
@@ -290,6 +298,7 @@ export class AgentService {
         permissionManager: deps.permissionManager,
         mcpExecutor: deps.mcpExecutor,
         skillExecutor: deps.skillExecutor,
+        builtinExecutor: deps.builtinExecutor,
       }),
       eventSink,
       memoryProvider: new DesktopMemoryProvider({ memoryService: deps.memoryService }),

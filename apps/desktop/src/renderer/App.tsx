@@ -45,6 +45,17 @@ export function App(): React.ReactElement {
   const [showAgentTasks, setShowAgentTasks] = useState<boolean>(false);
   const [agentGoal, setAgentGoal] = useState<string>("");
   const [agentRunning, setAgentRunning] = useState<boolean>(false);
+  const [codingTasks, setCodingTasks] = useState<
+    Array<{
+      taskId: string;
+      status: string;
+      nodes: Array<{ id: string; goal: string; status: string }>;
+    }>
+  >([]);
+  const [showCodingTasks, setShowCodingTasks] = useState<boolean>(false);
+  const [codingPrompt, setCodingPrompt] = useState<string>("");
+  const [codingProjectId, setCodingProjectId] = useState<string>("sample-project");
+  const [codingRunning, setCodingRunning] = useState<boolean>(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   // Auto-scroll to latest message
@@ -261,6 +272,11 @@ export function App(): React.ReactElement {
       void refreshAgentTasks();
     });
 
+    // PR30: Load known coding tasks (in-process registry snapshot)
+    window.api.commands.listCodingTasks().then(() => {
+      void refreshCodingTasks();
+    });
+
     // 1. Restart recovery: reload historical conversation state from SQLite WAL events
     window.api.commands
       .loadConversation({ conversationId: conversationId as ConversationId })
@@ -423,6 +439,85 @@ export function App(): React.ReactElement {
       await refreshAgentTasks();
     } catch (err) {
       console.warn("Failed to cancel agent task:", err);
+    }
+  };
+
+  // PR30: Coding task handlers (workspace-bound, project-scoped)
+  const refreshCodingTasks = useCallback(async () => {
+    const api = window.api;
+    if (!api) return;
+    try {
+      const res = await api.commands.listCodingTasks();
+      if (res.ok && res.value.taskIds) {
+        const snapshots = await Promise.all(
+          res.value.taskIds.map(async (taskId: string) => {
+            try {
+              const got = await api.commands.getCodingTask({
+                taskId: taskId as unknown as import("@ai-desktop/shared").TaskId,
+              });
+              if (got.ok) {
+                const task = got.value.task as {
+                  taskId: string;
+                  status: string;
+                  graph: { nodes: Array<{ id: string; goal: string; status: string }> } | null;
+                };
+                return { taskId: task.taskId, status: task.status, nodes: task.graph?.nodes ?? [] };
+              }
+            } catch {
+              // Task may have settled between list and get; skip it
+            }
+            return null;
+          }),
+        );
+        setCodingTasks(
+          snapshots.filter(
+            (
+              t,
+            ): t is {
+              taskId: string;
+              status: string;
+              nodes: Array<{ id: string; goal: string; status: string }>;
+            } => t !== null,
+          ),
+        );
+      }
+    } catch (err) {
+      console.warn("Failed to list coding tasks:", err);
+    }
+  }, []);
+
+  const handleStartCodingTask = async () => {
+    if (!window.api) return;
+    const prompt = codingPrompt.trim();
+    if (!prompt || codingRunning) return;
+    setCodingRunning(true);
+    try {
+      const res = await window.api.commands.startCodingTask({
+        projectId: codingProjectId.trim() || "sample-project",
+        prompt,
+      });
+      if (!res.ok) {
+        setErrorMessage(res.error.message);
+      } else {
+        setCodingPrompt("");
+        await refreshCodingTasks();
+      }
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : "Failed to start coding task");
+    } finally {
+      setCodingRunning(false);
+    }
+  };
+
+  const handleCancelCodingTask = async (taskId: string) => {
+    if (!window.api) return;
+    try {
+      await window.api.commands.cancelCodingTask({
+        taskId: taskId as unknown as import("@ai-desktop/shared").TaskId,
+      });
+      await refreshCodingTasks();
+    } catch (err) {
+      console.warn("Failed to cancel coding task:", err);
     }
   };
 
@@ -672,6 +767,110 @@ export function App(): React.ReactElement {
                             <button
                               type="button"
                               onClick={() => void handleCancelAgentTask(t.taskId)}
+                              className="rounded px-1.5 py-0.5 text-[10px] font-medium bg-rose-900/60 hover:bg-rose-800 text-rose-200"
+                            >
+                              Cancel
+                            </button>
+                          )}
+                        </div>
+                        {t.nodes.length > 0 && (
+                          <ul className="space-y-1 mt-1">
+                            {t.nodes.map((n) => (
+                              <li
+                                key={n.id}
+                                className="flex items-center space-x-1.5 text-[11px] text-slate-300"
+                              >
+                                <span
+                                  className={`inline-block h-1.5 w-1.5 rounded-full ${
+                                    n.status === "completed"
+                                      ? "bg-emerald-400"
+                                      : n.status === "failed"
+                                        ? "bg-rose-400"
+                                        : n.status === "active"
+                                          ? "bg-amber-400 animate-pulse"
+                                          : n.status === "blocked"
+                                            ? "bg-orange-400"
+                                            : "bg-slate-500"
+                                  }`}
+                                />
+                                <span className="truncate">{n.goal}</span>
+                                <span className="text-slate-500 font-mono">[{n.status}]</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Coding Tasks Trigger (PR30.14): workspace-bound coding tasks */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                setShowCodingTasks((v) => !v);
+                void refreshCodingTasks();
+              }}
+              className="rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 px-2.5 py-1 text-xs text-slate-200 focus:outline-none transition-colors"
+            >
+              Coding (
+              {codingTasks.filter((t) => t.status === "active" || t.status === "blocked").length})
+            </button>
+            {showCodingTasks && (
+              <div className="absolute right-0 mt-2 w-96 rounded-xl bg-slate-900 border border-slate-700 p-3 shadow-xl z-50 max-h-96 overflow-y-auto">
+                <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800">
+                  <span className="font-semibold text-xs text-white">Coding Tasks</span>
+                  <span className="text-[10px] text-slate-400 font-mono">
+                    {codingTasks.length} tasks
+                  </span>
+                </div>
+                <div className="flex items-center space-x-2 mb-2">
+                  <input
+                    type="text"
+                    value={codingProjectId}
+                    onChange={(e) => setCodingProjectId(e.target.value)}
+                    placeholder="project id"
+                    disabled={codingRunning}
+                    className="w-28 rounded-lg bg-slate-800 border border-slate-700 px-2.5 py-1.5 text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
+                  />
+                  <input
+                    type="text"
+                    value={codingPrompt}
+                    onChange={(e) => setCodingPrompt(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") void handleStartCodingTask();
+                    }}
+                    placeholder="Describe the coding goal…"
+                    disabled={codingRunning}
+                    className="flex-1 rounded-lg bg-slate-800 border border-slate-700 px-2.5 py-1.5 text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void handleStartCodingTask()}
+                    disabled={codingRunning || !codingPrompt.trim()}
+                    className="rounded-lg bg-indigo-700 hover:bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white transition-colors disabled:opacity-50"
+                  >
+                    {codingRunning ? "Starting…" : "Run"}
+                  </button>
+                </div>
+                {codingTasks.length === 0 ? (
+                  <p className="text-xs text-slate-500 py-2">No coding tasks yet.</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {codingTasks.map((t) => (
+                      <li key={t.taskId} className="rounded-lg bg-slate-800/60 p-2 text-xs">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="rounded bg-slate-700 px-1.5 py-0.5 text-[10px] text-slate-300 font-mono">
+                            {t.taskId.slice(0, 8)}… · {t.status}
+                          </span>
+                          {(t.status === "active" || t.status === "blocked") && (
+                            <button
+                              type="button"
+                              onClick={() => void handleCancelCodingTask(t.taskId)}
                               className="rounded px-1.5 py-0.5 text-[10px] font-medium bg-rose-900/60 hover:bg-rose-800 text-rose-200"
                             >
                               Cancel

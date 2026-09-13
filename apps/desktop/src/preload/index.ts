@@ -41,6 +41,10 @@ import {
   type AgentCancelCommand,
   type AgentGetCommand,
   type AgentListCommand,
+  type CodingStartCommand,
+  type CodingCancelCommand,
+  type CodingGetCommand,
+  type CodingListCommand,
   type IpcResponseEnvelope,
 } from "@ai-desktop/shared";
 import type {
@@ -146,6 +150,18 @@ export interface DesktopApplicationApi {
     ): Promise<IpcResponseEnvelope<{ cancelled: boolean }>>;
     getAgentTask(command: AgentGetCommand): Promise<IpcResponseEnvelope<{ task: unknown }>>;
     listAgentTasks(command?: AgentListCommand): Promise<IpcResponseEnvelope<{ taskIds: string[] }>>;
+
+    // PR30: Coding agent commands (workspace-bound, project-scoped)
+    startCodingTask(
+      command: CodingStartCommand,
+    ): Promise<IpcResponseEnvelope<{ outcome: unknown }>>;
+    cancelCodingTask(
+      command: CodingCancelCommand,
+    ): Promise<IpcResponseEnvelope<{ cancelled: boolean }>>;
+    getCodingTask(command: CodingGetCommand): Promise<IpcResponseEnvelope<{ task: unknown }>>;
+    listCodingTasks(
+      command?: CodingListCommand,
+    ): Promise<IpcResponseEnvelope<{ taskIds: string[] }>>;
   };
 
   /**
@@ -265,6 +281,18 @@ export function createDesktopApi(): DesktopApplicationApi {
       },
       async listAgentTasks(command?: AgentListCommand) {
         return ipcRenderer.invoke(IPC_CHANNELS.AGENT_LIST, command ?? {});
+      },
+      async startCodingTask(command: CodingStartCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.CODING_START, command);
+      },
+      async cancelCodingTask(command: CodingCancelCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.CODING_CANCEL, command);
+      },
+      async getCodingTask(command: CodingGetCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.CODING_GET, command);
+      },
+      async listCodingTasks(command?: CodingListCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.CODING_LIST, command ?? {});
       },
     },
 

@@ -70,6 +70,12 @@ export const IPC_CHANNELS = {
   AGENT_CANCEL: "agent:cancel",
   AGENT_GET: "agent:get",
   AGENT_LIST: "agent:list",
+
+  // Coding agent operations (PR30)
+  CODING_START: "coding:start",
+  CODING_CANCEL: "coding:cancel",
+  CODING_GET: "coding:get",
+  CODING_LIST: "coding:list",
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];
@@ -476,6 +482,51 @@ export type AgentGetCommand = z.infer<typeof AgentGetCommandSchema>;
 export const AgentListCommandSchema = z.object({});
 
 export type AgentListCommand = z.infer<typeof AgentListCommandSchema>;
+
+// ---------------------------------------------------------------------------
+// Coding Agent Commands (PR30)
+// ---------------------------------------------------------------------------
+
+/**
+ * Command to start a coding task (workspace-bound, project-scoped).
+ */
+export const CodingStartCommandSchema = z.object({
+  projectId: z.string().trim().min(1).max(256),
+  workspaceRoot: z.string().trim().min(1).max(1024).optional(),
+  cwd: z.string().trim().min(1).max(1024).optional(),
+  prompt: z.string().trim().min(1).max(4000),
+  conversationId: ConversationIdSchema.optional(),
+  modelId: z.string().trim().min(1).max(128).optional(),
+  maxNodeIterations: z.number().int().positive().max(50).optional(),
+});
+
+export type CodingStartCommand = z.infer<typeof CodingStartCommandSchema>;
+
+/**
+ * Command to cancel a running coding task (downward-only).
+ */
+export const CodingCancelCommandSchema = z.object({
+  taskId: TaskIdSchema,
+  reason: z.string().trim().min(1).max(500).optional(),
+});
+
+export type CodingCancelCommand = z.infer<typeof CodingCancelCommandSchema>;
+
+/**
+ * Command to fetch one coding task's status snapshot.
+ */
+export const CodingGetCommandSchema = z.object({
+  taskId: TaskIdSchema,
+});
+
+export type CodingGetCommand = z.infer<typeof CodingGetCommandSchema>;
+
+/**
+ * Command to list known coding task ids (in-process registry).
+ */
+export const CodingListCommandSchema = z.object({});
+
+export type CodingListCommand = z.infer<typeof CodingListCommandSchema>;
 
 // ---------------------------------------------------------------------------
 // Event Contracts (Main Process -> Renderer)
