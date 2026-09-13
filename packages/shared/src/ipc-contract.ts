@@ -9,7 +9,15 @@
 //   - Zod schemas provide runtime validation at process boundaries.
 
 import { z } from "zod";
-import type { ConversationId, MessageId, PermissionRequestId, TaskId, ToolCallId } from "./ids.js";
+import type {
+  BrowserPageId,
+  BrowserSessionId,
+  ConversationId,
+  MessageId,
+  PermissionRequestId,
+  TaskId,
+  ToolCallId,
+} from "./ids.js";
 import type { Timestamp } from "./time.js";
 import { type Result, ok, err } from "./result.js";
 import { ValidationError } from "./errors.js";
@@ -94,6 +102,18 @@ export const IPC_CHANNELS = {
   SURFACE_GET: "surface:get",
   SURFACE_ACTION: "surface:action",
   SURFACE_DISPOSE: "surface:dispose",
+
+  // Browser automation operations (PR34.5). NOTE: there is intentionally
+  // NO browser:execute channel (arbitrary execution via IPC is disallowed;
+  // actions route via agent tool router).
+  BROWSER_SESSION_CREATE: "browser:session-create",
+  BROWSER_SESSION_GET: "browser:session-get",
+  BROWSER_SESSION_CLOSE: "browser:session-close",
+  BROWSER_PAGE_OPEN: "browser:page-open",
+  BROWSER_PAGE_LIST: "browser:page-list",
+  BROWSER_PAGE_GET: "browser:page-get",
+  BROWSER_PAGE_CLOSE: "browser:page-close",
+  BROWSER_SCREENSHOT: "browser:screenshot",
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];
@@ -124,6 +144,12 @@ export const PermissionRequestIdSchema = UlidStringSchema.transform(
 );
 export const ToolCallIdSchema = UlidStringSchema.transform(
   (val) => val.toUpperCase() as ToolCallId,
+);
+export const BrowserSessionIdSchema = UlidStringSchema.transform(
+  (val) => val.toUpperCase() as BrowserSessionId,
+);
+export const BrowserPageIdSchema = UlidStringSchema.transform(
+  (val) => val.toUpperCase() as BrowserPageId,
 );
 
 // ---------------------------------------------------------------------------
@@ -674,6 +700,69 @@ export const SurfaceDisposeCommandSchema = z.object({
 });
 
 export type SurfaceDisposeCommand = z.infer<typeof SurfaceDisposeCommandSchema>;
+
+// ---------------------------------------------------------------------------
+// Browser Commands (PR34.5)
+// NOTE: there is intentionally NO browser:execute channel — browser execution
+// flows through the agent tool router (BrowserToolExecutor), never arbitrary IPC.
+// ---------------------------------------------------------------------------
+
+export const BrowserSessionCreateCommandSchema = z.object({
+  projectId: z.string().trim().min(1),
+  mode: z.enum(["isolated", "attached"]).optional(),
+});
+
+export type BrowserSessionCreateCommand = z.infer<typeof BrowserSessionCreateCommandSchema>;
+
+export const BrowserSessionGetCommandSchema = z.object({
+  sessionId: BrowserSessionIdSchema,
+});
+
+export type BrowserSessionGetCommand = z.infer<typeof BrowserSessionGetCommandSchema>;
+
+export const BrowserSessionCloseCommandSchema = z.object({
+  sessionId: BrowserSessionIdSchema,
+});
+
+export type BrowserSessionCloseCommand = z.infer<typeof BrowserSessionCloseCommandSchema>;
+
+export const BrowserPageOpenCommandSchema = z.object({
+  sessionId: BrowserSessionIdSchema.optional(),
+  projectId: z.string().trim().min(1).optional(),
+  url: z.string().trim().optional(),
+  name: z.string().trim().optional(),
+});
+
+export type BrowserPageOpenCommand = z.infer<typeof BrowserPageOpenCommandSchema>;
+
+export const BrowserPageListCommandSchema = z
+  .object({
+    sessionId: BrowserSessionIdSchema.optional(),
+    projectId: z.string().trim().min(1).optional(),
+  })
+  .optional()
+  .default({});
+
+export type BrowserPageListCommand = z.infer<typeof BrowserPageListCommandSchema>;
+
+export const BrowserPageGetCommandSchema = z.object({
+  pageId: BrowserPageIdSchema,
+});
+
+export type BrowserPageGetCommand = z.infer<typeof BrowserPageGetCommandSchema>;
+
+export const BrowserPageCloseCommandSchema = z.object({
+  pageId: BrowserPageIdSchema,
+});
+
+export type BrowserPageCloseCommand = z.infer<typeof BrowserPageCloseCommandSchema>;
+
+export const BrowserScreenshotCommandSchema = z.object({
+  pageId: BrowserPageIdSchema,
+  fullPage: z.boolean().optional(),
+});
+
+export type BrowserScreenshotCommand = z.infer<typeof BrowserScreenshotCommandSchema>;
 
 // ---------------------------------------------------------------------------
 // Extension Payloads (PR32)

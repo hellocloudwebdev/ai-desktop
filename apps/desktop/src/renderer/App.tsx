@@ -17,6 +17,7 @@ import {
 import { WorkspaceShell } from "./components/workspace/Workspace.js";
 import type {
   ActivityEventView,
+  BrowserPageView,
   ExtensionView,
   FileEntryView,
   SurfaceView,
@@ -78,7 +79,88 @@ export function App(): React.ReactElement {
   // PR33: rich surfaces list (App-owned backend state, surface is a pure
   // view; actions/dispose arrive via the preload bridge when present).
   const [surfaces, setSurfaces] = useState<SurfaceView[]>([]);
+  // PR34.5: browser pages list + active page + latest screenshot artifact
+  const [browserPages, setBrowserPages] = useState<BrowserPageView[]>([]);
+  const [activeBrowserPageId, setActiveBrowserPageId] = useState<string | null>(null);
+  const [browserScreenshot, setBrowserScreenshot] = useState<{
+    artifactRef: string;
+    bytes: number;
+  } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  // PR34.5: load browser pages through the preload bridge
+  const refreshBrowserPages = useCallback(async () => {
+    if (typeof window === "undefined" || !window.api) return;
+    try {
+      const res = await window.api.commands.listBrowserPages({
+        projectId: workspace.state.activeProjectId,
+      });
+      if (res.ok && Array.isArray(res.value.pages)) {
+        const pages = (res.value.pages as BrowserPageView[]).filter(
+          (p) => p && typeof p.id === "string",
+        );
+        setBrowserPages(pages);
+      }
+    } catch (err) {
+      console.warn("Failed to list browser pages:", err);
+    }
+  }, [workspace.state.activeProjectId]);
+
+  useEffect(() => {
+    void refreshBrowserPages();
+  }, [refreshBrowserPages]);
+
+  const handleOpenBrowserPage = useCallback(
+    async (url: string) => {
+      if (typeof window === "undefined" || !window.api) return;
+      try {
+        const res = await window.api.commands.openBrowserPage({
+          projectId: workspace.state.activeProjectId,
+          url,
+        });
+        if (res.ok && res.value.page) {
+          const page = res.value.page as BrowserPageView;
+          setActiveBrowserPageId(page.id);
+          await refreshBrowserPages();
+        }
+      } catch (err) {
+        console.warn("Failed to open browser page:", err);
+      }
+    },
+    [refreshBrowserPages, workspace.state.activeProjectId],
+  );
+
+  const handleCloseBrowserPage = useCallback(
+    async (pageId: string) => {
+      if (typeof window === "undefined" || !window.api) return;
+      try {
+        await window.api.commands.closeBrowserPage({
+          pageId: pageId as unknown as import("@ai-desktop/shared").BrowserPageId,
+        });
+        if (activeBrowserPageId === pageId) {
+          setActiveBrowserPageId(null);
+        }
+        await refreshBrowserPages();
+      } catch (err) {
+        console.warn("Failed to close browser page:", err);
+      }
+    },
+    [activeBrowserPageId, refreshBrowserPages],
+  );
+
+  const handleTakeScreenshot = useCallback(async (pageId: string) => {
+    if (typeof window === "undefined" || !window.api) return;
+    try {
+      const res = await window.api.commands.captureBrowserScreenshot({
+        pageId: pageId as unknown as import("@ai-desktop/shared").BrowserPageId,
+      });
+      if (res.ok && res.value.screenshot) {
+        setBrowserScreenshot(res.value.screenshot as { artifactRef: string; bytes: number });
+      }
+    } catch (err) {
+      console.warn("Failed to take screenshot:", err);
+    }
+  }, []);
 
   // PR32: load the extension list through the preload bridge. No-ops when
   // the bridge is absent (preload not yet updated, or non-Electron hosts).
@@ -856,6 +938,16 @@ export function App(): React.ReactElement {
         onDisable: (extensionId) => void handleDisableExtension(extensionId),
         onProjectToggle: (extensionId, enabled) =>
           void handleExtensionProjectToggle(extensionId, enabled),
+      }}
+      browser={{
+        activeProjectId: workspace.state.activeProjectId,
+        pages: browserPages,
+        activePageId: activeBrowserPageId,
+        onSelectPage: setActiveBrowserPageId,
+        onOpenPage: (url) => void handleOpenBrowserPage(url),
+        onClosePage: (pageId) => void handleCloseBrowserPage(pageId),
+        onTakeScreenshot: (pageId) => void handleTakeScreenshot(pageId),
+        screenshotArtifact: browserScreenshot,
       }}
       inspector={{
         activeTask: activeTaskEntry,

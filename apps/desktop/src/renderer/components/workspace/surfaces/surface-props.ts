@@ -5,6 +5,7 @@
 // IPC, and projections stay the single owners.
 
 import type { ContentPart, Message, ModelDefinition, PermissionRequest } from "@ai-desktop/ai-core";
+import type { WorkspaceSurface } from "../../../workspace/types.js";
 
 export interface TaskNodeView {
   readonly id: string;
@@ -135,6 +136,26 @@ export interface ExtensionsSummary {
   readonly active: number;
 }
 
+// PR34.5: renderer — Browser automation surface contract
+export interface BrowserPageView {
+  readonly id: string;
+  readonly contextId: string;
+  readonly url: string;
+  readonly title: string;
+  readonly status: string;
+}
+
+export interface BrowserSurfaceProps {
+  readonly activeProjectId: string;
+  readonly pages: BrowserPageView[];
+  readonly activePageId: string | null;
+  readonly onSelectPage: (pageId: string | null) => void;
+  readonly onOpenPage: (url: string) => void;
+  readonly onClosePage: (pageId: string) => void;
+  readonly onTakeScreenshot: (pageId: string) => void;
+  readonly screenshotArtifact?: { artifactRef: string; bytes: number } | null;
+}
+
 export interface SidebarProps {
   readonly activeSurface: string;
   readonly activeProjectId: string;
@@ -143,7 +164,7 @@ export interface SidebarProps {
   readonly codingActiveCount: number;
   readonly leftVisible: boolean;
   readonly rightVisible: boolean;
-  onSelectSurface(surface: "chat" | "coding" | "tasks" | "activity" | "files" | "extensions"): void;
+  onSelectSurface(surface: WorkspaceSurface): void;
   onSelectProject(projectId: string): void;
   onToggleLeft(): void;
   onToggleRight(): void;

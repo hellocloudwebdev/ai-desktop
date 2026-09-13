@@ -50,6 +50,11 @@ export type TaskNodeId = Brand<string, "TaskNodeId">;
 export type ProviderId = Brand<string, "ProviderId">;
 export type ModelId = Brand<string, "ModelId">;
 export type SkillId = Brand<string, "SkillId">;
+export type BrowserSessionId = Brand<string, "BrowserSessionId">;
+export type BrowserContextId = Brand<string, "BrowserContextId">;
+export type BrowserPageId = Brand<string, "BrowserPageId">;
+export type BrowserActionId = Brand<string, "BrowserActionId">;
+export type BrowserElementRef = Brand<string, "BrowserElementRef">;
 
 const ULID_PATTERN = /^[0123456789ABCDEFGHJKMNPQRSTVWXYZ]{26}$/i;
 
@@ -62,6 +67,28 @@ export const ExecutionIdSchema = UlidSchema.transform((val) => val.toUpperCase()
 export const TaskNodeIdSchema = UlidSchema.transform((val) => val.toUpperCase() as TaskNodeId);
 export const SessionIdSchema = UlidSchema.transform((val) => val.toUpperCase() as SessionId);
 export const MemoryFactIdSchema = UlidSchema.transform((val) => val.toUpperCase() as MemoryFactId);
+export const BrowserSessionIdSchema = UlidSchema.transform(
+  (val) => val.toUpperCase() as BrowserSessionId,
+);
+export const BrowserContextIdSchema = UlidSchema.transform(
+  (val) => val.toUpperCase() as BrowserContextId,
+);
+export const BrowserPageIdSchema = UlidSchema.transform(
+  (val) => val.toUpperCase() as BrowserPageId,
+);
+export const BrowserActionIdSchema = UlidSchema.transform(
+  (val) => val.toUpperCase() as BrowserActionId,
+);
+
+const BROWSER_ELEMENT_REF_PATTERN = /^(ref\/)?[a-z0-9_-]+$/i;
+
+export const BrowserElementRefSchema = z
+  .string()
+  .trim()
+  .regex(BROWSER_ELEMENT_REF_PATTERN, {
+    message: "BrowserElementRef must be a semantic ref matching /^(ref\\/)?[a-z0-9_-]+$/i",
+  })
+  .transform((val) => val as BrowserElementRef);
 
 // Provider and Model IDs are stable semantic identifiers (e.g. "anthropic", "claude-3-5-sonnet", "gemini:gemini-2.5-flash")
 // rather than random ULIDs, but are strongly branded to prevent string confusion.
@@ -156,4 +183,72 @@ export function asExecutionId(raw: string): ExecutionId {
 
 export function asTaskNodeId(raw: string): TaskNodeId {
   return raw as TaskNodeId;
+}
+
+export function createBrowserSessionId(seedTime?: number): BrowserSessionId {
+  return generateUlid(seedTime) as BrowserSessionId;
+}
+
+export function createBrowserContextId(seedTime?: number): BrowserContextId {
+  return generateUlid(seedTime) as BrowserContextId;
+}
+
+export function createBrowserPageId(seedTime?: number): BrowserPageId {
+  return generateUlid(seedTime) as BrowserPageId;
+}
+
+export function createBrowserActionId(seedTime?: number): BrowserActionId {
+  return generateUlid(seedTime) as BrowserActionId;
+}
+
+export function parseBrowserSessionId(raw: string): BrowserSessionId {
+  if (!isUlid(raw)) {
+    throw new TypeError(`Invalid BrowserSessionId: "${raw}" is not a valid ULID`);
+  }
+  return raw.toUpperCase() as BrowserSessionId;
+}
+
+export function parseBrowserContextId(raw: string): BrowserContextId {
+  if (!isUlid(raw)) {
+    throw new TypeError(`Invalid BrowserContextId: "${raw}" is not a valid ULID`);
+  }
+  return raw.toUpperCase() as BrowserContextId;
+}
+
+export function parseBrowserPageId(raw: string): BrowserPageId {
+  if (!isUlid(raw)) {
+    throw new TypeError(`Invalid BrowserPageId: "${raw}" is not a valid ULID`);
+  }
+  return raw.toUpperCase() as BrowserPageId;
+}
+
+export function parseBrowserActionId(raw: string): BrowserActionId {
+  if (!isUlid(raw)) {
+    throw new TypeError(`Invalid BrowserActionId: "${raw}" is not a valid ULID`);
+  }
+  return raw.toUpperCase() as BrowserActionId;
+}
+
+export function parseBrowserElementRef(raw: string): BrowserElementRef {
+  return BrowserElementRefSchema.parse(raw);
+}
+
+export function asBrowserSessionId(raw: string): BrowserSessionId {
+  return raw as BrowserSessionId;
+}
+
+export function asBrowserContextId(raw: string): BrowserContextId {
+  return raw as BrowserContextId;
+}
+
+export function asBrowserPageId(raw: string): BrowserPageId {
+  return raw as BrowserPageId;
+}
+
+export function asBrowserActionId(raw: string): BrowserActionId {
+  return raw as BrowserActionId;
+}
+
+export function asBrowserElementRef(raw: string): BrowserElementRef {
+  return raw as BrowserElementRef;
 }

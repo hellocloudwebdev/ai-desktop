@@ -62,6 +62,15 @@ import {
   SurfaceActionCommandSchema,
   SurfaceDisposeCommandSchema,
   SurfaceListCommandSchema,
+  BrowserSessionCreateCommandSchema,
+  BrowserSessionGetCommandSchema,
+  BrowserSessionCloseCommandSchema,
+  BrowserPageOpenCommandSchema,
+  BrowserPageListCommandSchema,
+  BrowserPageGetCommandSchema,
+  BrowserPageCloseCommandSchema,
+  BrowserScreenshotCommandSchema,
+  createToolCallId,
   type ChatCancelCommand,
   type ChatSendCommand,
   type ChatStreamEvent,
@@ -111,6 +120,14 @@ import {
   type SurfaceActionCommand,
   type SurfaceDisposeCommand,
   type SurfaceListCommand,
+  type BrowserSessionCreateCommand,
+  type BrowserSessionGetCommand,
+  type BrowserSessionCloseCommand,
+  type BrowserPageOpenCommand,
+  type BrowserPageListCommand,
+  type BrowserPageGetCommand,
+  type BrowserPageCloseCommand,
+  type BrowserScreenshotCommand,
   type IpcResponseEnvelope,
 } from "@ai-desktop/shared";
 import {
@@ -127,6 +144,7 @@ import type { AgentService } from "../agent/index.js";
 import type { CodingAgentService } from "../agent/index.js";
 import type { ExtensionService } from "../extensions/index.js";
 import type { SurfaceService } from "../surfaces/surface-service.js";
+import type { BrowserService } from "../browser/index.js";
 import type { ActiveStreamRegistry, ChatService, ModelSelectionService } from "../chat/index.js";
 import type { IpcBatcher } from "./batcher.js";
 
@@ -193,6 +211,14 @@ export interface RegisteredCommands {
   onSurfaceAction?: CommandHandler<SurfaceActionCommand, { result: unknown }>;
   onSurfaceDispose?: CommandHandler<SurfaceDisposeCommand, { disposed: boolean }>;
   onSurfaceList?: CommandHandler<SurfaceListCommand, { surfaces: unknown[] }>;
+  onBrowserSessionCreate?: CommandHandler<BrowserSessionCreateCommand, { session: unknown }>;
+  onBrowserSessionGet?: CommandHandler<BrowserSessionGetCommand, { session: unknown }>;
+  onBrowserSessionClose?: CommandHandler<BrowserSessionCloseCommand, { closed: boolean }>;
+  onBrowserPageOpen?: CommandHandler<BrowserPageOpenCommand, { page: unknown }>;
+  onBrowserPageList?: CommandHandler<BrowserPageListCommand, { pages: unknown[] }>;
+  onBrowserPageGet?: CommandHandler<BrowserPageGetCommand, { page: unknown }>;
+  onBrowserPageClose?: CommandHandler<BrowserPageCloseCommand, { closed: boolean }>;
+  onBrowserScreenshot?: CommandHandler<BrowserScreenshotCommand, { screenshot: unknown }>;
 }
 
 export interface RegisterIpcOptions {
@@ -209,6 +235,7 @@ export interface RegisterIpcOptions {
   codingAgentService?: CodingAgentService;
   extensionService?: ExtensionService;
   surfaceService?: SurfaceService;
+  browserService?: BrowserService;
 }
 
 export class IpcRegistry {
@@ -450,6 +477,8 @@ export function registerIpcHandlers(
     options && "extensionService" in options ? options.extensionService : undefined;
   const surfaceService: SurfaceService | undefined =
     options && "surfaceService" in options ? options.surfaceService : undefined;
+  const browserService: BrowserService | undefined =
+    options && "browserService" in options ? options.browserService : undefined;
   if (batcher) {
     registry.attachBatcher(batcher);
   }
@@ -1396,6 +1425,174 @@ export function registerIpcHandlers(
         return { disposed };
       }
       throw new Error("SurfaceService is not available");
+    },
+  );
+
+  // 51. Browser Session Create command (PR34.5)
+  registry.registerCommand(
+    IPC_CHANNELS.BROWSER_SESSION_CREATE,
+    BrowserSessionCreateCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onBrowserSessionCreate) {
+        return callbacks.onBrowserSessionCreate(input, event);
+      }
+      if (browserService) {
+        const session = await browserService.manager.createSession({
+          projectId: input.projectId,
+          ...(input.mode ? { mode: input.mode } : {}),
+        });
+        return { session };
+      }
+      throw new Error("BrowserService is not available");
+    },
+  );
+
+  // 52. Browser Session Get command (PR34.5)
+  registry.registerCommand(
+    IPC_CHANNELS.BROWSER_SESSION_GET,
+    BrowserSessionGetCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onBrowserSessionGet) {
+        return callbacks.onBrowserSessionGet(input, event);
+      }
+      if (browserService) {
+        const session = browserService.manager.getSession(
+          input.sessionId as unknown as import("@ai-desktop/ai-core").BrowserSessionId,
+        );
+        return { session: session ?? null };
+      }
+      throw new Error("BrowserService is not available");
+    },
+  );
+
+  // 53. Browser Session Close command (PR34.5)
+  registry.registerCommand(
+    IPC_CHANNELS.BROWSER_SESSION_CLOSE,
+    BrowserSessionCloseCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onBrowserSessionClose) {
+        return callbacks.onBrowserSessionClose(input, event);
+      }
+      if (browserService) {
+        await browserService.manager.closeSession(
+          input.sessionId as unknown as import("@ai-desktop/ai-core").BrowserSessionId,
+        );
+        return { closed: true };
+      }
+      throw new Error("BrowserService is not available");
+    },
+  );
+
+  // 54. Browser Page Open command (PR34.5)
+  registry.registerCommand(
+    IPC_CHANNELS.BROWSER_PAGE_OPEN,
+    BrowserPageOpenCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onBrowserPageOpen) {
+        return callbacks.onBrowserPageOpen(input, event);
+      }
+      if (browserService) {
+        let sessionId = input.sessionId as unknown as
+          import("@ai-desktop/ai-core").BrowserSessionId | undefined;
+        if (!sessionId) {
+          const session = await browserService.getOrCreateSession(
+            input.projectId ?? "sample-project",
+          );
+          sessionId = session.id;
+        }
+        const page = await browserService.manager.openPage(sessionId, {
+          ...(input.url ? { url: input.url } : {}),
+          ...(input.name ? { name: input.name } : {}),
+        });
+        return { page };
+      }
+      throw new Error("BrowserService is not available");
+    },
+  );
+
+  // 55. Browser Page List command (PR34.5)
+  registry.registerCommand(
+    IPC_CHANNELS.BROWSER_PAGE_LIST,
+    BrowserPageListCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onBrowserPageList) {
+        return callbacks.onBrowserPageList(input, event);
+      }
+      if (browserService) {
+        if (input?.sessionId) {
+          const pages = browserService.manager.listPages(
+            input.sessionId as unknown as import("@ai-desktop/ai-core").BrowserSessionId,
+          );
+          return { pages };
+        }
+        if (input?.projectId) {
+          const sessions = browserService.manager.listSessions(input.projectId);
+          const pages = sessions.flatMap((s) => browserService.manager.listPages(s.id));
+          return { pages };
+        }
+        const pages = browserService.manager.listPages();
+        return { pages };
+      }
+      throw new Error("BrowserService is not available");
+    },
+  );
+
+  // 56. Browser Page Get command (PR34.5)
+  registry.registerCommand(
+    IPC_CHANNELS.BROWSER_PAGE_GET,
+    BrowserPageGetCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onBrowserPageGet) {
+        return callbacks.onBrowserPageGet(input, event);
+      }
+      if (browserService) {
+        const page = browserService.manager.getPage(
+          input.pageId as unknown as import("@ai-desktop/ai-core").BrowserPageId,
+        );
+        return { page: page ?? null };
+      }
+      throw new Error("BrowserService is not available");
+    },
+  );
+
+  // 57. Browser Page Close command (PR34.5)
+  registry.registerCommand(
+    IPC_CHANNELS.BROWSER_PAGE_CLOSE,
+    BrowserPageCloseCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onBrowserPageClose) {
+        return callbacks.onBrowserPageClose(input, event);
+      }
+      if (browserService) {
+        await browserService.manager.closePage(
+          input.pageId as unknown as import("@ai-desktop/ai-core").BrowserPageId,
+        );
+        return { closed: true };
+      }
+      throw new Error("BrowserService is not available");
+    },
+  );
+
+  // 58. Browser Screenshot command (PR34.5)
+  registry.registerCommand(
+    IPC_CHANNELS.BROWSER_SCREENSHOT,
+    BrowserScreenshotCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onBrowserScreenshot) {
+        return callbacks.onBrowserScreenshot(input, event);
+      }
+      if (browserService) {
+        const screenshot = await browserService.executeAction(
+          "screenshot",
+          { pageId: input.pageId, fullPage: input.fullPage },
+          {
+            projectId: "default",
+            toolCallId: createToolCallId(),
+          },
+        );
+        return { screenshot };
+      }
+      throw new Error("BrowserService is not available");
     },
   );
 }

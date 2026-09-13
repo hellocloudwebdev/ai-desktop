@@ -26,6 +26,8 @@ export type ToolCallId = Brand<string, "ToolCallId">;
 export type PermissionRequestId = Brand<string, "PermissionRequestId">;
 export type SessionId = Brand<string, "SessionId">;
 export type MemoryFactId = Brand<string, "MemoryFactId">;
+export type BrowserSessionId = Brand<string, "BrowserSessionId">;
+export type BrowserPageId = Brand<string, "BrowserPageId">;
 
 function getCrypto(): Crypto {
   if (
@@ -133,6 +135,14 @@ export function createMemoryFactId(seedTime?: number): MemoryFactId {
   return generateUlid(seedTime) as MemoryFactId;
 }
 
+export function createBrowserSessionId(seedTime?: number): BrowserSessionId {
+  return generateUlid(seedTime) as BrowserSessionId;
+}
+
+export function createBrowserPageId(seedTime?: number): BrowserPageId {
+  return generateUlid(seedTime) as BrowserPageId;
+}
+
 // ---------------------------------------------------------------------------
 // Branded ID Parsers (validate syntax and return branded types)
 // ---------------------------------------------------------------------------
@@ -186,6 +196,20 @@ export function parseMemoryFactId(raw: string): MemoryFactId {
   return raw.toUpperCase() as MemoryFactId;
 }
 
+export function parseBrowserSessionId(raw: string): BrowserSessionId {
+  if (!isUlid(raw)) {
+    throw new TypeError(`Invalid BrowserSessionId: "${raw}" is not a valid ULID`);
+  }
+  return raw.toUpperCase() as BrowserSessionId;
+}
+
+export function parseBrowserPageId(raw: string): BrowserPageId {
+  if (!isUlid(raw)) {
+    throw new TypeError(`Invalid BrowserPageId: "${raw}" is not a valid ULID`);
+  }
+  return raw.toUpperCase() as BrowserPageId;
+}
+
 // ---------------------------------------------------------------------------
 // Trusted Type Casting Helpers (for trusted persistence / test layers)
 // ---------------------------------------------------------------------------
@@ -216,4 +240,12 @@ export function asSessionId(raw: string): SessionId {
 
 export function asMemoryFactId(raw: string): MemoryFactId {
   return raw as MemoryFactId;
+}
+
+export function asBrowserSessionId(raw: string): BrowserSessionId {
+  return raw as BrowserSessionId;
+}
+
+export function asBrowserPageId(raw: string): BrowserPageId {
+  return raw as BrowserPageId;
 }
