@@ -8,7 +8,7 @@
 //   3. Only serializable presentation state persists (localStorage, versioned).
 //      Transient interaction state (hover, drag, streaming flags) never persists.
 
-/** Surfaces the workspace renders (PR31 set + PR32 additive "extensions"). */
+/** Surfaces the workspace renders (PR31 set + PR32 additive "extensions" + PR34.5 "browser"). */
 export const WORKSPACE_SURFACES = [
   "chat",
   "coding",
@@ -16,6 +16,7 @@ export const WORKSPACE_SURFACES = [
   "activity",
   "files",
   "extensions",
+  "browser",
 ] as const;
 export type WorkspaceSurface = (typeof WORKSPACE_SURFACES)[number];
 

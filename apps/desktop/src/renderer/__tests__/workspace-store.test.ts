@@ -15,7 +15,7 @@ describe("renderer: workspace store (PR31.2)", () => {
     expect(isWorkspaceSurface("tasks")).toBe(true);
     expect(isWorkspaceSurface("activity")).toBe(true);
     expect(isWorkspaceSurface("files")).toBe(true);
-    expect(isWorkspaceSurface("browser")).toBe(false);
+    expect(isWorkspaceSurface("marketplace")).toBe(false);
     expect(isWorkspaceSurface("")).toBe(false);
     expect(isWorkspaceSurface(undefined)).toBe(false);
   });

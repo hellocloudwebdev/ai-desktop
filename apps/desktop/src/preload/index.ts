@@ -55,6 +55,14 @@ import {
   type SurfaceActionCommand,
   type SurfaceDisposeCommand,
   type SurfaceListCommand,
+  type BrowserSessionCreateCommand,
+  type BrowserSessionGetCommand,
+  type BrowserSessionCloseCommand,
+  type BrowserPageOpenCommand,
+  type BrowserPageListCommand,
+  type BrowserPageGetCommand,
+  type BrowserPageCloseCommand,
+  type BrowserScreenshotCommand,
   type IpcResponseEnvelope,
 } from "@ai-desktop/shared";
 import type {
@@ -211,6 +219,31 @@ export interface DesktopApplicationApi {
     disposeSurface(
       command: SurfaceDisposeCommand,
     ): Promise<IpcResponseEnvelope<{ disposed: boolean }>>;
+
+    // PR34.5: Browser automation commands (isolated session + page lifecycle;
+    // execution flows through agent tool router, never through arbitrary IPC).
+    createBrowserSession(
+      command: BrowserSessionCreateCommand,
+    ): Promise<IpcResponseEnvelope<{ session: unknown }>>;
+    getBrowserSession(
+      command: BrowserSessionGetCommand,
+    ): Promise<IpcResponseEnvelope<{ session: unknown }>>;
+    closeBrowserSession(
+      command: BrowserSessionCloseCommand,
+    ): Promise<IpcResponseEnvelope<{ closed: boolean }>>;
+    openBrowserPage(
+      command: BrowserPageOpenCommand,
+    ): Promise<IpcResponseEnvelope<{ page: unknown }>>;
+    listBrowserPages(
+      command?: BrowserPageListCommand,
+    ): Promise<IpcResponseEnvelope<{ pages: unknown[] }>>;
+    getBrowserPage(command: BrowserPageGetCommand): Promise<IpcResponseEnvelope<{ page: unknown }>>;
+    closeBrowserPage(
+      command: BrowserPageCloseCommand,
+    ): Promise<IpcResponseEnvelope<{ closed: boolean }>>;
+    captureBrowserScreenshot(
+      command: BrowserScreenshotCommand,
+    ): Promise<IpcResponseEnvelope<{ screenshot: unknown }>>;
   };
 
   /**
@@ -384,6 +417,30 @@ export function createDesktopApi(): DesktopApplicationApi {
       },
       async disposeSurface(command: SurfaceDisposeCommand) {
         return ipcRenderer.invoke(IPC_CHANNELS.SURFACE_DISPOSE, command);
+      },
+      async createBrowserSession(command: BrowserSessionCreateCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.BROWSER_SESSION_CREATE, command);
+      },
+      async getBrowserSession(command: BrowserSessionGetCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.BROWSER_SESSION_GET, command);
+      },
+      async closeBrowserSession(command: BrowserSessionCloseCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.BROWSER_SESSION_CLOSE, command);
+      },
+      async openBrowserPage(command: BrowserPageOpenCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.BROWSER_PAGE_OPEN, command);
+      },
+      async listBrowserPages(command?: BrowserPageListCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.BROWSER_PAGE_LIST, command ?? {});
+      },
+      async getBrowserPage(command: BrowserPageGetCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.BROWSER_PAGE_GET, command);
+      },
+      async closeBrowserPage(command: BrowserPageCloseCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.BROWSER_PAGE_CLOSE, command);
+      },
+      async captureBrowserScreenshot(command: BrowserScreenshotCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.BROWSER_SCREENSHOT, command);
       },
     },
 

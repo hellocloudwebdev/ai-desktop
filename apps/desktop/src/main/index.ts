@@ -52,11 +52,19 @@ import { CodingAgentService, CodingToolExecutor } from "./agent/index.js";
 import { ExtensionService, PluginToolRegistry } from "./extensions/index.js";
 import { SurfaceService } from "./surfaces/surface-service.js";
 import { DesktopToolRouter } from "./agent/index.js";
+import {
+  type BrowserManager,
+  BrowserService,
+  BrowserToolExecutor,
+  DefaultBrowserManager,
+  PuppeteerAdapter,
+} from "./browser/index.js";
 import { IpcBatcher } from "./ipc/batcher.js";
 import { IpcRegistry, registerIpcHandlers } from "./ipc/index.js";
 
 export { ActiveStreamRegistry, ChatService, ModelSelectionService } from "./chat/index.js";
 export { IpcBatcher, type ChatStreamBatch } from "./ipc/batcher.js";
+export * from "./browser/index.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -87,6 +95,9 @@ let extensionBindingRepository: ExtensionProjectBindingRepository | null = null;
 let extensionToolRegistry: PluginToolRegistry | null = null;
 let extensionService: ExtensionService | null = null;
 let surfaceService: SurfaceService | null = null;
+let browserManager: BrowserManager | null = null;
+let browserService: BrowserService | null = null;
+let browserToolExecutor: BrowserToolExecutor | null = null;
 
 export function getProviderRegistry(): ProviderRegistry {
   if (!providerRegistry) {
@@ -332,6 +343,7 @@ export function getAgentService(options?: {
   mcpExecutor?: ConstructorParameters<typeof AgentService>[0]["mcpExecutor"];
   skillExecutor?: ConstructorParameters<typeof AgentService>[0]["skillExecutor"];
   builtinExecutor?: ConstructorParameters<typeof AgentService>[0]["builtinExecutor"];
+  browserExecutor?: ConstructorParameters<typeof AgentService>[0]["browserExecutor"];
   pluginExecutor?: ConstructorParameters<typeof AgentService>[0]["pluginExecutor"];
 }): AgentService {
   if (!agentService || options) {
@@ -345,6 +357,9 @@ export function getAgentService(options?: {
       ...(options?.mcpExecutor ? { mcpExecutor: options.mcpExecutor } : {}),
       ...(options?.skillExecutor ? { skillExecutor: options.skillExecutor } : {}),
       ...(options?.builtinExecutor ? { builtinExecutor: options.builtinExecutor } : {}),
+      ...(options?.browserExecutor
+        ? { browserExecutor: options.browserExecutor }
+        : { browserExecutor: getBrowserToolExecutor() }),
       pluginExecutor,
     });
     if (!options) {
@@ -470,6 +485,34 @@ export function getSurfaceService(): SurfaceService {
   return surfaceService;
 }
 
+export function getBrowserManager(): BrowserManager {
+  if (!browserManager) {
+    browserManager = new DefaultBrowserManager({
+      engineAdapter: new PuppeteerAdapter(),
+    });
+  }
+  return browserManager;
+}
+
+export function getBrowserService(): BrowserService {
+  if (!browserService) {
+    browserService = new BrowserService({
+      browserManager: getBrowserManager(),
+    });
+  }
+  return browserService;
+}
+
+export function getBrowserToolExecutor(): BrowserToolExecutor {
+  if (!browserToolExecutor) {
+    browserToolExecutor = new BrowserToolExecutor({
+      permissionManager: getPermissionManager(),
+      browserService: getBrowserService(),
+    });
+  }
+  return browserToolExecutor;
+}
+
 export function getSecureWebPreferences(preloadPath: string): Electron.WebPreferences {
   return {
     preload: preloadPath,
@@ -526,6 +569,7 @@ export function initIpc(options?: {
   codingAgentService?: CodingAgentService;
   extensionService?: ExtensionService;
   surfaceService?: SurfaceService;
+  browserService?: BrowserService;
 }): IpcRegistry {
   if (!ipcRegistry) {
     ipcRegistry = new IpcRegistry();
@@ -541,6 +585,7 @@ export function initIpc(options?: {
     const coding = options?.codingAgentService ?? getCodingAgentService();
     const extensions = options?.extensionService ?? getExtensionService();
     const surfaces = options?.surfaceService ?? getSurfaceService();
+    const browser = options?.browserService ?? getBrowserService();
 
     registerIpcHandlers(ipcRegistry, {
       streamRegistry,
@@ -555,6 +600,7 @@ export function initIpc(options?: {
       codingAgentService: coding,
       extensionService: extensions,
       surfaceService: surfaces,
+      browserService: browser,
     });
   }
   return ipcRegistry;

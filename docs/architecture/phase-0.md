@@ -1,11 +1,11 @@
 # Phase 0 — What Exists and What Does Not
 
 This document prevents the repository (and its documentation) from claiming functionality
-that does not exist. It reflects the state after **PR33 (Rich Tool / MCP App
-Surface Foundation)** and
+that does not exist. It reflects the state after **PR34 (Browser Automation
+Foundation)** and
 is updated as each PR lands.
 
-## Implemented (as of PR33)
+## Implemented (as of PR34)
 
 - Repository foundation: pnpm workspace + Turborepo task graph (`build`, `dev`,
   `typecheck`, `lint`, `test`).
@@ -529,8 +529,43 @@ node.completed/node.failed/blocked/replan/completed/failed/cancelled` plus the
     inspector Surfaces section; store-selected instance rendering.
   - 11 ai-core tests, 4 plugin contribution tests, 2 MCP stamp tests,
     15 registry/service tests, 8 desktop tests (E2E + IPC); 800 total tests
-    passing workspace-wide. Full design in
+    passing workspace-wide at PR33. Full design in
     `docs/architecture/pr-33-rich-surfaces.md`.
+- Browser Automation Foundation (`packages/ai-core`, `apps/desktop`, PR34):
+  - Canonical browser contracts in `ai-core` (`browser.ts`): branded IDs
+    (`BrowserSessionId`, `BrowserContextId`, `BrowserPageId`, `BrowserActionId`,
+    `BrowserElementRef`), schemas (`BrowserSession`, `BrowserContext`,
+    `BrowserPage`, `BrowserSnapshot`, `BrowserElementInfo`), 11 canonical tool
+    definitions (`builtin:browser.open`, `builtin:browser.navigate`,
+    `builtin:browser.pages`, `builtin:browser.snapshot`, `builtin:browser.click`,
+    `builtin:browser.fill`, `builtin:browser.select`, `builtin:browser.press`,
+    `builtin:browser.wait`, `builtin:browser.screenshot`,
+    `builtin:browser.close` with `source: "builtin"` and `runtime: "browser"`),
+    URL scheme guards (`javascript:`, `vbscript:`, `data:`, `file:`, `blob:`
+    strictly rejected), sensitive field detection and value redaction, and
+    risk level mapping.
+  - Engine-neutral `BrowserManager` interface and `DefaultBrowserManager`:
+    session/context/page lifecycle, per-page promise queue serialization,
+    resource limits (`MAX_SESSIONS = 10`, `MAX_PAGES_PER_SESSION = 20`,
+    `MAX_SNAPSHOT_BYTES = 64KB`, `MAX_SNAPSHOT_ELEMENTS = 200`), and stable
+    element ref allocation and invalidation via `BrowserRefRegistry`.
+  - `PuppeteerAdapter` isolating `puppeteer-core` inside
+    `apps/desktop/src/main/browser/puppeteer/` with automated detection of
+    system Chrome/Edge executables; zero Puppeteer types escape the adapter.
+  - `BrowserToolExecutor` implementing the universal
+    `resolve -> validate -> permission -> execute` lifecycle with
+    `capability: "browser"`, input validation before permission checks, and
+    elevated risk for sensitive field input.
+  - `BrowserService` with project-level session isolation and disk-backed
+    screenshot artifact management.
+  - Typed IPC (`browser:session-create/get/close`, `browser:page-open/list/get/close`,
+    `browser:screenshot`; explicitly no `browser:execute` channel), preload
+    bridge, and `BrowserSurface` workspace component (tabs, URL navigation,
+    page status, screenshot artifact inspection).
+  - 19 ai-core tests, 22 browser subsystem tests, 18 browser IPC tests,
+    3 browser surface tests, 24 browser security tests, and 1 full 10-step
+    ReAct browser E2E test; 887 total tests passing workspace-wide. Full design
+    in `docs/architecture/pr-34-browser.md`.
 - All remaining canonical packages stay **empty shells** (`package.json`, `tsconfig.json`,
   `src/index.ts` placeholder) — deliberately no premature domain functionality inside them.
 - Toolchain: TypeScript 5.9.3, ESLint 10.10.0, Vitest 4.1.10, Vite 8.1.0, Prettier 3.9.6,
@@ -540,8 +575,8 @@ node.completed/node.failed/blocked/replan/completed/failed/cancelled` plus the
 ## Not yet implemented
 
 - Plugin marketplace, remote registry, auto-update, extension sandbox
-  process, browser automation, full MCP Apps runtime, GitHub App integration,
-  cloud plugin sync, accounts/billing (future ecosystem).
+  process, full MCP Apps runtime, GitHub App integration, cloud plugin sync,
+  accounts/billing (future ecosystem).
 
 ## Verification
 

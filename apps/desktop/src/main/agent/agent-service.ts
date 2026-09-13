@@ -129,6 +129,7 @@ export interface DesktopToolRouterDeps {
   readonly mcpExecutor?: ToolExecutorLike;
   readonly skillExecutor?: ToolExecutorLike;
   readonly builtinExecutor?: ToolExecutorLike;
+  readonly browserExecutor?: ToolExecutorLike;
   readonly pluginExecutor?: ToolExecutorLike;
 }
 
@@ -143,6 +144,7 @@ export class DesktopToolRouter implements ToolInvoker {
   private readonly _mcpExecutor?: DesktopToolRouterDeps["mcpExecutor"];
   private readonly _skillExecutor?: DesktopToolRouterDeps["skillExecutor"];
   private readonly _builtinExecutor?: DesktopToolRouterDeps["builtinExecutor"];
+  private readonly _browserExecutor?: DesktopToolRouterDeps["browserExecutor"];
   private readonly _pluginExecutor?: DesktopToolRouterDeps["pluginExecutor"];
 
   constructor(deps: DesktopToolRouterDeps) {
@@ -150,6 +152,7 @@ export class DesktopToolRouter implements ToolInvoker {
     this._mcpExecutor = deps.mcpExecutor;
     this._skillExecutor = deps.skillExecutor;
     this._builtinExecutor = deps.builtinExecutor;
+    this._browserExecutor = deps.browserExecutor;
     this._pluginExecutor = deps.pluginExecutor;
     void this._permissionManager;
   }
@@ -174,9 +177,11 @@ export class DesktopToolRouter implements ToolInvoker {
       ? this._pluginExecutor
       : toolName.startsWith("skill:")
         ? this._skillExecutor
-        : toolName.startsWith("builtin:")
-          ? this._builtinExecutor
-          : this._mcpExecutor;
+        : toolName.startsWith("builtin:browser.")
+          ? (this._browserExecutor ?? this._builtinExecutor)
+          : toolName.startsWith("builtin:")
+            ? this._builtinExecutor
+            : this._mcpExecutor;
     if (!executor) {
       return {
         toolCallId: context.toolCallId,
@@ -282,6 +287,7 @@ export interface AgentServiceDeps {
   readonly mcpExecutor?: DesktopToolRouterDeps["mcpExecutor"];
   readonly skillExecutor?: DesktopToolRouterDeps["skillExecutor"];
   readonly builtinExecutor?: DesktopToolRouterDeps["builtinExecutor"];
+  readonly browserExecutor?: DesktopToolRouterDeps["browserExecutor"];
   readonly pluginExecutor?: DesktopToolRouterDeps["pluginExecutor"];
   readonly maxNodeIterations?: number;
   readonly defaultModelId?: ModelId;
@@ -305,6 +311,7 @@ export class AgentService {
         mcpExecutor: deps.mcpExecutor,
         skillExecutor: deps.skillExecutor,
         builtinExecutor: deps.builtinExecutor,
+        browserExecutor: deps.browserExecutor,
         pluginExecutor: deps.pluginExecutor,
       }),
       eventSink,

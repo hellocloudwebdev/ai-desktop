@@ -16,6 +16,7 @@ import type {
   CodingSurfaceProps,
   ComposerProps,
   ExtensionsSurfaceProps,
+  BrowserSurfaceProps,
   InspectorProps,
   SidebarProps,
   SurfaceHostProps,
@@ -36,6 +37,7 @@ export interface WorkspaceShellProps {
   readonly activity: ActivityEventView[];
   readonly files: FileEntryView[];
   readonly extensions: ExtensionsSurfaceProps;
+  readonly browser: BrowserSurfaceProps;
   readonly inspector: InspectorProps;
   readonly composer: ComposerProps;
   // PR33.8: renderer — rich-surface host view (additive pass-through).
@@ -54,6 +56,7 @@ export function WorkspaceShell({
   activity,
   files,
   extensions,
+  browser,
   inspector,
   composer,
   surfaceHost,
@@ -127,6 +130,7 @@ export function WorkspaceShell({
               activity={activity}
               files={files}
               extensions={extensions}
+              browser={browser}
               surfaceHost={surfaceHost}
             />
           </WorkspaceErrorBoundary>

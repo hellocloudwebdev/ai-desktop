@@ -8,10 +8,12 @@ import type { WorkspaceStore } from "../../workspace/store.js";
 import { ChatSurface } from "./surfaces/ChatSurface.js";
 import { CodingSurface } from "./surfaces/CodingSurface.js";
 import { ExtensionsSurface } from "./surfaces/ExtensionsSurface.js";
+import { BrowserSurface } from "./surfaces/BrowserSurface.js";
 import { RichSurfaceHost } from "./surfaces/RichSurfaceHost.js";
 import { ActivitySurface, FilesSurface, TasksSurface } from "./surfaces/TaskSurfaces.js";
 import type {
   ActivityEventView,
+  BrowserSurfaceProps,
   ChatSurfaceProps,
   CodingSurfaceProps,
   ExtensionsSurfaceProps,
@@ -28,6 +30,7 @@ interface WorkspaceMainProps {
   readonly activity: ActivityEventView[];
   readonly files: FileEntryView[];
   readonly extensions: ExtensionsSurfaceProps;
+  readonly browser: BrowserSurfaceProps;
   // PR33.8: renderer — optional rich-surface branch (additive).
   readonly surfaceHost?: SurfaceHostProps;
 }
@@ -40,6 +43,7 @@ export function WorkspaceMain({
   activity,
   files,
   extensions,
+  browser,
   surfaceHost,
 }: WorkspaceMainProps): React.ReactElement {
   const surface = store.state.activeSurface;
@@ -75,6 +79,9 @@ export function WorkspaceMain({
   }
   if (surface === "extensions") {
     return <ExtensionsSurface {...extensions} />;
+  }
+  if (surface === "browser") {
+    return <BrowserSurface {...browser} />;
   }
   return <ChatSurface {...chat} />;
 }

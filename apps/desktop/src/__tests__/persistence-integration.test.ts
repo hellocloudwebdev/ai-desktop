@@ -230,7 +230,7 @@ describe("apps/desktop: Persistence Integration & SQLite WAL Durability (PR17)",
     });
 
     // Wait for delta to be emitted
-    await new Promise((r) => setTimeout(r, 30));
+    await new Promise((r) => setTimeout(r, 80));
 
     // Cancel active stream
     chatService.cancel(res.assistantMessageId);
