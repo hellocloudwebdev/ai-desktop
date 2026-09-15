@@ -581,12 +581,12 @@ describe("research service", () => {
 // ---------------------------------------------------------------------------
 
 describe("research tool executor", () => {
-  it("registers all five canonical tools", () => {
+  it("registers all six canonical tools", () => {
     const executor = new ResearchToolExecutor({
       permissionManager: new AllowAllPermissions(),
       researchService: serviceWithStubs(),
     });
-    expect(executor.listTools()).toHaveLength(5);
+    expect(executor.listTools()).toHaveLength(6);
     for (const id of RESEARCH_TOOL_IDS) {
       expect(executor.hasTool(id)).toBe(true);
     }

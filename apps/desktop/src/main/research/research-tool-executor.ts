@@ -10,6 +10,7 @@
 import {
   buildAllResearchToolDefinitions,
   isResearchToolId,
+  ResearchDeepInputSchema,
   researchRiskFor,
   ResearchGithubInputSchema,
   ResearchOpenInputSchema,
@@ -30,11 +31,13 @@ import {
   type ToolCallId,
 } from "@ai-desktop/shared";
 import { toCanonicalResearchError } from "./research-errors.js";
+import { ResearchOrchestrator } from "./research-orchestrator.js";
 import type { ResearchService } from "./research-service.js";
 
 export interface ResearchToolExecutorDeps {
   readonly permissionManager: PermissionManager;
   readonly researchService: ResearchService;
+  readonly researchOrchestrator?: ResearchOrchestrator;
 }
 
 export interface ExecuteResearchToolOptions {
@@ -89,19 +92,36 @@ const TOOL_CONFIGS: Record<ResearchToolId, ToolConfig> = {
     schema: ResearchRssInputSchema,
     getResource: (p) => `builtin:research.rss::${stringField(p, "feedUrl").slice(0, 500)}`,
   },
+  "builtin:research.deep": {
+    action: "deep",
+    schema: ResearchDeepInputSchema,
+    getResource: (p) => {
+      const queries = Array.isArray(p["queries"]) ? (p["queries"] as unknown[]) : [];
+      const first = typeof queries[0] === "string" ? (queries[0] as string) : "deep";
+      return `builtin:research.deep::${first.slice(0, 200)} (+${Math.max(0, queries.length - 1)} queries)`;
+    },
+  },
 };
 
 export class ResearchToolExecutor {
   private readonly _permissionManager: PermissionManager;
   private readonly _researchService: ResearchService;
+  private readonly _orchestrator?: ResearchOrchestrator;
   private readonly _definitions = new Map<string, ToolDefinition>();
 
   constructor(deps: ResearchToolExecutorDeps) {
     this._permissionManager = deps.permissionManager;
     this._researchService = deps.researchService;
+    this._orchestrator = deps.researchOrchestrator;
     for (const def of buildAllResearchToolDefinitions()) {
       this._definitions.set(def.name, def);
     }
+  }
+
+  private _orchestratorFor(): ResearchOrchestrator {
+    return (
+      this._orchestrator ?? new ResearchOrchestrator({ researchService: this._researchService })
+    );
   }
 
   hasTool(toolName: string): boolean {
@@ -245,6 +265,27 @@ export class ResearchToolExecutor {
             serviceCtx,
           );
           break;
+        case "builtin:research.deep": {
+          const orchestrator = this._orchestratorFor();
+          const deepInput = validated as unknown as {
+            queries: string[];
+            depth: "shallow" | "standard" | "deep";
+            freshness: "any" | "day" | "week" | "month" | "year";
+            limits?: Record<string, number>;
+            requestId?: string;
+          };
+          outcome = await orchestrator.runDeepResearch(
+            {
+              queries: deepInput.queries,
+              depth: deepInput.depth,
+              freshness: deepInput.freshness,
+              ...(deepInput.limits ? { limits: deepInput.limits } : {}),
+              ...(deepInput.requestId ? { requestId: deepInput.requestId } : {}),
+            },
+            { ...(options?.signal ? { signal: options.signal } : {}) },
+          );
+          break;
+        }
       }
       return {
         toolCallId,

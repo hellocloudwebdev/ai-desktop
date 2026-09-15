@@ -144,6 +144,16 @@ export class ResearchActionFailed extends ResearchError {
   }
 }
 
+export class ResearchBudgetExceeded extends ResearchError {
+  readonly limit: string;
+
+  constructor(limit: string, message?: string, options?: ErrorOptions) {
+    super("RESEARCH_BUDGET_EXCEEDED", message ?? `Research budget exceeded: "${limit}"`, options);
+    this.name = "ResearchBudgetExceeded";
+    this.limit = limit;
+  }
+}
+
 function isAbortError(err: unknown): boolean {
   return (
     (err instanceof Error && err.name === "AbortError") ||

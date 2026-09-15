@@ -58,13 +58,14 @@ describe("research: channels and tool ids", () => {
     expect(isResearchChannel("")).toBe(false);
   });
 
-  it("defines exactly five canonical tool ids", () => {
+  it("defines exactly six canonical tool ids", () => {
     expect(RESEARCH_TOOL_IDS).toEqual([
       "builtin:research.search",
       "builtin:research.open",
       "builtin:research.github",
       "builtin:research.youtube",
       "builtin:research.rss",
+      "builtin:research.deep",
     ]);
     for (const id of RESEARCH_TOOL_IDS) {
       expect(isResearchToolId(id)).toBe(true);
@@ -75,7 +76,7 @@ describe("research: channels and tool ids", () => {
 
   it("builds tool definitions with builtin source and in_process runtime", () => {
     const defs = buildAllResearchToolDefinitions();
-    expect(defs).toHaveLength(5);
+    expect(defs).toHaveLength(6);
     for (const def of defs) {
       expect(def.source).toBe("builtin");
       expect(def.runtime).toBe("in_process");

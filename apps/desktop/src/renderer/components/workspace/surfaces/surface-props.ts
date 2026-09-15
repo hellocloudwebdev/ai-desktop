@@ -189,6 +189,46 @@ export interface ResearchSurfaceProps {
   readonly onSearch: (query: string) => void;
   readonly onOpenResult: (url: string) => void;
   readonly onOpenInBrowser: (url: string) => void;
+  readonly deepPackage?: ResearchPackageView | null;
+  readonly isDeepResearching?: boolean;
+}
+
+// PR36: renderer — deep-research package view contract (evidence -> source
+// chain with conflicts, citations, and extractive synthesis). Rendered by the
+// existing ResearchSurface; no new surface kind or IPC channel.
+export interface ResearchPackageSourceView {
+  readonly title: string;
+  readonly url: string;
+  readonly providers: string[];
+}
+
+export interface ResearchPackageEvidenceView {
+  readonly excerpt: string;
+  readonly sourceTitle: string;
+  readonly sourceUrl: string;
+}
+
+export interface ResearchPackageConflictView {
+  readonly topic: string;
+  readonly sideA: string;
+  readonly sideB: string;
+}
+
+export interface ResearchPackageCitationView {
+  readonly title: string;
+  readonly url: string;
+}
+
+export interface ResearchPackageView {
+  readonly status: string;
+  readonly sourcesCount: number;
+  readonly evidenceCount: number;
+  readonly conflictsCount: number;
+  readonly sources: ResearchPackageSourceView[];
+  readonly evidence: ResearchPackageEvidenceView[];
+  readonly conflicts: ResearchPackageConflictView[];
+  readonly citations: ResearchPackageCitationView[];
+  readonly synthesisSummary: string | null;
 }
 
 export interface SidebarProps {

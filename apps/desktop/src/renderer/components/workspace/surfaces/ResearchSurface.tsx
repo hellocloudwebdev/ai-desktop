@@ -18,6 +18,8 @@ export function ResearchSurface({
   onSearch,
   onOpenResult,
   onOpenInBrowser,
+  deepPackage = null,
+  isDeepResearching = false,
 }: ResearchSurfaceProps): React.ReactElement {
   const [queryInput, setQueryInput] = useState<string>("");
 
@@ -140,6 +142,77 @@ export function ResearchSurface({
               <p className="mt-2 text-[11px] leading-relaxed text-slate-300 whitespace-pre-wrap">
                 {openedDocument.excerpt}
               </p>
+            )}
+          </div>
+        )}
+
+        {/* PR36: deep-research package — sources, evidence, conflicts, citations, synthesis */}
+        {(deepPackage || isDeepResearching) && (
+          <div className="mt-4 rounded-lg border border-indigo-900/60 bg-indigo-950/20 px-3 py-2">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-medium text-indigo-200">Deep research</p>
+              <p className="font-mono text-[10px] text-slate-500">
+                {isDeepResearching ? "running…" : `status: ${deepPackage?.status ?? "unknown"}`}
+              </p>
+            </div>
+            {deepPackage && (
+              <>
+                <p className="mt-1 font-mono text-[10px] text-slate-400">
+                  sources: {deepPackage.sourcesCount} · evidence: {deepPackage.evidenceCount} ·
+                  conflicts: {deepPackage.conflictsCount}
+                </p>
+                {deepPackage.synthesisSummary && (
+                  <p className="mt-2 text-[11px] leading-relaxed text-slate-300 whitespace-pre-wrap">
+                    {deepPackage.synthesisSummary}
+                  </p>
+                )}
+                {deepPackage.evidence.length > 0 && (
+                  <ul className="mt-2 flex flex-col gap-1.5">
+                    {deepPackage.evidence.slice(0, 10).map((item, index) => (
+                      <li
+                        key={`${item.sourceUrl}-${index}`}
+                        className="rounded-md border border-slate-800 bg-slate-900/60 px-2 py-1.5"
+                      >
+                        <p className="text-[11px] leading-relaxed text-slate-300">{item.excerpt}</p>
+                        <button
+                          type="button"
+                          onClick={() => onOpenResult(item.sourceUrl)}
+                          className="mt-1 font-mono text-[10px] text-indigo-400 hover:text-indigo-300"
+                        >
+                          {item.sourceTitle || item.sourceUrl} →
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {deepPackage.conflicts.length > 0 && (
+                  <div className="mt-2 rounded-md border border-amber-900/60 bg-amber-950/20 px-2 py-1.5">
+                    <p className="text-[11px] font-medium text-amber-300">
+                      {deepPackage.conflicts.length} conflicting claim
+                      {deepPackage.conflicts.length === 1 ? "" : "s"}
+                    </p>
+                    {deepPackage.conflicts.slice(0, 5).map((conflict, index) => (
+                      <div key={`${conflict.topic}-${index}`} className="mt-1">
+                        <p className="font-mono text-[10px] text-amber-200/80">{conflict.topic}</p>
+                        <p className="text-[11px] text-slate-300">A: {conflict.sideA}</p>
+                        <p className="text-[11px] text-slate-300">B: {conflict.sideB}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {deepPackage.citations.length > 0 && (
+                  <ul className="mt-2 flex flex-col gap-1">
+                    {deepPackage.citations.slice(0, 10).map((citation, index) => (
+                      <li
+                        key={`${citation.url}-${index}`}
+                        className="truncate font-mono text-[10px] text-slate-500"
+                      >
+                        [{index + 1}] {citation.title || citation.url} — {citation.url}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </>
             )}
           </div>
         )}

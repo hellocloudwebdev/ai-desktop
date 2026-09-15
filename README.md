@@ -1,6 +1,6 @@
 # ai-desktop
 
-A desktop AI assistant. This repository is currently at **PR35 — Web Research & Internet Connectivity**:
+A desktop AI assistant. This repository is currently at **PR36 — Research Intelligence & Source Synthesis**:
 shared primitives, canonical AI domain contracts, projections, in-process EventBus,
 permission checkpoint, SQLite WAL event repository, OS-backed credential store, canonical
 provider contracts, concrete `AnthropicAdapter`, concrete `GeminiAdapter`, Electron 44 desktop
@@ -59,7 +59,18 @@ reader, pluggable search, structured GitHub, YouTube metadata/transcript, depend
 RSS/Atom — `ResearchRouter` + `ResearchService` with controlled PR34 `BrowserService`
 fallback, `ResearchToolExecutor` under the universal resolve → validate → permission →
 execute lifecycle, `research:*` typed IPC with narrow preload bridge, and `ResearchSurface`
-workspace component) are implemented. Future packages remain empty shells awaiting their respective
+workspace component), and the Research Intelligence & Source Synthesis Foundation
+(canonical intelligence contracts — research plans, canonical sources with cross-provider
+provider ledgers, verbatim evidence with locators, evidence-backed claims, two-sided
+conflicts, structured citations, extractive synthesis, versioned research packages with
+run provenance — depth budgets across shallow/standard/deep with freshness normalization,
+conservative source canonicalizer with cross-provider dedup, budget tracker with bounded
+parallelism and cancellation, deterministic evidence extractor with verbatim invariant,
+numeric conflict detector, bounded source graph, `ResearchOrchestrator` composing the PR35
+`ResearchService` with partial-degradation and zero new persistence, `builtin:research.deep`
+under the existing `research` capability, prompt-injection and tool-poisoning isolation,
+and the extended `ResearchSurface` evidence/conflict/citation/synthesis panel) are
+implemented. Future packages remain empty shells awaiting their respective
 implementation PRs — see [docs/architecture/phase-0.md](docs/architecture/phase-0.md) for the honest list of what is
 and is not implemented.
 

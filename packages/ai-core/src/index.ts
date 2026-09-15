@@ -18,6 +18,7 @@ export * from "./coding.js";
 export * from "./rich-surface.js";
 export * from "./browser.js";
 export * from "./research.js";
+export * from "./research-intelligence.js";
 export * from "./events.js";
 export * from "./errors.js";
 export * from "./models.js";

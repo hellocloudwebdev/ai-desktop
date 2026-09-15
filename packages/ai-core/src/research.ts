@@ -165,6 +165,7 @@ export const RESEARCH_TOOL_IDS = [
   "builtin:research.github",
   "builtin:research.youtube",
   "builtin:research.rss",
+  "builtin:research.deep",
 ] as const;
 
 export type ResearchToolId = (typeof RESEARCH_TOOL_IDS)[number];
@@ -177,7 +178,14 @@ export function isResearchToolId(value: string): value is ResearchToolId {
 // Research Actions & Input Schemas
 // ---------------------------------------------------------------------------
 
-export const ResearchActionTypeSchema = z.enum(["search", "open", "github", "youtube", "rss"]);
+export const ResearchActionTypeSchema = z.enum([
+  "search",
+  "open",
+  "github",
+  "youtube",
+  "rss",
+  "deep",
+]);
 export type ResearchActionType = z.infer<typeof ResearchActionTypeSchema>;
 
 export const ResearchSearchInputSchema = z.object({
@@ -307,6 +315,34 @@ export function researchToolParameters(toolId: ResearchToolId): Record<string, u
           },
         },
       };
+    case "builtin:research.deep":
+      return {
+        type: "object",
+        required: ["queries"],
+        properties: {
+          queries: {
+            type: "array",
+            items: { type: "string" },
+            description:
+              "Up to 8 sub-queries supplied by the Agent Runtime (PR36 executes, never generates).",
+          },
+          depth: {
+            type: "string",
+            enum: ["shallow", "standard", "deep"],
+            description: "Research depth budget (default standard)",
+          },
+          freshness: {
+            type: "string",
+            enum: ["any", "day", "week", "month", "year"],
+            description: "Freshness constraint normalized across providers (default any)",
+          },
+          limits: {
+            type: "object",
+            description: "Optional budget overrides (bounded; clamped to canonical limits)",
+          },
+          requestId: { type: "string", description: "Optional caller request id" },
+        },
+      };
   }
 }
 
@@ -322,6 +358,8 @@ export function researchToolDescription(toolId: ResearchToolId): string {
       return "Retrieves public YouTube video metadata and transcripts with provenance.";
     case "builtin:research.rss":
       return "Fetches and parses a public RSS/Atom feed into bounded normalized items.";
+    case "builtin:research.deep":
+      return "Runs bounded multi-source research synthesis: executes Agent-supplied queries, deduplicates sources, extracts evidence, and returns a versioned research package. Deterministic orchestration only — never starts an autonomous agent loop.";
   }
 }
 

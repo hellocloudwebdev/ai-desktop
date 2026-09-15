@@ -1,11 +1,11 @@
 # Phase 0 — What Exists and What Does Not
 
 This document prevents the repository (and its documentation) from claiming functionality
-that does not exist. It reflects the state after **PR35 (Web Research &
-Internet Connectivity Foundation)** and
+that does not exist. It reflects the state after **PR36 (Research Intelligence
+& Source Synthesis Foundation)** and
 is updated as each PR lands.
 
-## Implemented (as of PR35)
+## Implemented (as of PR36)
 
 - Repository foundation: pnpm workspace + Turborepo task graph (`build`, `dev`,
   `typecheck`, `lint`, `test`).
@@ -610,6 +610,56 @@ node.completed/node.failed/blocked/replan/completed/failed/cancelled` plus the
     subsystem tests, 9 research IPC tests, 4 research surface tests, and
     2 research E2E workflows (search → open → synthesize; static failure →
     browser fallback). Full design in `docs/architecture/pr-35-research.md`.
+- Research Intelligence & Source Synthesis Foundation (`packages/ai-core`,
+  `apps/desktop`, PR36):
+  - Canonical intelligence contracts in `ai-core` (`research-intelligence.ts`):
+    branded ULIDs (`ResearchPlanId`, `ResearchEvidenceId`, `ResearchClaimId`,
+    `ResearchConflictId`, `ResearchCitationId`, `ResearchPackageId`),
+    depth/freshness/status/source-type vocabularies, `ResearchLimits` with
+    `DEFAULT_RESEARCH_DEPTH_BUDGETS` (shallow/standard/deep),
+    `ResearchPlan`/`ResearchStep`, `ResearchCanonicalSource` (canonical URL,
+    raw URLs, source-type/primary/official metadata, cross-provider
+    `providers[]`), `SourceQualitySignals` (metadata only — no truth score),
+    `ResearchEvidence` (verbatim ≤2000-char excerpts + adapter-only locators),
+    `ResearchClaim`, two-sided `ResearchConflict`, `ResearchCitation`,
+    extractive-only `ResearchSynthesis`, versioned `ResearchPackage` with
+    `ResearchRunProvenance` (queries/providers/timestamps/limits, never
+    secrets), `builtin:research.deep` input contract, and
+    `frameResearchContent` untrusted-data framing. `research.ts` gains only
+    the `deep` action and tool id (risk `medium`).
+  - Deterministic desktop modules in `apps/desktop/src/main/research/`:
+    conservative `source-canonicalizer` (tracking-param/fragment/port/slash
+    normalization, `sameSourceUrl`, cross-provider grouping), `research-plan`
+    builder with freshness normalization, `research-budget` tracker
+    (increment-then-enforce limits, order-preserving bounded parallelism,
+    `AbortSignal` cancellation), verbatim `EvidenceExtractor` (query-term
+    sentence scoring, paragraph locators, non-verbatim throws),
+    citation builder + `verifyCitationIntegrity` (no dangling claim →
+    evidence → source references), numeric conflict detector (normalized
+    units, distinct values from distinct sources, deterministic ordering),
+    bounded `ResearchSourceGraph` (duplicates/cites/supports/contradicts —
+    not a knowledge graph), and `ResearchOrchestrator` (search → dedupe →
+    read → extract → claims → conflicts → citations → synthesis → package;
+    partial degradation with structured errors; cancelled packages on abort;
+    PR35 cache and PR34 browser fallback reused through `ResearchService`
+    only; no agent loop; no automatic memory ingestion; no persistence).
+  - `builtin:research.deep` wired through `ResearchToolExecutor` under the
+    existing `research` capability (validate → permission → orchestrate),
+    and the existing `ResearchSurface` extended with an optional deep-package
+    panel (status/progress, source counts, evidence with claim → evidence →
+    source open affordances, conflicts, citations, extractive synthesis) via
+    established props — no new surface kind, IPC channel, or rendering
+    architecture.
+  - Security regression coverage: prompt-injection isolation (malicious pages
+    stay framed data), tool-poisoning protection (tool list invariant),
+    citation-integrity proofs, and `research.deep` permission gating.
+  - ~40 ai-core intelligence tests, ~20 canonicalizer tests, ~20
+    plan/budget tests, ~8 evidence tests, ~20 citation/conflict/graph tests,
+    6 orchestrator tests, 8 security tests, 6 renderer deep-surface tests,
+    and 3 deep E2E workflows (full package run; conflict fixtures with
+    exactly 1 conflict and both sources kept; browser-fallback recovery with
+    evidence + citation). Full design in
+    `docs/architecture/pr-36-research-intelligence.md`.
 - All remaining canonical packages stay **empty shells** (`package.json`, `tsconfig.json`,
   `src/index.ts` placeholder) — deliberately no premature domain functionality inside them.
 - Toolchain: TypeScript 5.9.3, ESLint 10.10.0, Vitest 4.1.10, Vite 8.1.0, Prettier 3.9.6,
