@@ -70,6 +70,8 @@ import {
   BrowserPageGetCommandSchema,
   BrowserPageCloseCommandSchema,
   BrowserScreenshotCommandSchema,
+  ResearchSearchCommandSchema,
+  ResearchOpenCommandSchema,
   createToolCallId,
   type ChatCancelCommand,
   type ChatSendCommand,
@@ -128,6 +130,8 @@ import {
   type BrowserPageGetCommand,
   type BrowserPageCloseCommand,
   type BrowserScreenshotCommand,
+  type ResearchSearchCommand,
+  type ResearchOpenCommand,
   type IpcResponseEnvelope,
 } from "@ai-desktop/shared";
 import {
@@ -145,6 +149,7 @@ import type { CodingAgentService } from "../agent/index.js";
 import type { ExtensionService } from "../extensions/index.js";
 import type { SurfaceService } from "../surfaces/surface-service.js";
 import type { BrowserService } from "../browser/index.js";
+import type { ResearchService } from "../research/index.js";
 import type { ActiveStreamRegistry, ChatService, ModelSelectionService } from "../chat/index.js";
 import type { IpcBatcher } from "./batcher.js";
 
@@ -219,6 +224,8 @@ export interface RegisteredCommands {
   onBrowserPageGet?: CommandHandler<BrowserPageGetCommand, { page: unknown }>;
   onBrowserPageClose?: CommandHandler<BrowserPageCloseCommand, { closed: boolean }>;
   onBrowserScreenshot?: CommandHandler<BrowserScreenshotCommand, { screenshot: unknown }>;
+  onResearchSearch?: CommandHandler<ResearchSearchCommand, { result: unknown }>;
+  onResearchOpen?: CommandHandler<ResearchOpenCommand, { result: unknown }>;
 }
 
 export interface RegisterIpcOptions {
@@ -236,6 +243,7 @@ export interface RegisterIpcOptions {
   extensionService?: ExtensionService;
   surfaceService?: SurfaceService;
   browserService?: BrowserService;
+  researchService?: ResearchService;
 }
 
 export class IpcRegistry {
@@ -479,6 +487,8 @@ export function registerIpcHandlers(
     options && "surfaceService" in options ? options.surfaceService : undefined;
   const browserService: BrowserService | undefined =
     options && "browserService" in options ? options.browserService : undefined;
+  const researchService: ResearchService | undefined =
+    options && "researchService" in options ? options.researchService : undefined;
   if (batcher) {
     registry.attachBatcher(batcher);
   }
@@ -1593,6 +1603,47 @@ export function registerIpcHandlers(
         return { screenshot };
       }
       throw new Error("BrowserService is not available");
+    },
+  );
+
+  // 59. Research Search command (PR35). Read-only UI affordance over
+  // ResearchService.searchWeb. No research:execute channel exists;
+  // execution flows through the agent tool router (ResearchToolExecutor).
+  registry.registerCommand(
+    IPC_CHANNELS.RESEARCH_SEARCH,
+    ResearchSearchCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onResearchSearch) {
+        return callbacks.onResearchSearch(input, event);
+      }
+      if (researchService) {
+        const result = await researchService.searchWeb(input.query, {
+          ...(input.maxResults ? { maxResults: input.maxResults } : {}),
+          ...(input.projectId ? { projectId: input.projectId } : {}),
+        });
+        return { result };
+      }
+      throw new Error("ResearchService is not available");
+    },
+  );
+
+  // 60. Research Open command (PR35). Read-only UI affordance over
+  // ResearchService.openWebPage (static reader + browser fallback).
+  registry.registerCommand(
+    IPC_CHANNELS.RESEARCH_OPEN,
+    ResearchOpenCommandSchema,
+    async (input, event) => {
+      if (callbacks?.onResearchOpen) {
+        return callbacks.onResearchOpen(input, event);
+      }
+      if (researchService) {
+        const result = await researchService.openWebPage(input.url, {
+          ...(input.maxChars ? { maxChars: input.maxChars } : {}),
+          ...(input.projectId ? { projectId: input.projectId } : {}),
+        });
+        return { result };
+      }
+      throw new Error("ResearchService is not available");
     },
   );
 }

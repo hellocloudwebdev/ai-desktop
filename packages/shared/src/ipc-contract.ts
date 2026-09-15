@@ -114,6 +114,14 @@ export const IPC_CHANNELS = {
   BROWSER_PAGE_GET: "browser:page-get",
   BROWSER_PAGE_CLOSE: "browser:page-close",
   BROWSER_SCREENSHOT: "browser:screenshot",
+
+  // Web research operations (PR35). NOTE: there is intentionally NO
+  // research:execute channel — execution flows through the agent tool
+  // router (ResearchToolExecutor), never through arbitrary IPC. These two
+  // channels are read-only UI affordances (query + fetch) over
+  // ResearchService, mirroring the browser IPC precedent.
+  RESEARCH_SEARCH: "research:search",
+  RESEARCH_OPEN: "research:open",
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];
@@ -763,6 +771,29 @@ export const BrowserScreenshotCommandSchema = z.object({
 });
 
 export type BrowserScreenshotCommand = z.infer<typeof BrowserScreenshotCommandSchema>;
+
+// ---------------------------------------------------------------------------
+// Research Commands (PR35)
+// NOTE: there is intentionally NO research:execute channel — research
+// execution flows through the agent tool router (ResearchToolExecutor).
+// These channels are read-only UI affordances over ResearchService.
+// ---------------------------------------------------------------------------
+
+export const ResearchSearchCommandSchema = z.object({
+  query: z.string().trim().min(1).max(500),
+  maxResults: z.number().int().positive().max(10).optional(),
+  projectId: z.string().trim().min(1).max(256).optional(),
+});
+
+export type ResearchSearchCommand = z.infer<typeof ResearchSearchCommandSchema>;
+
+export const ResearchOpenCommandSchema = z.object({
+  url: z.string().trim().min(1).max(2048),
+  maxChars: z.number().int().positive().max(20000).optional(),
+  projectId: z.string().trim().min(1).max(256).optional(),
+});
+
+export type ResearchOpenCommand = z.infer<typeof ResearchOpenCommandSchema>;
 
 // ---------------------------------------------------------------------------
 // Extension Payloads (PR32)

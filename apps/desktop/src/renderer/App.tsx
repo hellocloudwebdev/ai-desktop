@@ -20,6 +20,7 @@ import type {
   BrowserPageView,
   ExtensionView,
   FileEntryView,
+  ResearchResultView,
   SurfaceView,
 } from "./components/workspace/surfaces/surface-props.js";
 
@@ -86,6 +87,13 @@ export function App(): React.ReactElement {
     artifactRef: string;
     bytes: number;
   } | null>(null);
+  // PR35: research query + results + opened document (App-owned backend
+  // state; the surface is a pure view over the research:* IPC affordances).
+  const [researchQuery, setResearchQuery] = useState<string>("");
+  const [researchSearching, setResearchSearching] = useState<boolean>(false);
+  const [researchResults, setResearchResults] = useState<ResearchResultView[]>([]);
+  const [researchOpened, setResearchOpened] = useState<ResearchResultView | null>(null);
+  const [researchError, setResearchError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   // PR34.5: load browser pages through the preload bridge
@@ -161,6 +169,101 @@ export function App(): React.ReactElement {
       console.warn("Failed to take screenshot:", err);
     }
   }, []);
+
+  // PR35: research search/open through the preload bridge. No-ops when the
+  // bridge is absent (preload not yet updated, or non-Electron hosts).
+  const handleResearchSearch = useCallback(async () => {
+    if (typeof window === "undefined" || !window.api) return;
+    const query = researchQuery.trim();
+    if (!query) return;
+    setResearchSearching(true);
+    setResearchError(null);
+    setResearchOpened(null);
+    try {
+      const commands = window.api.commands as unknown as {
+        searchResearch?: (command: {
+          query: string;
+          projectId: string;
+        }) => Promise<{ ok: boolean; value?: { result: unknown }; error?: { message: string } }>;
+      };
+      if (typeof commands.searchResearch !== "function") return;
+      const res = await commands.searchResearch({
+        query,
+        projectId: workspace.state.activeProjectId,
+      });
+      if (res.ok && res.value?.result) {
+        const result = res.value.result as {
+          metadata?: { results?: unknown };
+          source?: { provider?: string; channel?: string };
+          retrievedAt?: string;
+          requestId?: string;
+          title?: string;
+        };
+        const hits = Array.isArray(result.metadata?.results) ? result.metadata.results : [];
+        setResearchResults(
+          hits.map((hit, index) => {
+            const h = hit as Record<string, unknown>;
+            return {
+              id: `${result.requestId ?? "search"}:${index}`,
+              title: typeof h.title === "string" ? h.title : undefined,
+              url: typeof h.url === "string" ? h.url : undefined,
+              excerpt: typeof h.snippet === "string" ? h.snippet : undefined,
+              provider: String(result.source?.provider ?? "unknown"),
+              channel: String(result.source?.channel ?? "search"),
+              retrievedAt: String(result.retrievedAt ?? ""),
+              truncated: false,
+            };
+          }),
+        );
+      } else if (!res.ok) {
+        setResearchError(res.error?.message ?? "Research search failed");
+      }
+    } catch (err) {
+      setResearchError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setResearchSearching(false);
+    }
+  }, [researchQuery, workspace.state.activeProjectId]);
+
+  const handleResearchOpen = useCallback(
+    async (url: string) => {
+      if (typeof window === "undefined" || !window.api) return;
+      setResearchError(null);
+      try {
+        const commands = window.api.commands as unknown as {
+          openResearch?: (command: {
+            url: string;
+            projectId: string;
+          }) => Promise<{ ok: boolean; value?: { result: unknown }; error?: { message: string } }>;
+        };
+        if (typeof commands.openResearch !== "function") return;
+        const res = await commands.openResearch({
+          url,
+          projectId: workspace.state.activeProjectId,
+        });
+        if (res.ok && res.value?.result) {
+          const result = res.value.result as Record<string, unknown>;
+          const source = result.source as Record<string, unknown> | undefined;
+          setResearchOpened({
+            id: String(result.id ?? url),
+            title: typeof result.title === "string" ? result.title : undefined,
+            url: typeof result.url === "string" ? result.url : url,
+            excerpt: typeof result.excerpt === "string" ? result.excerpt : undefined,
+            content: typeof result.content === "string" ? result.content : undefined,
+            provider: String(source?.provider ?? "unknown"),
+            channel: String(source?.channel ?? "web"),
+            retrievedAt: String(result.retrievedAt ?? ""),
+            truncated: result.truncated === true,
+          });
+        } else if (!res.ok) {
+          setResearchError(res.error?.message ?? "Research open failed");
+        }
+      } catch (err) {
+        setResearchError(err instanceof Error ? err.message : String(err));
+      }
+    },
+    [workspace.state.activeProjectId],
+  );
 
   // PR32: load the extension list through the preload bridge. No-ops when
   // the bridge is absent (preload not yet updated, or non-Electron hosts).
@@ -948,6 +1051,22 @@ export function App(): React.ReactElement {
         onClosePage: (pageId) => void handleCloseBrowserPage(pageId),
         onTakeScreenshot: (pageId) => void handleTakeScreenshot(pageId),
         screenshotArtifact: browserScreenshot,
+      }}
+      research={{
+        activeProjectId: workspace.state.activeProjectId,
+        query: researchQuery,
+        searching: researchSearching,
+        results: researchResults,
+        opened: researchOpened,
+        error: researchError,
+        onQueryChange: setResearchQuery,
+        onSearch: () => void handleResearchSearch(),
+        onOpen: (url) => void handleResearchOpen(url),
+        onOpenInBrowser: (url) => {
+          workspace.selectSurface("browser");
+          void handleOpenBrowserPage(url);
+        },
+        onClearOpened: () => setResearchOpened(null),
       }}
       inspector={{
         activeTask: activeTaskEntry,

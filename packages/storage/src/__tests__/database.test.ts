@@ -13,7 +13,9 @@ describe("StorageDatabase: SQLite WAL Initialization and Verification", () => {
     tmpDbPath = path.join(tmpDir, "test.db");
 
     // Copy template dev.db created by prisma migrate dev to preserve schema
-    const templateDb = path.resolve("D:/Packages/ai-desktop/prisma/dev.db");
+    const templateDb = fs.existsSync(path.resolve(__dirname, "../../../../prisma/dev.db"))
+      ? path.resolve(__dirname, "../../../../prisma/dev.db")
+      : path.resolve("D:/Packages/ai-desktop/prisma/dev.db");
     if (fs.existsSync(templateDb)) {
       fs.copyFileSync(templateDb, tmpDbPath);
     }

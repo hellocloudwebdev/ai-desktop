@@ -15,7 +15,9 @@ describe("packages/storage: PrismaPermissionRepository (PR24)", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ai-desktop-storage-permissions-"));
     tmpDbPath = path.join(tmpDir, "test.db");
 
-    const templateDb = path.resolve("D:/Packages/ai-desktop/prisma/dev.db");
+    const templateDb = fs.existsSync(path.resolve(__dirname, "../../../../prisma/dev.db"))
+      ? path.resolve(__dirname, "../../../../prisma/dev.db")
+      : path.resolve("D:/Packages/ai-desktop/prisma/dev.db");
     if (fs.existsSync(templateDb)) {
       fs.copyFileSync(templateDb, tmpDbPath);
     }

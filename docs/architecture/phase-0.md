@@ -1,11 +1,11 @@
 # Phase 0 — What Exists and What Does Not
 
 This document prevents the repository (and its documentation) from claiming functionality
-that does not exist. It reflects the state after **PR34 (Browser Automation
-Foundation)** and
+that does not exist. It reflects the state after **PR35 (Web Research &
+Internet Connectivity Foundation)** and
 is updated as each PR lands.
 
-## Implemented (as of PR34)
+## Implemented (as of PR35)
 
 - Repository foundation: pnpm workspace + Turborepo task graph (`build`, `dev`,
   `typecheck`, `lint`, `test`).
@@ -566,6 +566,47 @@ node.completed/node.failed/blocked/replan/completed/failed/cancelled` plus the
     3 browser surface tests, 24 browser security tests, and 1 full 10-step
     ReAct browser E2E test; 887 total tests passing workspace-wide. Full design
     in `docs/architecture/pr-34-browser.md`.
+- Web Research & Internet Connectivity Foundation (`packages/ai-core`,
+  `apps/desktop`, PR35):
+  - Canonical research contracts in `ai-core` (`research.ts`): branded ULIDs
+    (`ResearchRequestId`, `ResearchSourceId`, `ResearchResultId`,
+    `ResearchDocumentId`), closed channel vocabulary (`web`, `search`,
+    `github`, `youtube`, `rss`), `ResearchSource` + `ResearchProvenance`
+    (provider + attempted fallback trail + timestamps), bounded
+    `ResearchResult`/`ResearchDocument`/`SearchResult`/`RssItem`, five
+    `builtin:research.*` tool definitions (`source: "builtin"`,
+    `runtime: "in_process"`), capability `"research"` with public-low /
+    authenticated-medium risk, URL scheme guards, canonicalization, dedupe,
+    MIME allowlist, centralized TTLs/timeouts/ceilings, and the
+    untrusted-content framing helper.
+  - `apps/desktop/src/main/research/`: host-owned implementation with zero
+    new external dependencies — canonical errors with secret redaction,
+    centralized policy, syntactic URL policy, DNS-backed SSRF guard
+    (loopback/RFC1918/CGNAT/link-local/metadata/ULA/multicast/reserved/
+    documentation ranges, per-hop revalidation), redirect policy (manual
+    hops, ceiling, scheme re-check), bounded response policy (MIME gate,
+    byte/char ceilings, bomb guard), FIFO research cache (per-channel TTL,
+    authenticated bypass), provenance builder, controlled router
+    (primary → fallback, auth stops the chain), engine-neutral web reader
+    (static primary + Jina adapter), Exa search (SecretRef key), structured
+    GitHub REST (no subprocess), YouTube oEmbed/transcript/Data API, bounded
+    RSS/Atom parser, `ResearchService` (cache → router → adapters, browser
+    fallback via the PR34 `BrowserService` boundary with projectId
+    propagation), and `ResearchToolExecutor` (universal lifecycle + PR33
+    search table stamp). No Agent-Reach dependency; no `child_process`;
+    no model-driven installs.
+  - Agent integration: `DesktopToolRouter` `builtin:research.*` branch with
+    `AbortSignal` threading; `ResearchService`/`ResearchToolExecutor`
+    singletons (OS-keychain SecretRef resolver, Exa/GitHub/YouTube key refs)
+    composed into `AgentService`.
+  - Typed IPC (`research:search`, `research:open`; explicitly no
+    `research:execute` channel), preload bridge, and `ResearchSurface`
+    workspace component (query, provenance-attributed results, reader view,
+    open-in-Browser handoff).
+  - 30+ ai-core tests, 21 security tests, 10 web-reader tests, 15 adapter
+    tests, 12 service/router/cache tests, 7 executor tests, 2 agent E2E
+    workflows, 5 IPC tests, 5 renderer tests. Full design in
+    `docs/architecture/pr-35-research.md`.
 - All remaining canonical packages stay **empty shells** (`package.json`, `tsconfig.json`,
   `src/index.ts` placeholder) — deliberately no premature domain functionality inside them.
 - Toolchain: TypeScript 5.9.3, ESLint 10.10.0, Vitest 4.1.10, Vite 8.1.0, Prettier 3.9.6,

@@ -24,6 +24,7 @@ import {
 } from "@ai-desktop/providers";
 import {
   DuplicateSequenceError,
+  OSKeychainSecretStore,
   StorageDatabase,
   PrismaEventRepository,
   PrismaProviderProfileRepository,
@@ -37,6 +38,7 @@ import {
   type ProviderProfileRepository,
   type ConversationModelRepository,
   type PermissionRepository,
+  type SecretStore,
   type SkillRepository,
   type MemoryRepository,
   type ExtensionRepository,
@@ -59,6 +61,16 @@ import {
   DefaultBrowserManager,
   PuppeteerAdapter,
 } from "./browser/index.js";
+import {
+  ExaSearchAdapter,
+  GithubResearchAdapter,
+  ResearchService,
+  ResearchToolExecutor,
+  RssResearchAdapter,
+  StaticWebReader,
+  YoutubeResearchAdapter,
+  type ResearchServiceDeps,
+} from "./research/index.js";
 import { IpcBatcher } from "./ipc/batcher.js";
 import { IpcRegistry, registerIpcHandlers } from "./ipc/index.js";
 
@@ -98,6 +110,9 @@ let surfaceService: SurfaceService | null = null;
 let browserManager: BrowserManager | null = null;
 let browserService: BrowserService | null = null;
 let browserToolExecutor: BrowserToolExecutor | null = null;
+let secretStore: SecretStore | null = null;
+let researchService: ResearchService | null = null;
+let researchToolExecutor: ResearchToolExecutor | null = null;
 
 export function getProviderRegistry(): ProviderRegistry {
   if (!providerRegistry) {
@@ -345,6 +360,7 @@ export function getAgentService(options?: {
   builtinExecutor?: ConstructorParameters<typeof AgentService>[0]["builtinExecutor"];
   browserExecutor?: ConstructorParameters<typeof AgentService>[0]["browserExecutor"];
   pluginExecutor?: ConstructorParameters<typeof AgentService>[0]["pluginExecutor"];
+  researchExecutor?: ConstructorParameters<typeof AgentService>[0]["researchExecutor"];
 }): AgentService {
   if (!agentService || options) {
     const pluginExecutor = options?.pluginExecutor ?? getExtensionService().pluginExecutor;
@@ -360,6 +376,9 @@ export function getAgentService(options?: {
       ...(options?.browserExecutor
         ? { browserExecutor: options.browserExecutor }
         : { browserExecutor: getBrowserToolExecutor() }),
+      ...(options?.researchExecutor
+        ? { researchExecutor: options.researchExecutor }
+        : { researchExecutor: getResearchToolExecutor() }),
       pluginExecutor,
     });
     if (!options) {
@@ -513,6 +532,117 @@ export function getBrowserToolExecutor(): BrowserToolExecutor {
   return browserToolExecutor;
 }
 
+/**
+ * Desktop SecretStore singleton (PR35): OS keychain binding used to
+ * resolve SecretRef credentials for research providers (Exa, GitHub,
+ * YouTube Data API). Raw secrets never leave this boundary.
+ */
+export function getSecretStore(): SecretStore {
+  if (!secretStore) {
+    secretStore = new OSKeychainSecretStore({ serviceName: "ai-desktop" });
+  }
+  return secretStore;
+}
+
+async function resolveResearchSecret(ref: string): Promise<string | null> {
+  try {
+    return await getSecretStore().get(ref as never);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Desktop ResearchService singleton (PR35): static web reader (primary) +
+ * Exa search + GitHub + YouTube + RSS adapters, with controlled browser
+ * fallback through BrowserService (open -> snapshot -> close). No
+ * Agent-Reach dependency; no subprocesses; no model-driven installs.
+ */
+export function getResearchService(options?: Partial<ResearchServiceDeps>): ResearchService {
+  if (!researchService || options) {
+    const browser = getBrowserService();
+    const service = new ResearchService({
+      webReader: new StaticWebReader(),
+      searchProvider: new ExaSearchAdapter({
+        resolveSecret: resolveResearchSecret,
+        apiKeyRef: "provider/search/exa/api-key",
+      }),
+      githubAdapter: new GithubResearchAdapter({
+        resolveSecret: resolveResearchSecret,
+        apiKeyRef: "provider/github/api-key",
+      }),
+      youtubeAdapter: new YoutubeResearchAdapter({
+        resolveSecret: resolveResearchSecret,
+        apiKeyRef: "provider/youtube/api-key",
+      }),
+      rssAdapter: new RssResearchAdapter(),
+      browserFallback: {
+        // PR34 boundary: research never touches BrowserManager/Puppeteer.
+        // Fallback flows through BrowserService.executeAction (project
+        // isolation enforced) with snapshot output as the document text.
+        openAndSnapshot: async (
+          url: string,
+          opts?: { signal?: AbortSignal; projectId?: string },
+        ) => {
+          const projectId = opts?.projectId ?? "default";
+          const toolCallId = (await import("@ai-desktop/shared")).createToolCallId();
+          const opened = (await browser.executeAction(
+            "open",
+            { url },
+            {
+              projectId,
+              toolCallId,
+              ...(opts?.signal ? { signal: opts.signal } : {}),
+            },
+          )) as { id?: unknown; url?: unknown; title?: unknown };
+          const pageId = opened.id;
+          try {
+            const snapshot = (await browser.executeAction(
+              "snapshot",
+              { pageId },
+              {
+                projectId,
+                toolCallId,
+                ...(opts?.signal ? { signal: opts.signal } : {}),
+              },
+            )) as { title?: unknown; text?: unknown; url?: unknown };
+            return {
+              title: typeof snapshot.title === "string" ? snapshot.title : "",
+              text: typeof snapshot.text === "string" ? snapshot.text : "",
+              finalUrl:
+                typeof snapshot.url === "string"
+                  ? snapshot.url
+                  : typeof opened.url === "string"
+                    ? opened.url
+                    : url,
+            };
+          } finally {
+            await browser
+              .executeAction("close", { pageId }, { projectId, toolCallId })
+              .catch(() => undefined);
+          }
+        },
+      },
+      ...options,
+    });
+    if (!options) {
+      researchService = service;
+    }
+    return service;
+  }
+  return researchService;
+}
+
+export function getResearchToolExecutor(): ResearchToolExecutor {
+  if (!researchToolExecutor) {
+    researchToolExecutor = new ResearchToolExecutor({
+      permissionManager: getPermissionManager(),
+      researchService: getResearchService(),
+    });
+  }
+  return researchToolExecutor;
+}
+
 export function getSecureWebPreferences(preloadPath: string): Electron.WebPreferences {
   return {
     preload: preloadPath,
@@ -570,6 +700,7 @@ export function initIpc(options?: {
   extensionService?: ExtensionService;
   surfaceService?: SurfaceService;
   browserService?: BrowserService;
+  researchService?: ResearchService;
 }): IpcRegistry {
   if (!ipcRegistry) {
     ipcRegistry = new IpcRegistry();
@@ -586,6 +717,7 @@ export function initIpc(options?: {
     const extensions = options?.extensionService ?? getExtensionService();
     const surfaces = options?.surfaceService ?? getSurfaceService();
     const browser = options?.browserService ?? getBrowserService();
+    const research = options?.researchService ?? getResearchService();
 
     registerIpcHandlers(ipcRegistry, {
       streamRegistry,
@@ -601,6 +733,7 @@ export function initIpc(options?: {
       extensionService: extensions,
       surfaceService: surfaces,
       browserService: browser,
+      researchService: research,
     });
   }
   return ipcRegistry;

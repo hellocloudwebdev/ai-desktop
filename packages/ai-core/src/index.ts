@@ -15,6 +15,7 @@ export * from "./permissions.js";
 export * from "./execution.js";
 export * from "./tasks.js";
 export * from "./coding.js";
+export * from "./research.js";
 export * from "./rich-surface.js";
 export * from "./browser.js";
 export * from "./events.js";

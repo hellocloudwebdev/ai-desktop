@@ -55,6 +55,10 @@ export type BrowserContextId = Brand<string, "BrowserContextId">;
 export type BrowserPageId = Brand<string, "BrowserPageId">;
 export type BrowserActionId = Brand<string, "BrowserActionId">;
 export type BrowserElementRef = Brand<string, "BrowserElementRef">;
+export type ResearchRequestId = Brand<string, "ResearchRequestId">;
+export type ResearchSourceId = Brand<string, "ResearchSourceId">;
+export type ResearchResultId = Brand<string, "ResearchResultId">;
+export type ResearchDocumentId = Brand<string, "ResearchDocumentId">;
 
 const ULID_PATTERN = /^[0123456789ABCDEFGHJKMNPQRSTVWXYZ]{26}$/i;
 
@@ -78,6 +82,18 @@ export const BrowserPageIdSchema = UlidSchema.transform(
 );
 export const BrowserActionIdSchema = UlidSchema.transform(
   (val) => val.toUpperCase() as BrowserActionId,
+);
+export const ResearchRequestIdSchema = UlidSchema.transform(
+  (val) => val.toUpperCase() as ResearchRequestId,
+);
+export const ResearchSourceIdSchema = UlidSchema.transform(
+  (val) => val.toUpperCase() as ResearchSourceId,
+);
+export const ResearchResultIdSchema = UlidSchema.transform(
+  (val) => val.toUpperCase() as ResearchResultId,
+);
+export const ResearchDocumentIdSchema = UlidSchema.transform(
+  (val) => val.toUpperCase() as ResearchDocumentId,
 );
 
 const BROWSER_ELEMENT_REF_PATTERN = /^(ref\/)?[a-z0-9_-]+$/i;
@@ -201,6 +217,22 @@ export function createBrowserActionId(seedTime?: number): BrowserActionId {
   return generateUlid(seedTime) as BrowserActionId;
 }
 
+export function createResearchRequestId(seedTime?: number): ResearchRequestId {
+  return generateUlid(seedTime) as ResearchRequestId;
+}
+
+export function createResearchSourceId(seedTime?: number): ResearchSourceId {
+  return generateUlid(seedTime) as ResearchSourceId;
+}
+
+export function createResearchResultId(seedTime?: number): ResearchResultId {
+  return generateUlid(seedTime) as ResearchResultId;
+}
+
+export function createResearchDocumentId(seedTime?: number): ResearchDocumentId {
+  return generateUlid(seedTime) as ResearchDocumentId;
+}
+
 export function parseBrowserSessionId(raw: string): BrowserSessionId {
   if (!isUlid(raw)) {
     throw new TypeError(`Invalid BrowserSessionId: "${raw}" is not a valid ULID`);
@@ -229,6 +261,34 @@ export function parseBrowserActionId(raw: string): BrowserActionId {
   return raw.toUpperCase() as BrowserActionId;
 }
 
+export function parseResearchRequestId(raw: string): ResearchRequestId {
+  if (!isUlid(raw)) {
+    throw new TypeError(`Invalid ResearchRequestId: "${raw}" is not a valid ULID`);
+  }
+  return raw.toUpperCase() as ResearchRequestId;
+}
+
+export function parseResearchSourceId(raw: string): ResearchSourceId {
+  if (!isUlid(raw)) {
+    throw new TypeError(`Invalid ResearchSourceId: "${raw}" is not a valid ULID`);
+  }
+  return raw.toUpperCase() as ResearchSourceId;
+}
+
+export function parseResearchResultId(raw: string): ResearchResultId {
+  if (!isUlid(raw)) {
+    throw new TypeError(`Invalid ResearchResultId: "${raw}" is not a valid ULID`);
+  }
+  return raw.toUpperCase() as ResearchResultId;
+}
+
+export function parseResearchDocumentId(raw: string): ResearchDocumentId {
+  if (!isUlid(raw)) {
+    throw new TypeError(`Invalid ResearchDocumentId: "${raw}" is not a valid ULID`);
+  }
+  return raw.toUpperCase() as ResearchDocumentId;
+}
+
 export function parseBrowserElementRef(raw: string): BrowserElementRef {
   return BrowserElementRefSchema.parse(raw);
 }
@@ -247,6 +307,22 @@ export function asBrowserPageId(raw: string): BrowserPageId {
 
 export function asBrowserActionId(raw: string): BrowserActionId {
   return raw as BrowserActionId;
+}
+
+export function asResearchRequestId(raw: string): ResearchRequestId {
+  return raw as ResearchRequestId;
+}
+
+export function asResearchSourceId(raw: string): ResearchSourceId {
+  return raw as ResearchSourceId;
+}
+
+export function asResearchResultId(raw: string): ResearchResultId {
+  return raw as ResearchResultId;
+}
+
+export function asResearchDocumentId(raw: string): ResearchDocumentId {
+  return raw as ResearchDocumentId;
 }
 
 export function asBrowserElementRef(raw: string): BrowserElementRef {

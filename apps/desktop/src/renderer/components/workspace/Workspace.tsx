@@ -18,6 +18,7 @@ import type {
   ExtensionsSurfaceProps,
   BrowserSurfaceProps,
   InspectorProps,
+  ResearchSurfaceProps,
   SidebarProps,
   SurfaceHostProps,
   TasksSurfaceProps,
@@ -38,6 +39,7 @@ export interface WorkspaceShellProps {
   readonly files: FileEntryView[];
   readonly extensions: ExtensionsSurfaceProps;
   readonly browser: BrowserSurfaceProps;
+  readonly research: ResearchSurfaceProps;
   readonly inspector: InspectorProps;
   readonly composer: ComposerProps;
   // PR33.8: renderer — rich-surface host view (additive pass-through).
@@ -57,6 +59,7 @@ export function WorkspaceShell({
   files,
   extensions,
   browser,
+  research,
   inspector,
   composer,
   surfaceHost,
@@ -131,6 +134,7 @@ export function WorkspaceShell({
               files={files}
               extensions={extensions}
               browser={browser}
+              research={research}
               surfaceHost={surfaceHost}
             />
           </WorkspaceErrorBoundary>

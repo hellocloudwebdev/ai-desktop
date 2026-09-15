@@ -156,6 +156,34 @@ export interface BrowserSurfaceProps {
   readonly screenshotArtifact?: { artifactRef: string; bytes: number } | null;
 }
 
+// PR35: renderer — Web research surface contract (query + read-only fetch;
+// execution stays in the agent tool router; App owns the preload bridge).
+export interface ResearchResultView {
+  readonly id: string;
+  readonly title?: string;
+  readonly url?: string;
+  readonly excerpt?: string;
+  readonly content?: string;
+  readonly provider: string;
+  readonly channel: string;
+  readonly retrievedAt: string;
+  readonly truncated: boolean;
+}
+
+export interface ResearchSurfaceProps {
+  readonly activeProjectId: string;
+  readonly query: string;
+  readonly searching: boolean;
+  readonly results: ResearchResultView[];
+  readonly opened: ResearchResultView | null;
+  readonly error: string | null;
+  readonly onQueryChange: (value: string) => void;
+  readonly onSearch: () => void;
+  readonly onOpen: (url: string) => void;
+  readonly onOpenInBrowser?: (url: string) => void;
+  readonly onClearOpened: () => void;
+}
+
 export interface SidebarProps {
   readonly activeSurface: string;
   readonly activeProjectId: string;

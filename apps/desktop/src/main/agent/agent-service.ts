@@ -120,7 +120,12 @@ export interface ToolExecutorLike {
   execute(
     toolName: string,
     input: unknown,
-    options?: { toolCallId?: ToolCallId; projectId?: string; conversationId?: unknown },
+    options?: {
+      toolCallId?: ToolCallId;
+      projectId?: string;
+      conversationId?: unknown;
+      signal?: AbortSignal;
+    },
   ): Promise<ToolResult>;
 }
 
@@ -131,6 +136,7 @@ export interface DesktopToolRouterDeps {
   readonly builtinExecutor?: ToolExecutorLike;
   readonly browserExecutor?: ToolExecutorLike;
   readonly pluginExecutor?: ToolExecutorLike;
+  readonly researchExecutor?: ToolExecutorLike;
 }
 
 /**
@@ -146,6 +152,7 @@ export class DesktopToolRouter implements ToolInvoker {
   private readonly _builtinExecutor?: DesktopToolRouterDeps["builtinExecutor"];
   private readonly _browserExecutor?: DesktopToolRouterDeps["browserExecutor"];
   private readonly _pluginExecutor?: DesktopToolRouterDeps["pluginExecutor"];
+  private readonly _researchExecutor?: DesktopToolRouterDeps["researchExecutor"];
 
   constructor(deps: DesktopToolRouterDeps) {
     this._permissionManager = deps.permissionManager;
@@ -154,6 +161,7 @@ export class DesktopToolRouter implements ToolInvoker {
     this._builtinExecutor = deps.builtinExecutor;
     this._browserExecutor = deps.browserExecutor;
     this._pluginExecutor = deps.pluginExecutor;
+    this._researchExecutor = deps.researchExecutor;
     void this._permissionManager;
   }
 
@@ -177,11 +185,13 @@ export class DesktopToolRouter implements ToolInvoker {
       ? this._pluginExecutor
       : toolName.startsWith("skill:")
         ? this._skillExecutor
-        : toolName.startsWith("builtin:browser.")
-          ? (this._browserExecutor ?? this._builtinExecutor)
-          : toolName.startsWith("builtin:")
-            ? this._builtinExecutor
-            : this._mcpExecutor;
+        : toolName.startsWith("builtin:research.")
+          ? (this._researchExecutor ?? this._builtinExecutor)
+          : toolName.startsWith("builtin:browser.")
+            ? (this._browserExecutor ?? this._builtinExecutor)
+            : toolName.startsWith("builtin:")
+              ? this._builtinExecutor
+              : this._mcpExecutor;
     if (!executor) {
       return {
         toolCallId: context.toolCallId,
@@ -196,6 +206,7 @@ export class DesktopToolRouter implements ToolInvoker {
       toolCallId: context.toolCallId,
       projectId: context.projectId,
       conversationId: context.conversationId,
+      ...(signal ? { signal } : {}),
     });
   }
 }
@@ -289,6 +300,7 @@ export interface AgentServiceDeps {
   readonly builtinExecutor?: DesktopToolRouterDeps["builtinExecutor"];
   readonly browserExecutor?: DesktopToolRouterDeps["browserExecutor"];
   readonly pluginExecutor?: DesktopToolRouterDeps["pluginExecutor"];
+  readonly researchExecutor?: DesktopToolRouterDeps["researchExecutor"];
   readonly maxNodeIterations?: number;
   readonly defaultModelId?: ModelId;
 }
@@ -313,6 +325,7 @@ export class AgentService {
         builtinExecutor: deps.builtinExecutor,
         browserExecutor: deps.browserExecutor,
         pluginExecutor: deps.pluginExecutor,
+        researchExecutor: deps.researchExecutor,
       }),
       eventSink,
       memoryProvider: new DesktopMemoryProvider({ memoryService: deps.memoryService }),

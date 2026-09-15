@@ -573,7 +573,9 @@ describe("PR22: SQLite WAL Model Selection Restart Recovery", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ai-desktop-convmodel-recovery-"));
     const tmpDbPath = path.join(tmpDir, "recovery.db");
 
-    const templateDb = path.resolve("D:/Packages/ai-desktop/prisma/dev.db");
+    const templateDb = fs.existsSync(path.resolve(__dirname, "../../../../prisma/dev.db"))
+      ? path.resolve(__dirname, "../../../../prisma/dev.db")
+      : path.resolve("D:/Packages/ai-desktop/prisma/dev.db");
     if (fs.existsSync(templateDb)) {
       fs.copyFileSync(templateDb, tmpDbPath);
     }

@@ -63,6 +63,8 @@ import {
   type BrowserPageGetCommand,
   type BrowserPageCloseCommand,
   type BrowserScreenshotCommand,
+  type ResearchSearchCommand,
+  type ResearchOpenCommand,
   type IpcResponseEnvelope,
 } from "@ai-desktop/shared";
 import type {
@@ -244,6 +246,12 @@ export interface DesktopApplicationApi {
     captureBrowserScreenshot(
       command: BrowserScreenshotCommand,
     ): Promise<IpcResponseEnvelope<{ screenshot: unknown }>>;
+    // PR35: read-only web research affordances (search + open; execution
+    // flows through the agent tool router, never through IPC).
+    searchResearch(
+      command: ResearchSearchCommand,
+    ): Promise<IpcResponseEnvelope<{ result: unknown }>>;
+    openResearch(command: ResearchOpenCommand): Promise<IpcResponseEnvelope<{ result: unknown }>>;
   };
 
   /**
@@ -441,6 +449,12 @@ export function createDesktopApi(): DesktopApplicationApi {
       },
       async captureBrowserScreenshot(command: BrowserScreenshotCommand) {
         return ipcRenderer.invoke(IPC_CHANNELS.BROWSER_SCREENSHOT, command);
+      },
+      async searchResearch(command: ResearchSearchCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.RESEARCH_SEARCH, command);
+      },
+      async openResearch(command: ResearchOpenCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.RESEARCH_OPEN, command);
       },
     },
 

@@ -1,6 +1,6 @@
 # ai-desktop
 
-A desktop AI assistant. This repository is currently at **PR34 — Browser Automation**:
+A desktop AI assistant. This repository is currently at **PR35 — Web Research**:
 shared primitives, canonical AI domain contracts, projections, in-process EventBus,
 permission checkpoint, SQLite WAL event repository, OS-backed credential store, canonical
 provider contracts, concrete `AnthropicAdapter`, concrete `GeminiAdapter`, Electron 44 desktop
@@ -50,7 +50,13 @@ inspector wiring), and the Browser Automation Foundation (canonical browser cont
 engine-neutral `BrowserManager`, element reference registry, `PuppeteerAdapter` isolating
 `puppeteer-core`, `BrowserToolExecutor` for 11 canonical browser tools, `BrowserService` with
 project-isolated sessions and screenshot artifact handling, typed `browser:*` IPC, preload bridge,
-and `BrowserSurface` workspace component) are implemented. Future packages remain empty shells awaiting their respective
+and `BrowserSurface` workspace component), and the Web Research & Internet Connectivity
+Foundation (canonical research contracts with branded IDs + provenance + bounded results,
+five `builtin:research.*` tools through the universal ToolExecutor lifecycle, DNS-backed
+SSRF guard with per-hop redirect revalidation, MIME + size policies, SecretRef credential
+hygiene, Exa/GitHub/YouTube/RSS adapters with static-reader-first routing and controlled
+PR34 browser fallback, bounded cache, `research:search/open` IPC with no execute channel,
+and the workspace Research surface) are implemented. Future packages remain empty shells awaiting their respective
 implementation PRs — see [docs/architecture/phase-0.md](docs/architecture/phase-0.md) for the honest list of what is
 and is not implemented.
 
@@ -98,21 +104,21 @@ the rest remain intentionally empty shells. The dependency edges below are the l
 architecture from [docs/architecture/dependency-graph.md](docs/architecture/dependency-graph.md),
 mechanically enforced by `scripts/validate-dependencies.mjs` and `eslint-plugin-boundaries`.
 
-| Package                     | Role                                                                                                                                             | May depend on                         |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------- |
-| `@ai-desktop/shared`        | shared contracts & primitives (implemented in PR3)                                                                                               | —                                     |
-| `@ai-desktop/ai-core`       | messages, content, events, tools, projections (PR4/PR5)                                                                                          | shared                                |
-| `@ai-desktop/providers`     | ProviderAdapter contract, Anthropic (PR11), Gemini (PR21), registry, profiles & model selection (PR19–PR22)                                      | ai-core, shared                       |
-| `@ai-desktop/storage`       | persistence (PR8), secrets store (PR9), permission policies & audit (PR24)                                                                       | ai-core, shared                       |
-| `@ai-desktop/permissions`   | PermissionManager mediation, policy evaluator, SQLite policy & audit persistence (PR7, PR24)                                                     | ai-core, storage, shared              |
-| `@ai-desktop/mcp`           | MCPHost, InProcessMCPHost, tool discovery, ToolRegistry, McpToolExecutor (PR25)                                                                  | ai-core, storage, permissions, shared |
-| `@ai-desktop/skills`        | Skill package validation, lifecycle (Installed/Enabled/Active), checksums (PR26)                                                                 | ai-core, storage, shared              |
-| `@ai-desktop/execution`     | sandboxed command execution, ExecutionManager, DockerProvider, LocalProcessSandboxProvider (PR27)                                                | ai-core, permissions, storage, shared |
-| `@ai-desktop/memory`        | scoped import_guard facts, extractor, retriever, MemoryService (PR28)                                                                            | ai-core, storage, shared              |
-| `@ai-desktop/agent-runtime` | in-process EventBus (PR6); TaskGraph + ReAct orchestration runtime (PR29)                                                                        | all of the above                      |
-| `@ai-desktop/workspace`     | workspace UI                                                                                                                                     | (later PRs)                           |
-| `@ai-desktop/plugins`       | extension & plugin ecosystem foundation (PR32)                                                                                                   | ai-core, shared                       |
-| `@ai-desktop/desktop`       | Electron shell, React renderer, typed IPC, ChatService, permissions, skills, memory, agent, workspace, extensions, surfaces, browser (PR12–PR34) | agent-runtime, shared                 |
+| Package                     | Role                                                                                                                                                       | May depend on                         |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| `@ai-desktop/shared`        | shared contracts & primitives (implemented in PR3)                                                                                                         | —                                     |
+| `@ai-desktop/ai-core`       | messages, content, events, tools, projections (PR4/PR5)                                                                                                    | shared                                |
+| `@ai-desktop/providers`     | ProviderAdapter contract, Anthropic (PR11), Gemini (PR21), registry, profiles & model selection (PR19–PR22)                                                | ai-core, shared                       |
+| `@ai-desktop/storage`       | persistence (PR8), secrets store (PR9), permission policies & audit (PR24)                                                                                 | ai-core, shared                       |
+| `@ai-desktop/permissions`   | PermissionManager mediation, policy evaluator, SQLite policy & audit persistence (PR7, PR24)                                                               | ai-core, storage, shared              |
+| `@ai-desktop/mcp`           | MCPHost, InProcessMCPHost, tool discovery, ToolRegistry, McpToolExecutor (PR25)                                                                            | ai-core, storage, permissions, shared |
+| `@ai-desktop/skills`        | Skill package validation, lifecycle (Installed/Enabled/Active), checksums (PR26)                                                                           | ai-core, storage, shared              |
+| `@ai-desktop/execution`     | sandboxed command execution, ExecutionManager, DockerProvider, LocalProcessSandboxProvider (PR27)                                                          | ai-core, permissions, storage, shared |
+| `@ai-desktop/memory`        | scoped import_guard facts, extractor, retriever, MemoryService (PR28)                                                                                      | ai-core, storage, shared              |
+| `@ai-desktop/agent-runtime` | in-process EventBus (PR6); TaskGraph + ReAct orchestration runtime (PR29)                                                                                  | all of the above                      |
+| `@ai-desktop/workspace`     | workspace UI                                                                                                                                               | (later PRs)                           |
+| `@ai-desktop/plugins`       | extension & plugin ecosystem foundation (PR32)                                                                                                             | ai-core, shared                       |
+| `@ai-desktop/desktop`       | Electron shell, React renderer, typed IPC, ChatService, permissions, skills, memory, agent, workspace, extensions, surfaces, browser, research (PR12–PR35) | agent-runtime, shared                 |
 
 ## Repository layout
 

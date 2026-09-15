@@ -739,7 +739,9 @@ describe("PR23.12: SQLite WAL Multi-Provider Restart Recovery", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ai-desktop-pr23-recovery-"));
     const tmpDbPath = path.join(tmpDir, "recovery.db");
 
-    const templateDb = path.resolve("D:/Packages/ai-desktop/prisma/dev.db");
+    const templateDb = fs.existsSync(path.resolve(__dirname, "../../../../prisma/dev.db"))
+      ? path.resolve(__dirname, "../../../../prisma/dev.db")
+      : path.resolve("D:/Packages/ai-desktop/prisma/dev.db");
     if (fs.existsSync(templateDb)) {
       fs.copyFileSync(templateDb, tmpDbPath);
     }
