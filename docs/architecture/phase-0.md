@@ -1,11 +1,11 @@
 # Phase 0 — What Exists and What Does Not
 
 This document prevents the repository (and its documentation) from claiming functionality
-that does not exist. It reflects the state after **PR36 (Research Intelligence
-& Source Synthesis Foundation)** and
+that does not exist. It reflects the state after **PR37 (Document Intelligence
+& Project RAG Foundation)** and
 is updated as each PR lands.
 
-## Implemented (as of PR36)
+## Implemented (as of PR37)
 
 - Repository foundation: pnpm workspace + Turborepo task graph (`build`, `dev`,
   `typecheck`, `lint`, `test`).
@@ -660,6 +660,50 @@ node.completed/node.failed/blocked/replan/completed/failed/cancelled` plus the
     exactly 1 conflict and both sources kept; browser-fallback recovery with
     evidence + citation). Full design in
     `docs/architecture/pr-36-research-intelligence.md`.
+- Document Intelligence & Project RAG Foundation (`packages/ai-core`,
+  `packages/storage`, `apps/desktop`, PR37):
+  - Canonical document contracts in `ai-core` (`documents.ts`): branded
+    ULIDs (`DocumentId`, `DocumentChunkId`, `DocumentSourceId`), file-only
+    `DocumentSource` with SHA-256 checksum, page/section/chunk/offset
+    `DocumentLocator` (page numbers only when parsed, never fabricated),
+    validated lifecycle (`pending → processing → ready → deleted`, searchable
+    only when `ready`), centralized `DOCUMENT_MAX_*` bounds, five-format
+    allowlist (txt/markdown/json/csv/pdf; typed `unsupported-format`
+    otherwise), ingestion/search/retrieval/delete schemas, relevance-only
+    `DocumentMatch` (score/matchedTerms/matchType — never truth), four
+    `builtin:documents.*` tools (list/search/open → low risk, delete →
+    high), `UNTRUSTED DOCUMENT CONTENT` framing, and structural
+    `toDocumentEvidence` mapping onto the PR36 evidence shape.
+  - Deterministic desktop pipeline in `apps/desktop/src/main/documents/`:
+    hand-rolled provider-neutral parsers (UTF-8 text, verbatim Markdown,
+    JSON field-join, RFC4180-ish CSV, minimal `%PDF-`-validated extractor
+    with `BT…ET` text and `/Type /Page` boundaries — zero new
+    dependencies), deterministic normalizer, bounded page-aware chunker
+    with stable SHA-256 chunk IDs, and lexical retriever with stable
+    tie-breaks (vector-ready abstraction, no mandatory vector DB).
+  - Project-scoped persistence: Prisma `DocumentRecord` +
+    `DocumentChunkRecord` (project indexes; Prisma confined to
+    `packages/storage`), `DocumentRepository` interface +
+    `PrismaDocumentRepository`, `DocumentService` (bytes-in ingestion,
+    within-project checksum dedupe, abort-checked stages, 50-doc/2000-chunk
+    search caps, framed bounded open, metadata-only list, `ready → deleted`
+    purge with idempotency, 2-way ingest semaphore), and
+    `DocumentsToolExecutor` through resolve → validate → permission →
+    execute under capability `documents` (routed before generic `builtin:`).
+  - Narrow `documents:list/get/search/ingest/delete` IPC (base64 ingest
+    with re-checked bounds; no execute/read-path/raw-fs channels), preload
+    bridge, and Files surface documents panel (type/size/status/date,
+    selection, plain-text preview, errors) via optional props.
+  - Security regression coverage: path traversal/absolute/symlink rejection
+    via workspace path-policy, oversized/malformed typed failures,
+    injection-inert framing with tool-list invariance, cross-project
+    leakage proofs, delete-gated permissions, renderer native-access bans.
+  - ~50 ai-core document tests, ~67 parser/normalizer/chunker/retriever
+    tests, 15 storage repository tests, ~44 service/executor tests,
+    ~20 security tests, 7 IPC tests, 4 renderer tests, and 3 E2E workflows
+    (PDF import → search → page-aware citation; identical-file A/B
+    isolation; injection-inert run). Full design in
+    `docs/architecture/pr-37-document-intelligence.md`.
 - All remaining canonical packages stay **empty shells** (`package.json`, `tsconfig.json`,
   `src/index.ts` placeholder) — deliberately no premature domain functionality inside them.
 - Toolchain: TypeScript 5.9.3, ESLint 10.10.0, Vitest 4.1.10, Vite 8.1.0, Prettier 3.9.6,

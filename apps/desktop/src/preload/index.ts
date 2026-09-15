@@ -66,6 +66,11 @@ import {
   type IpcResponseEnvelope,
   type ResearchOpenCommand,
   type ResearchSearchCommand,
+  type DocumentsListCommand,
+  type DocumentsGetCommand,
+  type DocumentsSearchCommand,
+  type DocumentsIngestCommand,
+  type DocumentsDeleteCommand,
 } from "@ai-desktop/shared";
 import type {
   AIEvent,
@@ -254,6 +259,22 @@ export interface DesktopApplicationApi {
       command: ResearchOpenCommand,
     ): Promise<IpcResponseEnvelope<{ result: unknown }>>;
     getResearchStatus(): Promise<IpcResponseEnvelope<{ providers: unknown[] }>>;
+
+    // PR37: project document commands (list/get/search/ingest/delete;
+    // execution flows through the agent tool router, never raw IPC).
+    listDocuments(
+      command: DocumentsListCommand,
+    ): Promise<IpcResponseEnvelope<{ documents: unknown[] }>>;
+    getDocument(command: DocumentsGetCommand): Promise<IpcResponseEnvelope<{ result: unknown }>>;
+    searchDocuments(
+      command: DocumentsSearchCommand,
+    ): Promise<IpcResponseEnvelope<{ result: unknown }>>;
+    ingestDocument(
+      command: DocumentsIngestCommand,
+    ): Promise<IpcResponseEnvelope<{ result: unknown }>>;
+    deleteDocument(
+      command: DocumentsDeleteCommand,
+    ): Promise<IpcResponseEnvelope<{ result: unknown }>>;
   };
 
   /**
@@ -460,6 +481,21 @@ export function createDesktopApi(): DesktopApplicationApi {
       },
       async getResearchStatus() {
         return ipcRenderer.invoke(IPC_CHANNELS.RESEARCH_STATUS, {});
+      },
+      async listDocuments(command: DocumentsListCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.DOCUMENTS_LIST, command);
+      },
+      async getDocument(command: DocumentsGetCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.DOCUMENTS_GET, command);
+      },
+      async searchDocuments(command: DocumentsSearchCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.DOCUMENTS_SEARCH, command);
+      },
+      async ingestDocument(command: DocumentsIngestCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.DOCUMENTS_INGEST, command);
+      },
+      async deleteDocument(command: DocumentsDeleteCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.DOCUMENTS_DELETE, command);
       },
     },
 

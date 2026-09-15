@@ -172,6 +172,51 @@ model ExtensionRecord {
   @@map("extension_records")
 }
 
+// PR37: Document Intelligence persistence
+// Stores ingested document metadata with lifecycle status and normalized
+// chunk texts for project-scoped lexical retrieval. Raw bytes are never stored.
+model DocumentRecord {
+  documentId      String  @id // canonical DocumentId (ULID)
+  projectId       String
+  name            String
+  mimeType        String
+  sizeBytes       Int
+  checksumSha256  String
+  status          String // "pending" | "processing" | "ready" | "failed" | "deleted"
+  sourceType      String // e.g. "file"
+  sourceFileName  String
+  sourceFileSize  Int
+  title           String?
+  author          String?
+  pageCount       Int?
+  language        String?
+  errorCode       String?
+  errorMessage    String?
+  createdAt       BigInt // epoch milliseconds
+  updatedAt       BigInt // epoch milliseconds
+
+  @@index([projectId])
+  @@index([projectId, status])
+}
+
+// PR37: Document Intelligence chunk persistence
+// One row per normalized text chunk; retrieval is in-memory in the desktop
+// service, storage only persists.
+model DocumentChunkRecord {
+  chunkId        String @id // canonical DocumentChunkId (ULID)
+  documentId     String
+  projectId      String
+  ordinal        Int
+  text           String
+  locatorKind    String // "page" | "section" | "chunk" | "offset"
+  locatorValue   String
+  locatorPage    Int?
+  checksumSha256 String
+
+  @@index([projectId])
+  @@index([documentId])
+  @@index([projectId, documentId])
+}
 // PR32: Extension-to-project enablement bindings
 // Records per-project enablement of installed extensions.
 model ExtensionProjectBindingRecord {

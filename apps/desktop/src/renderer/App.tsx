@@ -18,11 +18,13 @@ import { WorkspaceShell } from "./components/workspace/Workspace.js";
 import type {
   ActivityEventView,
   BrowserPageView,
+  DocumentFileView,
   ExtensionView,
   FileEntryView,
   ResearchDocumentView,
   ResearchProviderStatusView,
   ResearchResultView,
+  SelectedDocumentView,
   SurfaceView,
 } from "./components/workspace/surfaces/surface-props.js";
 
@@ -97,6 +99,11 @@ export function App(): React.ReactElement {
   const [researchProviders, setResearchProviders] = useState<ResearchProviderStatusView[]>([]);
   const [researchSearching, setResearchSearching] = useState<boolean>(false);
   const [researchError, setResearchError] = useState<string | null>(null);
+  // PR37: project documents (App-owned backend state over the documents:*
+  // preload bridge; Files surface is a pure view).
+  const [projectDocuments, setProjectDocuments] = useState<DocumentFileView[]>([]);
+  const [selectedDocument, setSelectedDocument] = useState<SelectedDocumentView | null>(null);
+  const [documentsError, setDocumentsError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   // PR34.5: load browser pages through the preload bridge
@@ -256,6 +263,68 @@ export function App(): React.ReactElement {
     [workspace.state.activeProjectId],
   );
 
+  // PR37: project documents through the documents:* preload bridge.
+  const refreshDocuments = useCallback(async () => {
+    if (typeof window === "undefined" || !window.api) return;
+    try {
+      const res = await window.api.commands.listDocuments({
+        projectId: workspace.state.activeProjectId,
+      });
+      if (res.ok && Array.isArray(res.value.documents)) {
+        setProjectDocuments(
+          (res.value.documents as Array<Record<string, unknown>>).map((d) => ({
+            documentId: String(d["documentId"] ?? ""),
+            name: String(d["name"] ?? ""),
+            mimeType: String(d["mimeType"] ?? ""),
+            sizeBytes: Number(d["sizeBytes"] ?? 0),
+            status: String(d["status"] ?? ""),
+            updatedAt: String(d["updatedAt"] ?? ""),
+          })),
+        );
+      } else if (!res.ok) {
+        setDocumentsError(res.error.message);
+      }
+    } catch (err) {
+      setDocumentsError(err instanceof Error ? err.message : String(err));
+    }
+  }, [workspace.state.activeProjectId]);
+
+  const handleSelectDocument = useCallback(
+    async (documentId: string | null) => {
+      if (typeof window === "undefined" || !window.api) return;
+      if (documentId === null) {
+        setSelectedDocument(null);
+        return;
+      }
+      try {
+        const res = await window.api.commands.getDocument({
+          projectId: workspace.state.activeProjectId,
+          documentId,
+          maxChars: 4000,
+        });
+        if (res.ok && res.value.result) {
+          const r = res.value.result as Record<string, unknown>;
+          const doc = (r["document"] as Record<string, unknown> | undefined) ?? {};
+          const metadata = (doc["metadata"] as Record<string, unknown> | undefined) ?? {};
+          setSelectedDocument({
+            documentId,
+            name: String(doc["name"] ?? documentId),
+            mimeType: String(doc["mimeType"] ?? ""),
+            status: String(doc["status"] ?? ""),
+            pageCount: typeof metadata["pageCount"] === "number" ? metadata["pageCount"] : null,
+            preview: typeof r["text"] === "string" ? (r["text"] as string) : null,
+            error: null,
+          });
+        } else if (!res.ok) {
+          setDocumentsError(res.error.message);
+        }
+      } catch (err) {
+        setDocumentsError(err instanceof Error ? err.message : String(err));
+      }
+    },
+    [workspace.state.activeProjectId],
+  );
+
   // PR32: load the extension list through the preload bridge. No-ops when
   // the bridge is absent (preload not yet updated, or non-Electron hosts).
   const refreshExtensions = useCallback(async () => {
@@ -271,6 +340,10 @@ export function App(): React.ReactElement {
   useEffect(() => {
     void refreshExtensions();
   }, [refreshExtensions]);
+
+  useEffect(() => {
+    void refreshDocuments();
+  }, [refreshDocuments]);
 
   // PR32: extension mutation handlers (mutate via bridge, then refresh).
   const handleEnableExtension = useCallback(
@@ -1023,6 +1096,10 @@ export function App(): React.ReactElement {
       }}
       activity={activityEvents}
       files={touchedFiles}
+      documents={projectDocuments}
+      selectedDocument={selectedDocument}
+      onSelectDocument={(documentId) => void handleSelectDocument(documentId)}
+      documentsError={documentsError}
       extensions={{
         extensions,
         activeProjectId: workspace.state.activeProjectId,

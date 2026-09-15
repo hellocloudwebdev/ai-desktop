@@ -75,6 +75,31 @@ export interface FileEntryView {
 export interface FilesSurfaceProps {
   readonly activeProjectId: string;
   readonly touchedFiles: FileEntryView[];
+  readonly documents?: DocumentFileView[];
+  readonly selectedDocument?: SelectedDocumentView | null;
+  readonly onSelectDocument?: (documentId: string | null) => void;
+  readonly documentsError?: string | null;
+}
+
+// PR37: renderer — project document views (metadata + bounded preview as
+// plain text; citations reference chunk locators, never raw paths).
+export interface DocumentFileView {
+  readonly documentId: string;
+  readonly name: string;
+  readonly mimeType: string;
+  readonly sizeBytes: number;
+  readonly status: string;
+  readonly updatedAt: string;
+}
+
+export interface SelectedDocumentView {
+  readonly documentId: string;
+  readonly name: string;
+  readonly mimeType: string;
+  readonly status: string;
+  readonly pageCount: number | null;
+  readonly preview: string | null;
+  readonly error: string | null;
 }
 
 export interface InspectorProps {

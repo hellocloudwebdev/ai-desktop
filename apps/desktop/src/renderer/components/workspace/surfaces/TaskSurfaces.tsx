@@ -137,12 +137,17 @@ export function ActivitySurface({ events }: ActivitySurfaceProps): React.ReactEl
 export function FilesSurface({
   activeProjectId,
   touchedFiles,
+  documents = [],
+  selectedDocument = null,
+  onSelectDocument,
+  documentsError = null,
 }: FilesSurfaceProps): React.ReactElement {
   return (
     <div className="px-6 py-4 overflow-y-auto text-xs">
       <p className="text-slate-400 mb-2">
         Project: <span className="font-mono text-slate-200">{activeProjectId}</span>
       </p>
+      {documentsError && <p className="text-red-400 mb-2">{documentsError}</p>}
       {touchedFiles.length === 0 ? (
         <p className="text-slate-500">
           No files touched yet. File changes from coding tasks appear here.
@@ -156,6 +161,52 @@ export function FilesSurface({
             </li>
           ))}
         </ul>
+      )}
+      {/* PR37: project documents (ingested source material with status). */}
+      <p className="mt-4 mb-2 text-slate-400">
+        Documents: <span className="font-mono text-slate-200">{documents.length}</span>
+      </p>
+      {documents.length === 0 ? (
+        <p className="text-slate-500">No documents ingested in this project yet.</p>
+      ) : (
+        <ul className="space-y-1">
+          {documents.map((d) => (
+            <li key={d.documentId} className="rounded bg-slate-800/60 px-2 py-1.5">
+              <button
+                type="button"
+                onClick={() => onSelectDocument?.(d.documentId)}
+                className="font-mono text-slate-200 break-all hover:text-white text-left"
+              >
+                {d.name}
+              </button>
+              <span className="text-slate-400 ml-2">
+                {d.mimeType} · {d.sizeBytes} bytes · {d.status}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {selectedDocument && (
+        <div className="mt-3 rounded bg-slate-800/60 px-2 py-1.5">
+          <p className="font-mono text-slate-200 break-all">{selectedDocument.name}</p>
+          <p className="text-slate-400 mt-1">
+            {selectedDocument.mimeType} · {selectedDocument.status}
+            {selectedDocument.pageCount !== null && ` · ${selectedDocument.pageCount} pages`}
+          </p>
+          {selectedDocument.error && <p className="text-red-400 mt-1">{selectedDocument.error}</p>}
+          {selectedDocument.preview && (
+            <p className="text-slate-300 mt-2 whitespace-pre-wrap break-words">
+              {selectedDocument.preview}
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={() => onSelectDocument?.(null)}
+            className="text-slate-400 hover:text-slate-200 mt-2"
+          >
+            Close preview
+          </button>
+        </div>
       )}
       <p className="mt-3 text-[10px] text-slate-500">
         Read-only context. Editing uses the coding tools.

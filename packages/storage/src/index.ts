@@ -70,3 +70,14 @@ export type {
   ListMemoryFactsQuery,
 } from "./memory/memory-repository.js";
 export { PrismaMemoryRepository } from "./memory/prisma-memory-repository.js";
+
+// PR37: Document metadata and chunk persistence
+export type {
+  DocumentRepository,
+  StoredDocument,
+  StoredDocumentChunk,
+  CreateDocumentData,
+  CreateDocumentChunkData,
+  UpdateDocumentStatusData,
+} from "./documents/document-repository.js";
+export { PrismaDocumentRepository } from "./documents/prisma-document-repository.js";

@@ -17,9 +17,11 @@ import type {
   BrowserSurfaceProps,
   ChatSurfaceProps,
   CodingSurfaceProps,
+  DocumentFileView,
   ExtensionsSurfaceProps,
   FileEntryView,
   ResearchSurfaceProps,
+  SelectedDocumentView,
   SurfaceHostProps,
   TasksSurfaceProps,
 } from "./surfaces/surface-props.js";
@@ -31,6 +33,10 @@ interface WorkspaceMainProps {
   readonly tasks: TasksSurfaceProps;
   readonly activity: ActivityEventView[];
   readonly files: FileEntryView[];
+  readonly documents?: DocumentFileView[];
+  readonly selectedDocument?: SelectedDocumentView | null;
+  readonly onSelectDocument?: (documentId: string | null) => void;
+  readonly documentsError?: string | null;
   readonly extensions: ExtensionsSurfaceProps;
   readonly browser: BrowserSurfaceProps;
   readonly research: ResearchSurfaceProps;
@@ -45,6 +51,10 @@ export function WorkspaceMain({
   tasks,
   activity,
   files,
+  documents,
+  selectedDocument,
+  onSelectDocument,
+  documentsError,
   extensions,
   browser,
   research,
@@ -79,7 +89,16 @@ export function WorkspaceMain({
     return <ActivitySurface events={activity} />;
   }
   if (surface === "files") {
-    return <FilesSurface activeProjectId={store.state.activeProjectId} touchedFiles={files} />;
+    return (
+      <FilesSurface
+        activeProjectId={store.state.activeProjectId}
+        touchedFiles={files}
+        documents={documents}
+        selectedDocument={selectedDocument}
+        onSelectDocument={onSelectDocument}
+        documentsError={documentsError}
+      />
+    );
   }
   if (surface === "extensions") {
     return <ExtensionsSurface {...extensions} />;

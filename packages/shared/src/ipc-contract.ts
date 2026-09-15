@@ -125,6 +125,17 @@ export const IPC_CHANNELS = {
   RESEARCH_SEARCH: "research:search",
   RESEARCH_OPEN: "research:open",
   RESEARCH_STATUS: "research:status",
+
+  // Project document operations (PR37). NOTE: there is intentionally NO
+  // documents:execute / documents:read-path / documents:raw-fs channel —
+  // operations flow through the agent tool router (DocumentsToolExecutor)
+  // or the narrow typed handlers below; the renderer never receives
+  // filesystem primitives.
+  DOCUMENTS_LIST: "documents:list",
+  DOCUMENTS_GET: "documents:get",
+  DOCUMENTS_SEARCH: "documents:search",
+  DOCUMENTS_INGEST: "documents:ingest",
+  DOCUMENTS_DELETE: "documents:delete",
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];
@@ -833,6 +844,50 @@ export type ResearchOpenCommand = z.infer<typeof ResearchOpenCommandSchema>;
 export const ResearchStatusCommandSchema = z.object({}).optional().default({});
 
 export type ResearchStatusCommand = z.infer<typeof ResearchStatusCommandSchema>;
+
+// ---------------------------------------------------------------------------
+// Document Commands (PR37)
+// Ingestion travels as base64 (IPC-safe); main re-checks byte bounds after
+// decoding. Tools accept DocumentId + projectId — never raw paths.
+// ---------------------------------------------------------------------------
+
+export const DocumentsListCommandSchema = z.object({
+  projectId: z.string().trim().min(1).max(256),
+});
+
+export type DocumentsListCommand = z.infer<typeof DocumentsListCommandSchema>;
+
+export const DocumentsGetCommandSchema = z.object({
+  projectId: z.string().trim().min(1).max(256),
+  documentId: UlidStringSchema,
+  maxChars: z.number().int().positive().max(20000).optional(),
+});
+
+export type DocumentsGetCommand = z.infer<typeof DocumentsGetCommandSchema>;
+
+export const DocumentsSearchCommandSchema = z.object({
+  projectId: z.string().trim().min(1).max(256),
+  query: z.string().trim().min(1).max(500),
+  limit: z.number().int().positive().max(20).optional(),
+});
+
+export type DocumentsSearchCommand = z.infer<typeof DocumentsSearchCommandSchema>;
+
+export const DocumentsIngestCommandSchema = z.object({
+  projectId: z.string().trim().min(1).max(256),
+  fileName: z.string().trim().min(1).max(255),
+  mimeType: z.string().trim().min(1).max(128),
+  contentBase64: z.string().min(1).max(14_000_000),
+});
+
+export type DocumentsIngestCommand = z.infer<typeof DocumentsIngestCommandSchema>;
+
+export const DocumentsDeleteCommandSchema = z.object({
+  projectId: z.string().trim().min(1).max(256),
+  documentId: UlidStringSchema,
+});
+
+export type DocumentsDeleteCommand = z.infer<typeof DocumentsDeleteCommandSchema>;
 
 // ---------------------------------------------------------------------------
 // Extension Payloads (PR32)

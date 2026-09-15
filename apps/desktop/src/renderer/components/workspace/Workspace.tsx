@@ -15,10 +15,12 @@ import type {
   ChatSurfaceProps,
   CodingSurfaceProps,
   ComposerProps,
+  DocumentFileView,
   ExtensionsSurfaceProps,
   BrowserSurfaceProps,
   ResearchSurfaceProps,
   InspectorProps,
+  SelectedDocumentView,
   SidebarProps,
   SurfaceHostProps,
   TasksSurfaceProps,
@@ -37,6 +39,10 @@ export interface WorkspaceShellProps {
   readonly tasks: TasksSurfaceProps;
   readonly activity: ActivityEventView[];
   readonly files: FileEntryView[];
+  readonly documents?: DocumentFileView[];
+  readonly selectedDocument?: SelectedDocumentView | null;
+  readonly onSelectDocument?: (documentId: string | null) => void;
+  readonly documentsError?: string | null;
   readonly extensions: ExtensionsSurfaceProps;
   readonly browser: BrowserSurfaceProps;
   readonly research: ResearchSurfaceProps;
@@ -57,6 +63,10 @@ export function WorkspaceShell({
   tasks,
   activity,
   files,
+  documents,
+  selectedDocument,
+  onSelectDocument,
+  documentsError,
   extensions,
   browser,
   research,
@@ -132,6 +142,10 @@ export function WorkspaceShell({
               tasks={tasks}
               activity={activity}
               files={files}
+              documents={documents}
+              selectedDocument={selectedDocument}
+              onSelectDocument={onSelectDocument}
+              documentsError={documentsError}
               extensions={extensions}
               browser={browser}
               research={research}

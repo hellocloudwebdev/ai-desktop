@@ -1,6 +1,6 @@
 # ai-desktop
 
-A desktop AI assistant. This repository is currently at **PR36 — Research Intelligence & Source Synthesis**:
+A desktop AI assistant. This repository is currently at **PR37 — Document Intelligence & Project RAG**:
 shared primitives, canonical AI domain contracts, projections, in-process EventBus,
 permission checkpoint, SQLite WAL event repository, OS-backed credential store, canonical
 provider contracts, concrete `AnthropicAdapter`, concrete `GeminiAdapter`, Electron 44 desktop
@@ -69,7 +69,16 @@ parallelism and cancellation, deterministic evidence extractor with verbatim inv
 numeric conflict detector, bounded source graph, `ResearchOrchestrator` composing the PR35
 `ResearchService` with partial-degradation and zero new persistence, `builtin:research.deep`
 under the existing `research` capability, prompt-injection and tool-poisoning isolation,
-and the extended `ResearchSurface` evidence/conflict/citation/synthesis panel) are
+and the extended `ResearchSurface` evidence/conflict/citation/synthesis panel), and the
+Document Intelligence & Project RAG Foundation (canonical document contracts with branded
+IDs and validated lifecycle, five-format allowlist with hand-rolled text/Markdown/JSON/CSV
+and minimal page-aware PDF parsers, deterministic normalization and bounded page-aware
+chunking with stable checksums, deterministic lexical retrieval with relevance-only
+scoring, Prisma `DocumentRecord`/`DocumentChunkRecord` project-scoped persistence,
+`DocumentService` with within-project dedupe and bounded concurrency, four
+`builtin:documents.*` tools under the existing permission architecture with delete gated
+high, `documents:*` typed IPC with narrow preload bridge, untrusted-document framing
+with PR36-shaped evidence mapping, and the extended Files surface documents panel) are
 implemented. Future packages remain empty shells awaiting their respective
 implementation PRs — see [docs/architecture/phase-0.md](docs/architecture/phase-0.md) for the honest list of what is
 and is not implemented.

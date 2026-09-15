@@ -73,6 +73,11 @@ import {
   ResearchOpenCommandSchema,
   ResearchSearchCommandSchema,
   ResearchStatusCommandSchema,
+  DocumentsListCommandSchema,
+  DocumentsGetCommandSchema,
+  DocumentsSearchCommandSchema,
+  DocumentsIngestCommandSchema,
+  DocumentsDeleteCommandSchema,
   createToolCallId,
   type ChatCancelCommand,
   type ChatSendCommand,
@@ -152,6 +157,7 @@ import type { ExtensionService } from "../extensions/index.js";
 import type { SurfaceService } from "../surfaces/surface-service.js";
 import type { BrowserService } from "../browser/index.js";
 import type { ResearchService } from "../research/index.js";
+import type { DocumentService } from "../documents/index.js";
 import type { ActiveStreamRegistry, ChatService, ModelSelectionService } from "../chat/index.js";
 import type { IpcBatcher } from "./batcher.js";
 
@@ -247,6 +253,7 @@ export interface RegisterIpcOptions {
   surfaceService?: SurfaceService;
   browserService?: BrowserService;
   researchService?: ResearchService;
+  documentService?: DocumentService;
 }
 
 export class IpcRegistry {
@@ -492,6 +499,8 @@ export function registerIpcHandlers(
     options && "browserService" in options ? options.browserService : undefined;
   const researchService: ResearchService | undefined =
     options && "researchService" in options ? options.researchService : undefined;
+  const documentService: DocumentService | undefined =
+    options && "documentService" in options ? options.documentService : undefined;
   if (batcher) {
     registry.attachBatcher(batcher);
   }
@@ -1674,6 +1683,84 @@ export function registerIpcHandlers(
         return { providers: researchService.health.snapshot() };
       }
       throw new Error("ResearchService is not available");
+    },
+  );
+
+  // 62. Documents List command (PR37): project-scoped document metadata.
+  registry.registerCommand(
+    IPC_CHANNELS.DOCUMENTS_LIST,
+    DocumentsListCommandSchema,
+    async (input) => {
+      if (documentService) {
+        const documents = await documentService.list({ projectId: input.projectId });
+        return { documents };
+      }
+      throw new Error("DocumentService is not available");
+    },
+  );
+
+  // 63. Documents Get command (PR37): bounded document open by id.
+  registry.registerCommand(IPC_CHANNELS.DOCUMENTS_GET, DocumentsGetCommandSchema, async (input) => {
+    if (documentService) {
+      const result = await documentService.open({
+        projectId: input.projectId,
+        documentId: input.documentId,
+        ...(input.maxChars !== undefined ? { maxChars: input.maxChars } : {}),
+      });
+      return { result };
+    }
+    throw new Error("DocumentService is not available");
+  });
+
+  // 64. Documents Search command (PR37): project-scoped lexical retrieval.
+  registry.registerCommand(
+    IPC_CHANNELS.DOCUMENTS_SEARCH,
+    DocumentsSearchCommandSchema,
+    async (input) => {
+      if (documentService) {
+        const result = await documentService.search({
+          projectId: input.projectId,
+          query: input.query,
+          ...(input.limit !== undefined ? { limit: input.limit } : {}),
+        });
+        return { result };
+      }
+      throw new Error("DocumentService is not available");
+    },
+  );
+
+  // 65. Documents Ingest command (PR37): base64 bytes in, bounded parsing.
+  registry.registerCommand(
+    IPC_CHANNELS.DOCUMENTS_INGEST,
+    DocumentsIngestCommandSchema,
+    async (input) => {
+      if (documentService) {
+        const bytes = Uint8Array.from(Buffer.from(input.contentBase64, "base64"));
+        const result = await documentService.ingest({
+          projectId: input.projectId,
+          fileName: input.fileName,
+          mimeType: input.mimeType,
+          bytes,
+        });
+        return { result };
+      }
+      throw new Error("DocumentService is not available");
+    },
+  );
+
+  // 66. Documents Delete command (PR37): project-scoped removal.
+  registry.registerCommand(
+    IPC_CHANNELS.DOCUMENTS_DELETE,
+    DocumentsDeleteCommandSchema,
+    async (input) => {
+      if (documentService) {
+        const result = await documentService.remove({
+          projectId: input.projectId,
+          documentId: input.documentId,
+        });
+        return { result };
+      }
+      throw new Error("DocumentService is not available");
     },
   );
 }

@@ -31,6 +31,7 @@ import {
   PrismaPermissionRepository,
   PrismaSkillRepository,
   PrismaMemoryRepository,
+  PrismaDocumentRepository,
   PrismaExtensionRepository,
   PrismaExtensionProjectBindingRepository,
   type EventRepository,
@@ -71,6 +72,7 @@ import {
   StaticWebReaderAdapter,
   YoutubeResearchAdapter,
 } from "./research/index.js";
+import { DocumentService, DocumentsToolExecutor } from "./documents/index.js";
 import { IpcBatcher } from "./ipc/batcher.js";
 import { IpcRegistry, registerIpcHandlers } from "./ipc/index.js";
 
@@ -114,6 +116,8 @@ let browserToolExecutor: BrowserToolExecutor | null = null;
 let researchRouter: ResearchRouter | null = null;
 let researchService: ResearchService | null = null;
 let researchToolExecutor: ResearchToolExecutor | null = null;
+let documentService: DocumentService | null = null;
+let documentsToolExecutor: DocumentsToolExecutor | null = null;
 
 export function getProviderRegistry(): ProviderRegistry {
   if (!providerRegistry) {
@@ -361,6 +365,7 @@ export function getAgentService(options?: {
   builtinExecutor?: ConstructorParameters<typeof AgentService>[0]["builtinExecutor"];
   browserExecutor?: ConstructorParameters<typeof AgentService>[0]["browserExecutor"];
   researchExecutor?: ConstructorParameters<typeof AgentService>[0]["researchExecutor"];
+  documentsExecutor?: ConstructorParameters<typeof AgentService>[0]["documentsExecutor"];
   pluginExecutor?: ConstructorParameters<typeof AgentService>[0]["pluginExecutor"];
 }): AgentService {
   if (!agentService || options) {
@@ -380,6 +385,9 @@ export function getAgentService(options?: {
       ...(options?.researchExecutor
         ? { researchExecutor: options.researchExecutor }
         : { researchExecutor: getResearchToolExecutor() }),
+      ...(options?.documentsExecutor
+        ? { documentsExecutor: options.documentsExecutor }
+        : { documentsExecutor: getDocumentsToolExecutor() }),
       pluginExecutor,
     });
     if (!options) {
@@ -579,6 +587,34 @@ export function getResearchToolExecutor(): ResearchToolExecutor {
     });
   }
   return researchToolExecutor;
+}
+
+/**
+ * DocumentService singleton (PR37): project-scoped ingestion, lexical
+ * retrieval, and bounded open backed by PrismaDocumentRepository.
+ */
+export function getDocumentService(): DocumentService {
+  if (!documentService) {
+    const { database: db } = getStorage();
+    documentService = new DocumentService({
+      repository: new PrismaDocumentRepository(db),
+    });
+  }
+  return documentService;
+}
+
+/**
+ * DocumentsToolExecutor singleton (PR37): universal resolve -> validate ->
+ * permission -> execute lifecycle over the DocumentService.
+ */
+export function getDocumentsToolExecutor(): DocumentsToolExecutor {
+  if (!documentsToolExecutor) {
+    documentsToolExecutor = new DocumentsToolExecutor({
+      permissionManager: getPermissionManager(),
+      documentService: getDocumentService(),
+    });
+  }
+  return documentsToolExecutor;
 }
 
 export function getSecureWebPreferences(preloadPath: string): Electron.WebPreferences {
