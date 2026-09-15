@@ -20,6 +20,9 @@ import type {
   BrowserPageView,
   ExtensionView,
   FileEntryView,
+  ResearchDocumentView,
+  ResearchProviderStatusView,
+  ResearchResultView,
   SurfaceView,
 } from "./components/workspace/surfaces/surface-props.js";
 
@@ -86,6 +89,14 @@ export function App(): React.ReactElement {
     artifactRef: string;
     bytes: number;
   } | null>(null);
+  // PR35: web research results + opened document + provider health (App-owned
+  // backend state, surface is a pure view over the preload bridge).
+  const [researchResults, setResearchResults] = useState<ResearchResultView[]>([]);
+  const [activeResearchUrl, setActiveResearchUrl] = useState<string | null>(null);
+  const [researchDocument, setResearchDocument] = useState<ResearchDocumentView | null>(null);
+  const [researchProviders, setResearchProviders] = useState<ResearchProviderStatusView[]>([]);
+  const [researchSearching, setResearchSearching] = useState<boolean>(false);
+  const [researchError, setResearchError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   // PR34.5: load browser pages through the preload bridge
@@ -161,6 +172,89 @@ export function App(): React.ReactElement {
       console.warn("Failed to take screenshot:", err);
     }
   }, []);
+
+  // PR35: web research handlers through the preload bridge.
+  const handleResearchSearch = useCallback(
+    async (query: string) => {
+      if (typeof window === "undefined" || !window.api) return;
+      setResearchSearching(true);
+      setResearchError(null);
+      try {
+        const res = await window.api.commands.searchWeb({
+          query,
+          projectId: workspace.state.activeProjectId,
+        });
+        if (res.ok && Array.isArray(res.value.results)) {
+          const views = (res.value.results as Array<Record<string, unknown>>)
+            .filter((r) => r && typeof r["url"] === "string")
+            .map((r) => {
+              const source = (r["source"] as Record<string, unknown> | undefined) ?? {};
+              return {
+                title: String(r["title"] ?? (source["title"] as string | undefined) ?? r["url"]),
+                url: String(r["url"]),
+                snippet: String(r["excerpt"] ?? ""),
+                domain: String(
+                  ((r["metadata"] as Record<string, unknown> | undefined)?.["domain"] as
+                    string | undefined) ?? "",
+                ),
+                provider: String((source["provider"] as string | undefined) ?? "unknown"),
+              } satisfies ResearchResultView;
+            });
+          setResearchResults(views);
+        } else if (!res.ok) {
+          setResearchError(res.error.message);
+        }
+        try {
+          const status = await window.api.commands.getResearchStatus();
+          if (status.ok && Array.isArray(status.value.providers)) {
+            setResearchProviders(
+              (status.value.providers as Array<Record<string, unknown>>).map((p) => ({
+                provider: String(p["provider"] ?? "unknown"),
+                status: String(p["status"] ?? "unknown"),
+              })),
+            );
+          }
+        } catch {
+          // Health snapshot is best-effort; search results stand alone.
+        }
+      } catch (err) {
+        setResearchError(err instanceof Error ? err.message : String(err));
+      } finally {
+        setResearchSearching(false);
+      }
+    },
+    [workspace.state.activeProjectId],
+  );
+
+  const handleResearchOpen = useCallback(
+    async (url: string) => {
+      if (typeof window === "undefined" || !window.api) return;
+      setResearchError(null);
+      setActiveResearchUrl(url);
+      try {
+        const res = await window.api.commands.openWebResearch({
+          url,
+          projectId: workspace.state.activeProjectId,
+        });
+        if (res.ok && res.value.result) {
+          const r = res.value.result as Record<string, unknown>;
+          const source = (r["source"] as Record<string, unknown> | undefined) ?? {};
+          setResearchDocument({
+            title: String(r["title"] ?? (source["title"] as string | undefined) ?? url),
+            url: String(r["url"] ?? url),
+            excerpt: String(r["excerpt"] ?? r["content"] ?? ""),
+            provider: String((source["provider"] as string | undefined) ?? "unknown"),
+            truncated: r["truncated"] === true,
+          });
+        } else if (!res.ok) {
+          setResearchError(res.error.message);
+        }
+      } catch (err) {
+        setResearchError(err instanceof Error ? err.message : String(err));
+      }
+    },
+    [workspace.state.activeProjectId],
+  );
 
   // PR32: load the extension list through the preload bridge. No-ops when
   // the bridge is absent (preload not yet updated, or non-Electron hosts).
@@ -948,6 +1042,18 @@ export function App(): React.ReactElement {
         onClosePage: (pageId) => void handleCloseBrowserPage(pageId),
         onTakeScreenshot: (pageId) => void handleTakeScreenshot(pageId),
         screenshotArtifact: browserScreenshot,
+      }}
+      research={{
+        activeProjectId: workspace.state.activeProjectId,
+        results: researchResults,
+        activeResultUrl: activeResearchUrl,
+        openedDocument: researchDocument,
+        providerStatuses: researchProviders,
+        isSearching: researchSearching,
+        searchError: researchError,
+        onSearch: (query) => void handleResearchSearch(query),
+        onOpenResult: (url) => void handleResearchOpen(url),
+        onOpenInBrowser: (url) => void handleOpenBrowserPage(url),
       }}
       inspector={{
         activeTask: activeTaskEntry,

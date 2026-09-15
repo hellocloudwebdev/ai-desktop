@@ -22,6 +22,22 @@ import {
   createMemoryFactId,
   parseMemoryFactId,
   asMemoryFactId,
+  type ResearchRequestId,
+  type ResearchSourceId,
+  type ResearchResultId,
+  type ResearchDocumentId,
+  createResearchRequestId,
+  createResearchSourceId,
+  createResearchResultId,
+  createResearchDocumentId,
+  parseResearchRequestId,
+  parseResearchSourceId,
+  parseResearchResultId,
+  parseResearchDocumentId,
+  asResearchRequestId,
+  asResearchSourceId,
+  asResearchResultId,
+  asResearchDocumentId,
 } from "@ai-desktop/shared";
 import { z } from "zod";
 
@@ -34,6 +50,10 @@ export type {
   PermissionRequestId,
   SessionId,
   MemoryFactId,
+  ResearchRequestId,
+  ResearchSourceId,
+  ResearchResultId,
+  ResearchDocumentId,
 };
 export {
   createSessionId,
@@ -42,6 +62,18 @@ export {
   createMemoryFactId,
   parseMemoryFactId,
   asMemoryFactId,
+  createResearchRequestId,
+  createResearchSourceId,
+  createResearchResultId,
+  createResearchDocumentId,
+  parseResearchRequestId,
+  parseResearchSourceId,
+  parseResearchResultId,
+  parseResearchDocumentId,
+  asResearchRequestId,
+  asResearchSourceId,
+  asResearchResultId,
+  asResearchDocumentId,
 };
 
 export type EventId = Brand<string, "EventId">;
@@ -78,6 +110,18 @@ export const BrowserPageIdSchema = UlidSchema.transform(
 );
 export const BrowserActionIdSchema = UlidSchema.transform(
   (val) => val.toUpperCase() as BrowserActionId,
+);
+export const ResearchRequestIdSchema = UlidSchema.transform(
+  (val) => val.toUpperCase() as ResearchRequestId,
+);
+export const ResearchSourceIdSchema = UlidSchema.transform(
+  (val) => val.toUpperCase() as ResearchSourceId,
+);
+export const ResearchResultIdSchema = UlidSchema.transform(
+  (val) => val.toUpperCase() as ResearchResultId,
+);
+export const ResearchDocumentIdSchema = UlidSchema.transform(
+  (val) => val.toUpperCase() as ResearchDocumentId,
 );
 
 const BROWSER_ELEMENT_REF_PATTERN = /^(ref\/)?[a-z0-9_-]+$/i;

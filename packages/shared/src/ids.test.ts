@@ -5,12 +5,20 @@ import {
   createPermissionRequestId,
   createTaskId,
   createToolCallId,
+  createResearchRequestId,
+  createResearchSourceId,
+  createResearchResultId,
+  createResearchDocumentId,
   generateUlid,
   getUlidTimestamp,
   isUlid,
   parseConversationId,
   parseMessageId,
   parseTaskId,
+  parseResearchRequestId,
+  parseResearchSourceId,
+  parseResearchResultId,
+  parseResearchDocumentId,
   type ConversationId,
   type MessageId,
 } from "./ids.js";
@@ -62,12 +70,20 @@ describe("ids: Branded entity constructors and parsers", () => {
     const taskId = createTaskId();
     const toolId = createToolCallId();
     const permId = createPermissionRequestId();
+    const reqId = createResearchRequestId();
+    const srcId = createResearchSourceId();
+    const resId = createResearchResultId();
+    const docId = createResearchDocumentId();
 
     expect(isUlid(convId)).toBe(true);
     expect(isUlid(msgId)).toBe(true);
     expect(isUlid(taskId)).toBe(true);
     expect(isUlid(toolId)).toBe(true);
     expect(isUlid(permId)).toBe(true);
+    expect(isUlid(reqId)).toBe(true);
+    expect(isUlid(srcId)).toBe(true);
+    expect(isUlid(resId)).toBe(true);
+    expect(isUlid(docId)).toBe(true);
   });
 
   it("parses valid ULID strings into branded types", () => {
@@ -75,16 +91,28 @@ describe("ids: Branded entity constructors and parsers", () => {
     const parsedConv = parseConversationId(raw);
     const parsedMsg = parseMessageId(raw);
     const parsedTask = parseTaskId(raw);
+    const parsedReq = parseResearchRequestId(raw);
+    const parsedSrc = parseResearchSourceId(raw);
+    const parsedRes = parseResearchResultId(raw);
+    const parsedDoc = parseResearchDocumentId(raw);
 
     expect(parsedConv).toBe(raw.toUpperCase());
     expect(parsedMsg).toBe(raw.toUpperCase());
     expect(parsedTask).toBe(raw.toUpperCase());
+    expect(parsedReq).toBe(raw.toUpperCase());
+    expect(parsedSrc).toBe(raw.toUpperCase());
+    expect(parsedRes).toBe(raw.toUpperCase());
+    expect(parsedDoc).toBe(raw.toUpperCase());
   });
 
   it("throws TypeError when parsing invalid strings into branded types", () => {
     expect(() => parseConversationId("bad-id")).toThrow(TypeError);
     expect(() => parseMessageId("bad-id")).toThrow(TypeError);
     expect(() => parseTaskId("bad-id")).toThrow(TypeError);
+    expect(() => parseResearchRequestId("bad-id")).toThrow(TypeError);
+    expect(() => parseResearchSourceId("bad-id")).toThrow(TypeError);
+    expect(() => parseResearchResultId("bad-id")).toThrow(TypeError);
+    expect(() => parseResearchDocumentId("bad-id")).toThrow(TypeError);
   });
 
   it("maintains compile-time distinction between branded types", () => {

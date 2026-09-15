@@ -28,6 +28,10 @@ export type SessionId = Brand<string, "SessionId">;
 export type MemoryFactId = Brand<string, "MemoryFactId">;
 export type BrowserSessionId = Brand<string, "BrowserSessionId">;
 export type BrowserPageId = Brand<string, "BrowserPageId">;
+export type ResearchRequestId = Brand<string, "ResearchRequestId">;
+export type ResearchSourceId = Brand<string, "ResearchSourceId">;
+export type ResearchResultId = Brand<string, "ResearchResultId">;
+export type ResearchDocumentId = Brand<string, "ResearchDocumentId">;
 
 function getCrypto(): Crypto {
   if (
@@ -143,6 +147,22 @@ export function createBrowserPageId(seedTime?: number): BrowserPageId {
   return generateUlid(seedTime) as BrowserPageId;
 }
 
+export function createResearchRequestId(seedTime?: number): ResearchRequestId {
+  return generateUlid(seedTime) as ResearchRequestId;
+}
+
+export function createResearchSourceId(seedTime?: number): ResearchSourceId {
+  return generateUlid(seedTime) as ResearchSourceId;
+}
+
+export function createResearchResultId(seedTime?: number): ResearchResultId {
+  return generateUlid(seedTime) as ResearchResultId;
+}
+
+export function createResearchDocumentId(seedTime?: number): ResearchDocumentId {
+  return generateUlid(seedTime) as ResearchDocumentId;
+}
+
 // ---------------------------------------------------------------------------
 // Branded ID Parsers (validate syntax and return branded types)
 // ---------------------------------------------------------------------------
@@ -210,6 +230,34 @@ export function parseBrowserPageId(raw: string): BrowserPageId {
   return raw.toUpperCase() as BrowserPageId;
 }
 
+export function parseResearchRequestId(raw: string): ResearchRequestId {
+  if (!isUlid(raw)) {
+    throw new TypeError(`Invalid ResearchRequestId: "${raw}" is not a valid ULID`);
+  }
+  return raw.toUpperCase() as ResearchRequestId;
+}
+
+export function parseResearchSourceId(raw: string): ResearchSourceId {
+  if (!isUlid(raw)) {
+    throw new TypeError(`Invalid ResearchSourceId: "${raw}" is not a valid ULID`);
+  }
+  return raw.toUpperCase() as ResearchSourceId;
+}
+
+export function parseResearchResultId(raw: string): ResearchResultId {
+  if (!isUlid(raw)) {
+    throw new TypeError(`Invalid ResearchResultId: "${raw}" is not a valid ULID`);
+  }
+  return raw.toUpperCase() as ResearchResultId;
+}
+
+export function parseResearchDocumentId(raw: string): ResearchDocumentId {
+  if (!isUlid(raw)) {
+    throw new TypeError(`Invalid ResearchDocumentId: "${raw}" is not a valid ULID`);
+  }
+  return raw.toUpperCase() as ResearchDocumentId;
+}
+
 // ---------------------------------------------------------------------------
 // Trusted Type Casting Helpers (for trusted persistence / test layers)
 // ---------------------------------------------------------------------------
@@ -248,4 +296,20 @@ export function asBrowserSessionId(raw: string): BrowserSessionId {
 
 export function asBrowserPageId(raw: string): BrowserPageId {
   return raw as BrowserPageId;
+}
+
+export function asResearchRequestId(raw: string): ResearchRequestId {
+  return raw as ResearchRequestId;
+}
+
+export function asResearchSourceId(raw: string): ResearchSourceId {
+  return raw as ResearchSourceId;
+}
+
+export function asResearchResultId(raw: string): ResearchResultId {
+  return raw as ResearchResultId;
+}
+
+export function asResearchDocumentId(raw: string): ResearchDocumentId {
+  return raw as ResearchDocumentId;
 }

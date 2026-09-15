@@ -59,12 +59,25 @@ import {
   DefaultBrowserManager,
   PuppeteerAdapter,
 } from "./browser/index.js";
+import {
+  GithubResearchAdapter,
+  ResearchCache,
+  ResearchProviderHealth,
+  ResearchRouter,
+  ResearchService,
+  ResearchToolExecutor,
+  RssResearchAdapter,
+  SearchAdapter,
+  StaticWebReaderAdapter,
+  YoutubeResearchAdapter,
+} from "./research/index.js";
 import { IpcBatcher } from "./ipc/batcher.js";
 import { IpcRegistry, registerIpcHandlers } from "./ipc/index.js";
 
 export { ActiveStreamRegistry, ChatService, ModelSelectionService } from "./chat/index.js";
 export { IpcBatcher, type ChatStreamBatch } from "./ipc/batcher.js";
 export * from "./browser/index.js";
+export * from "./research/index.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -98,6 +111,9 @@ let surfaceService: SurfaceService | null = null;
 let browserManager: BrowserManager | null = null;
 let browserService: BrowserService | null = null;
 let browserToolExecutor: BrowserToolExecutor | null = null;
+let researchRouter: ResearchRouter | null = null;
+let researchService: ResearchService | null = null;
+let researchToolExecutor: ResearchToolExecutor | null = null;
 
 export function getProviderRegistry(): ProviderRegistry {
   if (!providerRegistry) {
@@ -344,6 +360,7 @@ export function getAgentService(options?: {
   skillExecutor?: ConstructorParameters<typeof AgentService>[0]["skillExecutor"];
   builtinExecutor?: ConstructorParameters<typeof AgentService>[0]["builtinExecutor"];
   browserExecutor?: ConstructorParameters<typeof AgentService>[0]["browserExecutor"];
+  researchExecutor?: ConstructorParameters<typeof AgentService>[0]["researchExecutor"];
   pluginExecutor?: ConstructorParameters<typeof AgentService>[0]["pluginExecutor"];
 }): AgentService {
   if (!agentService || options) {
@@ -360,6 +377,9 @@ export function getAgentService(options?: {
       ...(options?.browserExecutor
         ? { browserExecutor: options.browserExecutor }
         : { browserExecutor: getBrowserToolExecutor() }),
+      ...(options?.researchExecutor
+        ? { researchExecutor: options.researchExecutor }
+        : { researchExecutor: getResearchToolExecutor() }),
       pluginExecutor,
     });
     if (!options) {
@@ -513,6 +533,54 @@ export function getBrowserToolExecutor(): BrowserToolExecutor {
   return browserToolExecutor;
 }
 
+/**
+ * Research router singleton (PR35): host-registered channel adapters.
+ * The static web reader is primary; search ships unconfigured (fails
+ * closed); GitHub/RSS/YouTube use public endpoints. Providers can be
+ * extended by registering additional host adapters here.
+ */
+export function getResearchRouter(): ResearchRouter {
+  if (!researchRouter) {
+    researchRouter = new ResearchRouter();
+    researchRouter.register(new StaticWebReaderAdapter());
+    researchRouter.register(new SearchAdapter());
+    researchRouter.register(new GithubResearchAdapter());
+    researchRouter.register(new YoutubeResearchAdapter());
+    researchRouter.register(new RssResearchAdapter());
+  }
+  return researchRouter;
+}
+
+/**
+ * ResearchService singleton (PR35): cache + router + health, with the
+ * PR34 BrowserService as the controlled browser-fallback boundary.
+ */
+export function getResearchService(): ResearchService {
+  if (!researchService) {
+    researchService = new ResearchService({
+      router: getResearchRouter(),
+      cache: new ResearchCache<unknown>(),
+      health: new ResearchProviderHealth(),
+      browserService: getBrowserService(),
+    });
+  }
+  return researchService;
+}
+
+/**
+ * ResearchToolExecutor singleton (PR35): universal resolve -> validate ->
+ * permission -> execute lifecycle over the ResearchService.
+ */
+export function getResearchToolExecutor(): ResearchToolExecutor {
+  if (!researchToolExecutor) {
+    researchToolExecutor = new ResearchToolExecutor({
+      permissionManager: getPermissionManager(),
+      researchService: getResearchService(),
+    });
+  }
+  return researchToolExecutor;
+}
+
 export function getSecureWebPreferences(preloadPath: string): Electron.WebPreferences {
   return {
     preload: preloadPath,
@@ -570,6 +638,7 @@ export function initIpc(options?: {
   extensionService?: ExtensionService;
   surfaceService?: SurfaceService;
   browserService?: BrowserService;
+  researchService?: ResearchService;
 }): IpcRegistry {
   if (!ipcRegistry) {
     ipcRegistry = new IpcRegistry();
@@ -586,6 +655,7 @@ export function initIpc(options?: {
     const extensions = options?.extensionService ?? getExtensionService();
     const surfaces = options?.surfaceService ?? getSurfaceService();
     const browser = options?.browserService ?? getBrowserService();
+    const research = options?.researchService ?? getResearchService();
 
     registerIpcHandlers(ipcRegistry, {
       streamRegistry,
@@ -601,6 +671,7 @@ export function initIpc(options?: {
       extensionService: extensions,
       surfaceService: surfaces,
       browserService: browser,
+      researchService: research,
     });
   }
   return ipcRegistry;

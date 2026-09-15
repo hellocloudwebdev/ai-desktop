@@ -15,6 +15,10 @@ import type {
   ConversationId,
   MessageId,
   PermissionRequestId,
+  ResearchDocumentId,
+  ResearchRequestId,
+  ResearchResultId,
+  ResearchSourceId,
   TaskId,
   ToolCallId,
 } from "./ids.js";
@@ -114,6 +118,13 @@ export const IPC_CHANNELS = {
   BROWSER_PAGE_GET: "browser:page-get",
   BROWSER_PAGE_CLOSE: "browser:page-close",
   BROWSER_SCREENSHOT: "browser:screenshot",
+
+  // Web research operations (PR35). NOTE: there is intentionally NO
+  // research:execute channel — operations flow through the agent tool router
+  // (ResearchToolExecutor), never arbitrary IPC.
+  RESEARCH_SEARCH: "research:search",
+  RESEARCH_OPEN: "research:open",
+  RESEARCH_STATUS: "research:status",
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];
@@ -150,6 +161,18 @@ export const BrowserSessionIdSchema = UlidStringSchema.transform(
 );
 export const BrowserPageIdSchema = UlidStringSchema.transform(
   (val) => val.toUpperCase() as BrowserPageId,
+);
+export const ResearchRequestIdSchema = UlidStringSchema.transform(
+  (val) => val.toUpperCase() as ResearchRequestId,
+);
+export const ResearchSourceIdSchema = UlidStringSchema.transform(
+  (val) => val.toUpperCase() as ResearchSourceId,
+);
+export const ResearchResultIdSchema = UlidStringSchema.transform(
+  (val) => val.toUpperCase() as ResearchResultId,
+);
+export const ResearchDocumentIdSchema = UlidStringSchema.transform(
+  (val) => val.toUpperCase() as ResearchDocumentId,
 );
 
 // ---------------------------------------------------------------------------
@@ -763,6 +786,53 @@ export const BrowserScreenshotCommandSchema = z.object({
 });
 
 export type BrowserScreenshotCommand = z.infer<typeof BrowserScreenshotCommandSchema>;
+
+// ---------------------------------------------------------------------------
+// Research Commands (PR35)
+// NOTE: there is intentionally NO research:execute channel — operations flow
+// through the agent tool router (ResearchToolExecutor), never arbitrary IPC.
+// ---------------------------------------------------------------------------
+
+export const ResearchSearchCommandSchema = z.object({
+  query: z.string().trim().min(1).max(500),
+  limit: z.number().int().positive().max(20).optional(),
+  channel: z.enum(["web", "github"]).optional(),
+  projectId: z.string().trim().min(1).max(256).optional(),
+});
+
+export type ResearchSearchCommand = z.infer<typeof ResearchSearchCommandSchema>;
+
+const DANGEROUS_IPC_URL_PATTERN = /^\s*(javascript|vbscript|data|file|blob|ftp|gopher):/i;
+
+export const ResearchOpenCommandSchema = z.object({
+  url: z
+    .string()
+    .trim()
+    .url()
+    .max(2048)
+    .refine((val) => !DANGEROUS_IPC_URL_PATTERN.test(val), {
+      message: "URL must use http(s) and must not use a dangerous scheme",
+    })
+    .refine(
+      (val) => {
+        try {
+          const protocol = new URL(val).protocol;
+          return protocol === "http:" || protocol === "https:";
+        } catch {
+          return false;
+        }
+      },
+      { message: "URL must use http(s)" },
+    ),
+  projectId: z.string().trim().min(1).max(256).optional(),
+  fallbackToBrowser: z.boolean().optional(),
+});
+
+export type ResearchOpenCommand = z.infer<typeof ResearchOpenCommandSchema>;
+
+export const ResearchStatusCommandSchema = z.object({}).optional().default({});
+
+export type ResearchStatusCommand = z.infer<typeof ResearchStatusCommandSchema>;
 
 // ---------------------------------------------------------------------------
 // Extension Payloads (PR32)

@@ -1,11 +1,11 @@
 # Phase 0 — What Exists and What Does Not
 
 This document prevents the repository (and its documentation) from claiming functionality
-that does not exist. It reflects the state after **PR34 (Browser Automation
-Foundation)** and
+that does not exist. It reflects the state after **PR35 (Web Research &
+Internet Connectivity Foundation)** and
 is updated as each PR lands.
 
-## Implemented (as of PR34)
+## Implemented (as of PR35)
 
 - Repository foundation: pnpm workspace + Turborepo task graph (`build`, `dev`,
   `typecheck`, `lint`, `test`).
@@ -566,6 +566,50 @@ node.completed/node.failed/blocked/replan/completed/failed/cancelled` plus the
     3 browser surface tests, 24 browser security tests, and 1 full 10-step
     ReAct browser E2E test; 887 total tests passing workspace-wide. Full design
     in `docs/architecture/pr-34-browser.md`.
+- Web Research & Internet Connectivity Foundation (`packages/shared`,
+  `packages/ai-core`, `apps/desktop`, PR35):
+  - Shared branded IDs (`ResearchRequestId`, `ResearchSourceId`,
+    `ResearchResultId`, `ResearchDocumentId`) with constructors, parsers, and
+    schema transforms; typed IPC channels (`research:search`, `research:open`,
+    `research:status`; explicitly no `research:execute` channel) with
+    dangerous-scheme rejection at the IPC boundary.
+  - Canonical research contracts in `ai-core` (`research.ts`): closed channel
+    vocabulary (`web`, `search`, `github`, `youtube`, `rss`), provenance and
+    source schemas with attempted/successful provider ledger, bounded result
+    and document schemas, normalized search results, provider health states,
+    5 canonical tool definitions (`builtin:research.search/open/github/youtube/rss`
+    with `source: "builtin"` and `runtime: "in_process"`), URL safety policy,
+    canonical URL normalization, MIME allowlist, centralized limits/TTLs,
+    risk mapping, and untrusted-content framing.
+  - Security foundation in `apps/desktop/src/main/research/security/`:
+    SSRF guard (loopback, RFC1918, private IPv6, link-local, CGNAT, metadata,
+    multicast, DNS-rebinding re-validation per redirect, fail-closed DNS,
+    host-controlled `allowedHosts` test escape hatch), bounded `secureFetch`
+    (compressed/decompressed caps, manual redirect handling, content-type
+    policy, overall timeout, AbortSignal cancellation, model-safe errors).
+  - Bounded `ResearchCache` (SHA-256 keys, per-channel TTLs, LRU eviction),
+    `ResearchProviderHealth` ledger, and single provenance builder.
+  - Five channel adapters behind one `ResearchAdapter` interface (no shells,
+    no package installation, no credential leakage): static web reader with
+    dependency-free HTML extraction, pluggable HTTP search provider (ships
+    unconfigured/fail-closed), structured GitHub REST adapter (repo/file/issue/search),
+    YouTube oEmbed + caption adapter, dependency-free RSS/Atom adapter.
+  - `ResearchRouter` (primary → fallback with attempted-provider ledger),
+    `ResearchService` (cache → route → provenance → bounded results, plus
+    controlled PR34 `BrowserService` fallback through the existing service
+    boundary — never Puppeteer directly), and `ResearchToolExecutor`
+    implementing the universal `resolve -> validate -> permission -> execute`
+    lifecycle with `capability: "research"` and low risk for public reads.
+  - Desktop wiring: `builtin:research.*` routing in `DesktopToolRouter`,
+    `getResearchRouter/Service/ToolExecutor` singletons, typed IPC handlers,
+    preload bridge (`searchWeb`, `openWebResearch`, `getResearchStatus`), and
+    `ResearchSurface` workspace component (query, provenance-bearing results,
+    open/browser-handoff, provider health footer) registered as the
+    `research` surface.
+  - 20 ai-core research tests, 27 research security tests, 36 research
+    subsystem tests, 9 research IPC tests, 4 research surface tests, and
+    2 research E2E workflows (search → open → synthesize; static failure →
+    browser fallback). Full design in `docs/architecture/pr-35-research.md`.
 - All remaining canonical packages stay **empty shells** (`package.json`, `tsconfig.json`,
   `src/index.ts` placeholder) — deliberately no premature domain functionality inside them.
 - Toolchain: TypeScript 5.9.3, ESLint 10.10.0, Vitest 4.1.10, Vite 8.1.0, Prettier 3.9.6,

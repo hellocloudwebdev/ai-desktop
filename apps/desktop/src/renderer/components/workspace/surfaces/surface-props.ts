@@ -156,6 +156,41 @@ export interface BrowserSurfaceProps {
   readonly screenshotArtifact?: { artifactRef: string; bytes: number } | null;
 }
 
+// PR35: renderer — Web research surface contract
+export interface ResearchResultView {
+  readonly title: string;
+  readonly url: string;
+  readonly snippet: string;
+  readonly domain: string;
+  readonly provider: string;
+}
+
+export interface ResearchDocumentView {
+  readonly title: string;
+  readonly url: string;
+  readonly excerpt: string;
+  readonly provider: string;
+  readonly truncated: boolean;
+}
+
+export interface ResearchProviderStatusView {
+  readonly provider: string;
+  readonly status: string;
+}
+
+export interface ResearchSurfaceProps {
+  readonly activeProjectId: string;
+  readonly results: ResearchResultView[];
+  readonly activeResultUrl: string | null;
+  readonly openedDocument: ResearchDocumentView | null;
+  readonly providerStatuses: ResearchProviderStatusView[];
+  readonly isSearching: boolean;
+  readonly searchError: string | null;
+  readonly onSearch: (query: string) => void;
+  readonly onOpenResult: (url: string) => void;
+  readonly onOpenInBrowser: (url: string) => void;
+}
+
 export interface SidebarProps {
   readonly activeSurface: string;
   readonly activeProjectId: string;

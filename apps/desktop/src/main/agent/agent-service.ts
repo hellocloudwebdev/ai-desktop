@@ -130,6 +130,7 @@ export interface DesktopToolRouterDeps {
   readonly skillExecutor?: ToolExecutorLike;
   readonly builtinExecutor?: ToolExecutorLike;
   readonly browserExecutor?: ToolExecutorLike;
+  readonly researchExecutor?: ToolExecutorLike;
   readonly pluginExecutor?: ToolExecutorLike;
 }
 
@@ -145,6 +146,7 @@ export class DesktopToolRouter implements ToolInvoker {
   private readonly _skillExecutor?: DesktopToolRouterDeps["skillExecutor"];
   private readonly _builtinExecutor?: DesktopToolRouterDeps["builtinExecutor"];
   private readonly _browserExecutor?: DesktopToolRouterDeps["browserExecutor"];
+  private readonly _researchExecutor?: DesktopToolRouterDeps["researchExecutor"];
   private readonly _pluginExecutor?: DesktopToolRouterDeps["pluginExecutor"];
 
   constructor(deps: DesktopToolRouterDeps) {
@@ -153,6 +155,7 @@ export class DesktopToolRouter implements ToolInvoker {
     this._skillExecutor = deps.skillExecutor;
     this._builtinExecutor = deps.builtinExecutor;
     this._browserExecutor = deps.browserExecutor;
+    this._researchExecutor = deps.researchExecutor;
     this._pluginExecutor = deps.pluginExecutor;
     void this._permissionManager;
   }
@@ -177,11 +180,13 @@ export class DesktopToolRouter implements ToolInvoker {
       ? this._pluginExecutor
       : toolName.startsWith("skill:")
         ? this._skillExecutor
-        : toolName.startsWith("builtin:browser.")
-          ? (this._browserExecutor ?? this._builtinExecutor)
-          : toolName.startsWith("builtin:")
-            ? this._builtinExecutor
-            : this._mcpExecutor;
+        : toolName.startsWith("builtin:research.")
+          ? (this._researchExecutor ?? this._builtinExecutor)
+          : toolName.startsWith("builtin:browser.")
+            ? (this._browserExecutor ?? this._builtinExecutor)
+            : toolName.startsWith("builtin:")
+              ? this._builtinExecutor
+              : this._mcpExecutor;
     if (!executor) {
       return {
         toolCallId: context.toolCallId,
@@ -288,6 +293,7 @@ export interface AgentServiceDeps {
   readonly skillExecutor?: DesktopToolRouterDeps["skillExecutor"];
   readonly builtinExecutor?: DesktopToolRouterDeps["builtinExecutor"];
   readonly browserExecutor?: DesktopToolRouterDeps["browserExecutor"];
+  readonly researchExecutor?: DesktopToolRouterDeps["researchExecutor"];
   readonly pluginExecutor?: DesktopToolRouterDeps["pluginExecutor"];
   readonly maxNodeIterations?: number;
   readonly defaultModelId?: ModelId;
@@ -312,6 +318,7 @@ export class AgentService {
         skillExecutor: deps.skillExecutor,
         builtinExecutor: deps.builtinExecutor,
         browserExecutor: deps.browserExecutor,
+        researchExecutor: deps.researchExecutor,
         pluginExecutor: deps.pluginExecutor,
       }),
       eventSink,

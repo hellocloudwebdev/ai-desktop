@@ -1,6 +1,6 @@
 # ai-desktop
 
-A desktop AI assistant. This repository is currently at **PR34 — Browser Automation**:
+A desktop AI assistant. This repository is currently at **PR35 — Web Research & Internet Connectivity**:
 shared primitives, canonical AI domain contracts, projections, in-process EventBus,
 permission checkpoint, SQLite WAL event repository, OS-backed credential store, canonical
 provider contracts, concrete `AnthropicAdapter`, concrete `GeminiAdapter`, Electron 44 desktop
@@ -50,7 +50,16 @@ inspector wiring), and the Browser Automation Foundation (canonical browser cont
 engine-neutral `BrowserManager`, element reference registry, `PuppeteerAdapter` isolating
 `puppeteer-core`, `BrowserToolExecutor` for 11 canonical browser tools, `BrowserService` with
 project-isolated sessions and screenshot artifact handling, typed `browser:*` IPC, preload bridge,
-and `BrowserSurface` workspace component) are implemented. Future packages remain empty shells awaiting their respective
+and `BrowserSurface` workspace component), and the Web Research & Internet Connectivity
+Foundation (canonical research contracts with branded IDs and closed channel vocabulary,
+provenance-bearing results, SSRF guard with DNS-rebinding redirect re-validation, bounded
+secure HTTP fetch with response limits, per-channel TTL research cache, provider health
+ledger with controlled primary → fallback routing, five channel adapters — static web
+reader, pluggable search, structured GitHub, YouTube metadata/transcript, dependency-free
+RSS/Atom — `ResearchRouter` + `ResearchService` with controlled PR34 `BrowserService`
+fallback, `ResearchToolExecutor` under the universal resolve → validate → permission →
+execute lifecycle, `research:*` typed IPC with narrow preload bridge, and `ResearchSurface`
+workspace component) are implemented. Future packages remain empty shells awaiting their respective
 implementation PRs — see [docs/architecture/phase-0.md](docs/architecture/phase-0.md) for the honest list of what is
 and is not implemented.
 
