@@ -266,16 +266,17 @@ describe("research result bounds and serialization", () => {
 });
 
 describe("research tools, capability, and risk", () => {
-  it("registers five builtin in_process tools", () => {
+  it("registers six builtin in_process tools", () => {
     expect([...RESEARCH_TOOL_IDS]).toEqual([
       "builtin:research.search",
       "builtin:research.open",
       "builtin:research.github",
       "builtin:research.youtube",
       "builtin:research.rss",
+      "builtin:research.deep",
     ]);
     const defs = buildAllResearchToolDefinitions();
-    expect(defs).toHaveLength(5);
+    expect(defs).toHaveLength(6);
     for (const def of defs) {
       expect(def.source).toBe("builtin");
       expect(def.runtime).toBe("in_process");
