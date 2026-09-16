@@ -71,6 +71,17 @@ import {
   type DocumentsSearchCommand,
   type DocumentsIngestCommand,
   type DocumentsDeleteCommand,
+  type McpServerListCommand,
+  type McpServerGetCommand,
+  type McpServerConnectCommand,
+  type McpServerDisconnectCommand,
+  type McpCapabilitiesCommand,
+  type McpResourcesCommand,
+  type McpResourceReadCommand,
+  type McpPromptsCommand,
+  type McpPromptGetCommand,
+  type McpSubscribeCommand,
+  type McpUnsubscribeCommand,
 } from "@ai-desktop/shared";
 import type {
   AIEvent,
@@ -275,6 +286,38 @@ export interface DesktopApplicationApi {
     deleteDocument(
       command: DocumentsDeleteCommand,
     ): Promise<IpcResponseEnvelope<{ result: unknown }>>;
+
+    // PR38: MCP server commands (status/capabilities/resources/prompts/
+    // subscriptions; execution flows through the agent tool router).
+    listMcpServers(
+      command: McpServerListCommand,
+    ): Promise<IpcResponseEnvelope<{ servers: unknown[] }>>;
+    getMcpServer(command: McpServerGetCommand): Promise<IpcResponseEnvelope<{ server: unknown }>>;
+    connectMcpServer(
+      command: McpServerConnectCommand,
+    ): Promise<IpcResponseEnvelope<{ result: unknown }>>;
+    disconnectMcpServer(
+      command: McpServerDisconnectCommand,
+    ): Promise<IpcResponseEnvelope<{ disconnected: boolean }>>;
+    listMcpCapabilities(
+      command: McpCapabilitiesCommand,
+    ): Promise<IpcResponseEnvelope<{ health: unknown }>>;
+    listMcpResources(
+      command: McpResourcesCommand,
+    ): Promise<IpcResponseEnvelope<{ resources: unknown[] }>>;
+    readMcpResource(
+      command: McpResourceReadCommand,
+    ): Promise<IpcResponseEnvelope<{ content: unknown }>>;
+    listMcpPrompts(
+      command: McpPromptsCommand,
+    ): Promise<IpcResponseEnvelope<{ prompts: unknown[] }>>;
+    getMcpPrompt(command: McpPromptGetCommand): Promise<IpcResponseEnvelope<{ prompt: unknown }>>;
+    subscribeMcp(
+      command: McpSubscribeCommand,
+    ): Promise<IpcResponseEnvelope<{ subscription: unknown }>>;
+    unsubscribeMcp(
+      command: McpUnsubscribeCommand,
+    ): Promise<IpcResponseEnvelope<{ unsubscribed: boolean }>>;
   };
 
   /**
@@ -496,6 +539,39 @@ export function createDesktopApi(): DesktopApplicationApi {
       },
       async deleteDocument(command: DocumentsDeleteCommand) {
         return ipcRenderer.invoke(IPC_CHANNELS.DOCUMENTS_DELETE, command);
+      },
+      async listMcpServers(command: McpServerListCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.MCP_SERVER_LIST, command);
+      },
+      async getMcpServer(command: McpServerGetCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.MCP_SERVER_GET, command);
+      },
+      async connectMcpServer(command: McpServerConnectCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.MCP_SERVER_CONNECT, command);
+      },
+      async disconnectMcpServer(command: McpServerDisconnectCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.MCP_SERVER_DISCONNECT, command);
+      },
+      async listMcpCapabilities(command: McpCapabilitiesCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.MCP_CAPABILITIES, command);
+      },
+      async listMcpResources(command: McpResourcesCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.MCP_RESOURCES, command);
+      },
+      async readMcpResource(command: McpResourceReadCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.MCP_RESOURCE_READ, command);
+      },
+      async listMcpPrompts(command: McpPromptsCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.MCP_PROMPTS, command);
+      },
+      async getMcpPrompt(command: McpPromptGetCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.MCP_PROMPT_GET, command);
+      },
+      async subscribeMcp(command: McpSubscribeCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.MCP_SUBSCRIBE, command);
+      },
+      async unsubscribeMcp(command: McpUnsubscribeCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.MCP_UNSUBSCRIBE, command);
       },
     },
 

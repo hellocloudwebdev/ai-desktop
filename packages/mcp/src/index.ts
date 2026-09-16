@@ -6,12 +6,46 @@
 //   3. Tools discovered have source="mcp" and runtime="mcp_protocol".
 //   4. Permission evaluation is enforced through PermissionManager before execution.
 
-export type { McpServerConfig, McpTransportType } from "./core/mcp-server-config.js";
-export { McpServerConfigSchema, McpTransportTypeSchema } from "./core/mcp-server-config.js";
+export type {
+  McpServerConfig,
+  McpTransportType,
+  McpEnvValue,
+  McpEnvSecretRef,
+} from "./core/mcp-server-config.js";
+export {
+  McpServerConfigSchema,
+  McpTransportTypeSchema,
+  McpEnvValueSchema,
+  McpEnvSecretRefSchema,
+  isMcpEnvSecretRef,
+} from "./core/mcp-server-config.js";
 
-export type { MCPHost, MCPHostEvents, McpConnectionState, McpServerInfo } from "./core/mcp-host.js";
+export type {
+  MCPHost,
+  MCPHostEvents,
+  McpConnectionState,
+  McpServerInfo,
+  McpResourceInfo,
+  McpResourceTemplateInfo,
+  McpPromptInfo,
+  McpResourceContent,
+  McpPromptResult,
+  McpSubscription,
+  McpServerHealth,
+} from "./core/mcp-host.js";
 
-export { InProcessMCPHost } from "./core/in-process-mcp-host.js";
+export type {
+  McpClientLike,
+  McpClientFactory,
+  InProcessMCPHostDeps,
+} from "./core/in-process-mcp-host.js";
+export { InProcessMCPHost, MCP_NOTIFICATION_METHODS } from "./core/in-process-mcp-host.js";
+
+export type {
+  DiscoveredCapabilities,
+  CapabilityDiscoveryClient,
+} from "./core/mcp-capability-discovery.js";
+export { CapabilityDiscovery, EMPTY_CAPABILITIES } from "./core/mcp-capability-discovery.js";
 
 export type { ToolDefinitionChange, ToolRegistryEvents } from "./core/tool-registry.js";
 export { ToolRegistry } from "./core/tool-registry.js";
@@ -26,3 +60,12 @@ export {
   convertMcpToolToDefinition,
   convertMcpCallResultToToolResult,
 } from "./core/tool-converter.js";
+
+export type {
+  McpAppToolResultInput,
+  McpAppActionInput,
+  McpAppActionBinding,
+  McpAppActionContext,
+  McpAppActionResult,
+} from "./core/mcp-app-surface.js";
+export { buildMcpAppDescriptor, validateMcpAppAction } from "./core/mcp-app-surface.js";

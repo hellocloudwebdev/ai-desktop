@@ -9,7 +9,7 @@
 //   6. Returns canonical ToolResult (never raw MCP CallToolResult).
 
 import { createToolCallId, now, ValidationError, type ToolCallId } from "@ai-desktop/shared";
-import { buildSurfaceMetadata, type ToolResult } from "@ai-desktop/ai-core";
+import { buildSurfaceMetadata, mcpRiskFor, type ToolResult } from "@ai-desktop/ai-core";
 import type { PermissionManager } from "@ai-desktop/permissions";
 import type { MCPHost } from "./mcp-host.js";
 import { parseCanonicalToolId } from "./tool-converter.js";
@@ -120,14 +120,17 @@ export class McpToolExecutor {
     }
 
     // 3. Permission check SECOND (§PR24.8, §PR25.9)
-    // Tool execution must be mediated through PermissionManager.check()
+    // Tool execution must be mediated through PermissionManager.check().
+    // Risk follows the ai-core static domain mapping (mcpRiskFor:
+    // tool-execute -> "medium"); per-tool annotations from untrusted
+    // servers are advisory and never replace it.
     const permResult = await this._permissionManager.check(
       {
         capability: "mcp",
         action: "call",
         resource: toolName,
         scope: "once",
-        risk: "low",
+        risk: mcpRiskFor("tool-execute"),
         relatedToolCallIds: [toolCallId],
       },
       {

@@ -156,6 +156,28 @@ export interface ExtensionsSurfaceProps {
   onProjectToggle(extensionId: string, enabled: boolean): void;
 }
 
+// PR38: renderer — MCP server views (status/capabilities/counts as plain
+// data; connect/disconnect arrive as handler props).
+export interface McpServerView {
+  readonly id: string;
+  readonly name: string;
+  readonly transport: string;
+  readonly state:
+    "configured" | "connecting" | "ready" | "degraded" | "disconnected" | "failed" | "stopped";
+  readonly toolCount: number;
+  readonly resourceCount: number;
+  readonly promptCount: number;
+  readonly capabilities: string[];
+}
+
+export interface McpServersSurfaceProps {
+  readonly servers: McpServerView[];
+  readonly activeProjectId: string;
+  readonly selectedServerId?: string | null;
+  onSelectServer(serverId: string | null): void;
+  onDisconnect(serverId: string): void;
+}
+
 export interface ExtensionsSummary {
   readonly total: number;
   readonly active: number;

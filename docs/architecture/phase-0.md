@@ -1,11 +1,11 @@
 # Phase 0 — What Exists and What Does Not
 
 This document prevents the repository (and its documentation) from claiming functionality
-that does not exist. It reflects the state after **PR37 (Document Intelligence
-& Project RAG Foundation)** and
+that does not exist. It reflects the state after **PR38 (Advanced MCP &
+MCP Apps Foundation)** and
 is updated as each PR lands.
 
-## Implemented (as of PR37)
+## Implemented (as of PR38)
 
 - Repository foundation: pnpm workspace + Turborepo task graph (`build`, `dev`,
   `typecheck`, `lint`, `test`).
@@ -704,6 +704,32 @@ node.completed/node.failed/blocked/replan/completed/failed/cancelled` plus the
     (PDF import → search → page-aware citation; identical-file A/B
     isolation; injection-inert run). Full design in
     `docs/architecture/pr-37-document-intelligence.md`.
+- Advanced MCP & MCP Apps Foundation (`packages/ai-core`, `packages/mcp`,
+  `apps/desktop`, PR38):
+  - Capability contracts in `ai-core` (`mcp-capabilities.ts`): branded
+    server/resource/prompt/subscription IDs, verified transports
+    (stdio/sse/streamable-http/in-memory), 7-state lifecycle machine with
+    validated transitions, open-shape capabilities, tool/resource/template/
+    prompt/result schemas, URI template validation, centralized bounds,
+    secret-free health, capability-aware risk map, untrusted framing, and
+    8 MCP event names (via `extension.custom` — no new event bus).
+  - Host upgrades in `packages/mcp`: capability discovery (server caps +
+    probing fallback), bounded resource/prompt syncs, list-changed resync,
+    typed retrieval with URI gates and 256 KB ceilings, per-project
+    subscriptions (64 cap, 300 s TTL, disconnect cleanup), secretRef
+    resolution, stdio env allowlist, streamable-http wiring, structured
+    result preservation, medium-risk tool execution, and the pure MCP App
+    bridge (renderable kinds only + forged/cross-project action rejection).
+  - Desktop: host singleton + surface descriptor provider, 11 typed
+    `mcp:*` IPC commands + preload bridge (no `mcp:execute`), MCP Servers
+    workspace surface (status/capabilities/counts/disconnect), and the new
+    `desktop → mcp` dependency edge.
+  - Security regression coverage: renderer isolation, malformed inputs,
+    oversized results, dangerous URIs, prompt/tool/resource poisoning,
+    stale-tool removal, disconnect recovery, cross-project isolation,
+    secret non-exposure, and forged actions — plus full-lifecycle,
+    recovery, and cancellation E2E over a real SDK fixture server.
+    Full design in `docs/architecture/pr-38-advanced-mcp.md`.
 - All remaining canonical packages stay **empty shells** (`package.json`, `tsconfig.json`,
   `src/index.ts` placeholder) — deliberately no premature domain functionality inside them.
 - Toolchain: TypeScript 5.9.3, ESLint 10.10.0, Vitest 4.1.10, Vite 8.1.0, Prettier 3.9.6,

@@ -1,6 +1,6 @@
 # ai-desktop
 
-A desktop AI assistant. This repository is currently at **PR37 — Document Intelligence & Project RAG**:
+A desktop AI assistant. This repository is currently at **PR38 — Advanced MCP & MCP Apps**:
 shared primitives, canonical AI domain contracts, projections, in-process EventBus,
 permission checkpoint, SQLite WAL event repository, OS-backed credential store, canonical
 provider contracts, concrete `AnthropicAdapter`, concrete `GeminiAdapter`, Electron 44 desktop
@@ -78,7 +78,15 @@ scoring, Prisma `DocumentRecord`/`DocumentChunkRecord` project-scoped persistenc
 `DocumentService` with within-project dedupe and bounded concurrency, four
 `builtin:documents.*` tools under the existing permission architecture with delete gated
 high, `documents:*` typed IPC with narrow preload bridge, untrusted-document framing
-with PR36-shaped evidence mapping, and the extended Files surface documents panel) are
+with PR36-shaped evidence mapping, and the extended Files surface documents panel), and the
+Advanced MCP & MCP Apps Foundation (capability contracts with lifecycle machine and
+capability discovery over tools/resources/prompts, typed resource retrieval with URI gates
+and templates, framed prompt retrieval, per-project subscriptions with TTL cleanup,
+structured tool results with server provenance, streamable-http transport, secretRef
+resolution with stdio env allowlist, pure MCP App surface bridge into renderable
+RichSurface descriptors with validated interactions, desktop host singleton with eleven
+typed `mcp:*` IPC commands and preload bridge, MCP Servers workspace surface, and
+injection/poisoning/forgery/isolation/secret security tests with full-lifecycle E2E) are
 implemented. Future packages remain empty shells awaiting their respective
 implementation PRs — see [docs/architecture/phase-0.md](docs/architecture/phase-0.md) for the honest list of what is
 and is not implemented.

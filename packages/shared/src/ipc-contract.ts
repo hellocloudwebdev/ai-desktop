@@ -136,6 +136,21 @@ export const IPC_CHANNELS = {
   DOCUMENTS_SEARCH: "documents:search",
   DOCUMENTS_INGEST: "documents:ingest",
   DOCUMENTS_DELETE: "documents:delete",
+
+  // MCP server operations (PR38). NOTE: there is intentionally NO
+  // mcp:execute channel — tool execution flows through the agent tool
+  // router (McpToolExecutor), never arbitrary IPC.
+  MCP_SERVER_LIST: "mcp:listServers",
+  MCP_SERVER_GET: "mcp:getServer",
+  MCP_SERVER_CONNECT: "mcp:connect",
+  MCP_SERVER_DISCONNECT: "mcp:disconnect",
+  MCP_CAPABILITIES: "mcp:listCapabilities",
+  MCP_RESOURCES: "mcp:listResources",
+  MCP_RESOURCE_READ: "mcp:readResource",
+  MCP_PROMPTS: "mcp:listPrompts",
+  MCP_PROMPT_GET: "mcp:getPrompt",
+  MCP_SUBSCRIBE: "mcp:subscribe",
+  MCP_UNSUBSCRIBE: "mcp:unsubscribe",
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];
@@ -888,6 +903,86 @@ export const DocumentsDeleteCommandSchema = z.object({
 });
 
 export type DocumentsDeleteCommand = z.infer<typeof DocumentsDeleteCommandSchema>;
+
+// ---------------------------------------------------------------------------
+// MCP Server Commands (PR38)
+// NOTE: no mcp:execute — execution flows through the agent tool router.
+// ---------------------------------------------------------------------------
+
+const McpServerIdField = z.string().trim().min(1).max(128);
+
+export const McpServerListCommandSchema = z.object({
+  projectId: z.string().trim().min(1).max(256).optional(),
+});
+
+export type McpServerListCommand = z.infer<typeof McpServerListCommandSchema>;
+
+export const McpServerGetCommandSchema = z.object({
+  serverId: McpServerIdField,
+});
+
+export type McpServerGetCommand = z.infer<typeof McpServerGetCommandSchema>;
+
+export const McpServerConnectCommandSchema = z.object({
+  serverId: McpServerIdField,
+  projectId: z.string().trim().min(1).max(256).optional(),
+});
+
+export type McpServerConnectCommand = z.infer<typeof McpServerConnectCommandSchema>;
+
+export const McpServerDisconnectCommandSchema = z.object({
+  serverId: McpServerIdField,
+});
+
+export type McpServerDisconnectCommand = z.infer<typeof McpServerDisconnectCommandSchema>;
+
+export const McpCapabilitiesCommandSchema = z.object({
+  serverId: McpServerIdField,
+});
+
+export type McpCapabilitiesCommand = z.infer<typeof McpCapabilitiesCommandSchema>;
+
+export const McpResourcesCommandSchema = z.object({
+  serverId: McpServerIdField,
+});
+
+export type McpResourcesCommand = z.infer<typeof McpResourcesCommandSchema>;
+
+export const McpResourceReadCommandSchema = z.object({
+  serverId: McpServerIdField,
+  uri: z.string().trim().min(1).max(2000),
+  projectId: z.string().trim().min(1).max(256),
+});
+
+export type McpResourceReadCommand = z.infer<typeof McpResourceReadCommandSchema>;
+
+export const McpPromptsCommandSchema = z.object({
+  serverId: McpServerIdField,
+});
+
+export type McpPromptsCommand = z.infer<typeof McpPromptsCommandSchema>;
+
+export const McpPromptGetCommandSchema = z.object({
+  serverId: McpServerIdField,
+  name: z.string().trim().min(1).max(128),
+  projectId: z.string().trim().min(1).max(256),
+});
+
+export type McpPromptGetCommand = z.infer<typeof McpPromptGetCommandSchema>;
+
+export const McpSubscribeCommandSchema = z.object({
+  serverId: McpServerIdField,
+  uri: z.string().trim().min(1).max(2000),
+  projectId: z.string().trim().min(1).max(256),
+});
+
+export type McpSubscribeCommand = z.infer<typeof McpSubscribeCommandSchema>;
+
+export const McpUnsubscribeCommandSchema = z.object({
+  subscriptionId: z.string().trim().min(1).max(128),
+});
+
+export type McpUnsubscribeCommand = z.infer<typeof McpUnsubscribeCommandSchema>;
 
 // ---------------------------------------------------------------------------
 // Extension Payloads (PR32)

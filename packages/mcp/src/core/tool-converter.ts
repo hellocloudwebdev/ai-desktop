@@ -1,14 +1,19 @@
-// PR25.7 & PR25.8: packages/mcp — Tool Discovery and Conversion
+// PR25.7 & PR25.8 + PR38: packages/mcp — Tool Discovery and Conversion
 //
 // Invariants:
 //   1. ToolSource must be "mcp", ToolRuntime must be "mcp_protocol".
 //   2. Stable tool ID: mcp:<serverId>/<toolName>.
 //   3. Deterministic SHA-256 definition hash for detecting changes.
 //   4. MCP SDK types are encapsulated; consumers only receive canonical ToolDefinition/ToolResult.
+//   5. PR38: call-result conversion preserves normalized structured contents
+//      (text/image/audio/resource/structured per the ai-core
+//      MCPToolResultContent shapes) in metadata.structuredContents while the
+//      legacy `result` string behavior is unchanged (no breaking change).
+//      Normalization is best-effort and never throws.
 
 import { createHash } from "node:crypto";
 import { createToolCallId, now, type ToolCallId } from "@ai-desktop/shared";
-import type { ToolDefinition, ToolResult } from "@ai-desktop/ai-core";
+import type { MCPToolResultContent, ToolDefinition, ToolResult } from "@ai-desktop/ai-core";
 
 export interface McpRawTool {
   name: string;
@@ -97,6 +102,7 @@ export function convertMcpCallResultToToolResult(params: {
   const { toolCallId, canonicalToolName, mcpResult, durationMs } = params;
   const anyResult = mcpResult as {
     content?: Array<{ type: string; text?: string; data?: string; mimeType?: string }>;
+    structuredContent?: unknown;
     isError?: boolean;
     [key: string]: unknown;
   };
@@ -112,6 +118,14 @@ export function convertMcpCallResultToToolResult(params: {
     }
   }
 
+  const metadata: Record<string, unknown> = {
+    rawMcpResult: anyResult,
+  };
+  const structuredContents = normalizeMcpResultContents(anyResult);
+  if (structuredContents) {
+    metadata.structuredContents = structuredContents;
+  }
+
   return {
     toolCallId: toolCallId ?? createToolCallId(),
     toolName: canonicalToolName,
@@ -119,8 +133,91 @@ export function convertMcpCallResultToToolResult(params: {
     isError,
     durationMs,
     timestamp: now(),
-    metadata: {
-      rawMcpResult: anyResult,
-    },
+    metadata,
   };
+}
+
+/**
+ * Normalizes raw MCP call-result content blocks to the ai-core
+ * MCPToolResultContent shapes. Best-effort: unknown blocks are carried as
+ * structured JSON, unparseable payloads yield undefined (never throws).
+ * Capped at 32 entries to match the ai-core bound.
+ */
+function normalizeMcpResultContents(raw: {
+  content?: unknown;
+  structuredContent?: unknown;
+}): MCPToolResultContent[] | undefined {
+  try {
+    const out: MCPToolResultContent[] = [];
+    const blocks = Array.isArray(raw?.content) ? raw.content : [];
+    for (const block of blocks.slice(0, 32)) {
+      const normalized = normalizeMcpContentBlock(block);
+      if (normalized) {
+        out.push(normalized);
+      }
+    }
+    if (raw?.structuredContent !== undefined && out.length < 32) {
+      const structured = raw.structuredContent;
+      if (structured !== null && typeof structured === "object" && !Array.isArray(structured)) {
+        out.push({ kind: "structured", structured: structured as Record<string, unknown> });
+      } else {
+        out.push({ kind: "structured", structured: { value: structured } });
+      }
+    }
+    return out.length > 0 ? out : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function normalizeMcpContentBlock(block: unknown): MCPToolResultContent | undefined {
+  if (!block || typeof block !== "object") {
+    return undefined;
+  }
+  const b = block as {
+    type?: unknown;
+    text?: unknown;
+    data?: unknown;
+    mimeType?: unknown;
+    resource?: unknown;
+  };
+  const mimeType = typeof b.mimeType === "string" ? b.mimeType : undefined;
+
+  switch (b.type) {
+    case "text":
+      return typeof b.text === "string" ? { kind: "text", text: b.text, mimeType } : undefined;
+    case "image":
+      return typeof b.data === "string" ? { kind: "image", base64: b.data, mimeType } : undefined;
+    case "audio":
+      return typeof b.data === "string" ? { kind: "audio", base64: b.data, mimeType } : undefined;
+    case "resource": {
+      const resource = b.resource as
+        { uri?: unknown; text?: unknown; blob?: unknown; mimeType?: unknown } | undefined;
+      const resourceUri = resource && typeof resource.uri === "string" ? resource.uri : undefined;
+      if (!resourceUri) {
+        return { kind: "resource", structured: { value: b.resource ?? null } };
+      }
+      const entry: MCPToolResultContent = { kind: "resource", resourceUri };
+      if (typeof resource?.text === "string") {
+        entry.text = resource.text;
+      }
+      if (typeof resource?.blob === "string") {
+        entry.base64 = resource.blob;
+      }
+      const resourceMime = resource?.mimeType;
+      if (typeof resourceMime === "string") {
+        entry.mimeType = resourceMime;
+      } else if (mimeType) {
+        entry.mimeType = mimeType;
+      }
+      return entry;
+    }
+    default:
+      // Unknown block type: carry the raw block as structured data, or as
+      // text when it has a text field.
+      if (typeof b.text === "string") {
+        return { kind: "text", text: b.text, mimeType };
+      }
+      return { kind: "structured", structured: { value: b } };
+  }
 }

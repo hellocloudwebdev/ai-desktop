@@ -78,6 +78,17 @@ import {
   DocumentsSearchCommandSchema,
   DocumentsIngestCommandSchema,
   DocumentsDeleteCommandSchema,
+  McpServerListCommandSchema,
+  McpServerGetCommandSchema,
+  McpServerConnectCommandSchema,
+  McpServerDisconnectCommandSchema,
+  McpCapabilitiesCommandSchema,
+  McpResourcesCommandSchema,
+  McpResourceReadCommandSchema,
+  McpPromptsCommandSchema,
+  McpPromptGetCommandSchema,
+  McpSubscribeCommandSchema,
+  McpUnsubscribeCommandSchema,
   createToolCallId,
   type ChatCancelCommand,
   type ChatSendCommand,
@@ -158,6 +169,7 @@ import type { SurfaceService } from "../surfaces/surface-service.js";
 import type { BrowserService } from "../browser/index.js";
 import type { ResearchService } from "../research/index.js";
 import type { DocumentService } from "../documents/index.js";
+import type { MCPHost } from "@ai-desktop/mcp";
 import type { ActiveStreamRegistry, ChatService, ModelSelectionService } from "../chat/index.js";
 import type { IpcBatcher } from "./batcher.js";
 
@@ -254,6 +266,7 @@ export interface RegisterIpcOptions {
   browserService?: BrowserService;
   researchService?: ResearchService;
   documentService?: DocumentService;
+  mcpHost?: MCPHost;
 }
 
 export class IpcRegistry {
@@ -501,6 +514,8 @@ export function registerIpcHandlers(
     options && "researchService" in options ? options.researchService : undefined;
   const documentService: DocumentService | undefined =
     options && "documentService" in options ? options.documentService : undefined;
+  const mcpHost: MCPHost | undefined =
+    options && "mcpHost" in options ? options.mcpHost : undefined;
   if (batcher) {
     registry.attachBatcher(batcher);
   }
@@ -1761,6 +1776,116 @@ export function registerIpcHandlers(
         return { result };
       }
       throw new Error("DocumentService is not available");
+    },
+  );
+
+  // 67-77. MCP server commands (PR38): status/capabilities/resources/
+  // prompts/subscriptions over the desktop MCP host. No mcp:execute —
+  // execution flows through the agent tool router.
+  registry.registerCommand(IPC_CHANNELS.MCP_SERVER_LIST, McpServerListCommandSchema, async () => {
+    if (mcpHost) {
+      return { servers: [...mcpHost.listServers()] };
+    }
+    return { servers: [] };
+  });
+
+  registry.registerCommand(
+    IPC_CHANNELS.MCP_SERVER_GET,
+    McpServerGetCommandSchema,
+    async (input) => {
+      if (mcpHost) {
+        return { server: mcpHost.getServerStatus(input.serverId) ?? null };
+      }
+      return { server: null };
+    },
+  );
+
+  registry.registerCommand(
+    IPC_CHANNELS.MCP_SERVER_CONNECT,
+    McpServerConnectCommandSchema,
+    async () => {
+      throw new Error("MCP server connect is configured at startup, not via IPC");
+    },
+  );
+
+  registry.registerCommand(
+    IPC_CHANNELS.MCP_SERVER_DISCONNECT,
+    McpServerDisconnectCommandSchema,
+    async (input) => {
+      if (mcpHost) {
+        await mcpHost.disconnect(input.serverId);
+        return { disconnected: true };
+      }
+      throw new Error("MCP host is not available");
+    },
+  );
+
+  registry.registerCommand(
+    IPC_CHANNELS.MCP_CAPABILITIES,
+    McpCapabilitiesCommandSchema,
+    async (input) => {
+      if (mcpHost) {
+        return { health: mcpHost.getHealth(input.serverId) ?? null };
+      }
+      return { health: null };
+    },
+  );
+
+  registry.registerCommand(IPC_CHANNELS.MCP_RESOURCES, McpResourcesCommandSchema, async (input) => {
+    if (mcpHost) {
+      return { resources: [...(await mcpHost.listResources(input.serverId))] };
+    }
+    return { resources: [] };
+  });
+
+  registry.registerCommand(
+    IPC_CHANNELS.MCP_RESOURCE_READ,
+    McpResourceReadCommandSchema,
+    async (input) => {
+      if (mcpHost) {
+        const content = await mcpHost.readResource(input.serverId, input.uri);
+        return { content };
+      }
+      throw new Error("MCP host is not available");
+    },
+  );
+
+  registry.registerCommand(IPC_CHANNELS.MCP_PROMPTS, McpPromptsCommandSchema, async (input) => {
+    if (mcpHost) {
+      return { prompts: [...(await mcpHost.listPrompts(input.serverId))] };
+    }
+    return { prompts: [] };
+  });
+
+  registry.registerCommand(
+    IPC_CHANNELS.MCP_PROMPT_GET,
+    McpPromptGetCommandSchema,
+    async (input) => {
+      if (mcpHost) {
+        const prompt = await mcpHost.getPrompt(input.serverId, input.name);
+        return { prompt };
+      }
+      throw new Error("MCP host is not available");
+    },
+  );
+
+  registry.registerCommand(IPC_CHANNELS.MCP_SUBSCRIBE, McpSubscribeCommandSchema, async (input) => {
+    if (mcpHost) {
+      const subscription = await mcpHost.subscribe(input.serverId, input.uri, input.projectId);
+      return { subscription };
+    }
+    throw new Error("MCP host is not available");
+  });
+
+  registry.registerCommand(
+    IPC_CHANNELS.MCP_UNSUBSCRIBE,
+    McpUnsubscribeCommandSchema,
+    async (input) => {
+      if (mcpHost) {
+        await mcpHost.unsubscribe(input.subscriptionId);
+        return { unsubscribed: true };
+      }
+      throw new Error("MCP host is not available");
     },
   );
 }

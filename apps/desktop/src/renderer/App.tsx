@@ -21,6 +21,7 @@ import type {
   DocumentFileView,
   ExtensionView,
   FileEntryView,
+  McpServerView,
   ResearchDocumentView,
   ResearchProviderStatusView,
   ResearchResultView,
@@ -104,6 +105,10 @@ export function App(): React.ReactElement {
   const [projectDocuments, setProjectDocuments] = useState<DocumentFileView[]>([]);
   const [selectedDocument, setSelectedDocument] = useState<SelectedDocumentView | null>(null);
   const [documentsError, setDocumentsError] = useState<string | null>(null);
+  // PR38: MCP servers list + selection (App-owned backend state over the
+  // mcp:* preload bridge; McpServers surface is a pure view).
+  const [mcpServers, setMcpServers] = useState<McpServerView[]>([]);
+  const [selectedMcpServerId, setSelectedMcpServerId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   // PR34.5: load browser pages through the preload bridge
@@ -344,6 +349,50 @@ export function App(): React.ReactElement {
   useEffect(() => {
     void refreshDocuments();
   }, [refreshDocuments]);
+
+  // PR38: load MCP servers through the preload bridge. No-ops when the
+  // bridge is absent (preload not yet updated, or non-Electron hosts).
+  const refreshMcpServers = useCallback(async () => {
+    if (typeof window === "undefined" || !window.api) return;
+    try {
+      const res = await window.api.commands.listMcpServers({});
+      if (res.ok && Array.isArray(res.value.servers)) {
+        setMcpServers(
+          (res.value.servers as Array<Record<string, unknown>>).map((s) => ({
+            id: String(s["id"] ?? ""),
+            name: String(s["name"] ?? s["id"] ?? ""),
+            transport: String(s["transport"] ?? "unknown"),
+            state: String(s["state"] ?? "disconnected") as McpServerView["state"],
+            toolCount: Number(s["toolCount"] ?? 0),
+            resourceCount: Number(s["resourceCount"] ?? 0),
+            promptCount: Number(s["promptCount"] ?? 0),
+            capabilities: Array.isArray(s["capabilities"])
+              ? (s["capabilities"] as unknown[]).map(String)
+              : [],
+          })),
+        );
+      }
+    } catch (err) {
+      console.warn("Failed to list MCP servers:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshMcpServers();
+  }, [refreshMcpServers]);
+
+  const handleDisconnectMcpServer = useCallback(
+    async (serverId: string) => {
+      if (typeof window === "undefined" || !window.api) return;
+      try {
+        await window.api.commands.disconnectMcpServer({ serverId });
+        await refreshMcpServers();
+      } catch (err) {
+        console.warn("Failed to disconnect MCP server:", err);
+      }
+    },
+    [refreshMcpServers],
+  );
 
   // PR32: extension mutation handlers (mutate via bridge, then refresh).
   const handleEnableExtension = useCallback(
@@ -1119,6 +1168,13 @@ export function App(): React.ReactElement {
         onClosePage: (pageId) => void handleCloseBrowserPage(pageId),
         onTakeScreenshot: (pageId) => void handleTakeScreenshot(pageId),
         screenshotArtifact: browserScreenshot,
+      }}
+      mcp={{
+        servers: mcpServers,
+        activeProjectId: workspace.state.activeProjectId,
+        selectedServerId: selectedMcpServerId,
+        onSelectServer: setSelectedMcpServerId,
+        onDisconnect: (serverId) => void handleDisconnectMcpServer(serverId),
       }}
       research={{
         activeProjectId: workspace.state.activeProjectId,

@@ -8,6 +8,7 @@ import type { WorkspaceStore } from "../../workspace/store.js";
 import { ChatSurface } from "./surfaces/ChatSurface.js";
 import { CodingSurface } from "./surfaces/CodingSurface.js";
 import { ExtensionsSurface } from "./surfaces/ExtensionsSurface.js";
+import { McpServersSurface } from "./surfaces/McpServersSurface.js";
 import { BrowserSurface } from "./surfaces/BrowserSurface.js";
 import { ResearchSurface } from "./surfaces/ResearchSurface.js";
 import { RichSurfaceHost } from "./surfaces/RichSurfaceHost.js";
@@ -20,6 +21,7 @@ import type {
   DocumentFileView,
   ExtensionsSurfaceProps,
   FileEntryView,
+  McpServersSurfaceProps,
   ResearchSurfaceProps,
   SelectedDocumentView,
   SurfaceHostProps,
@@ -40,6 +42,7 @@ interface WorkspaceMainProps {
   readonly extensions: ExtensionsSurfaceProps;
   readonly browser: BrowserSurfaceProps;
   readonly research: ResearchSurfaceProps;
+  readonly mcp?: McpServersSurfaceProps;
   // PR33.8: renderer — optional rich-surface branch (additive).
   readonly surfaceHost?: SurfaceHostProps;
 }
@@ -58,6 +61,7 @@ export function WorkspaceMain({
   extensions,
   browser,
   research,
+  mcp,
   surfaceHost,
 }: WorkspaceMainProps): React.ReactElement {
   const surface = store.state.activeSurface;
@@ -108,6 +112,16 @@ export function WorkspaceMain({
   }
   if (surface === "research") {
     return <ResearchSurface {...research} />;
+  }
+  if (surface === "mcp") {
+    if (!mcp) {
+      return (
+        <div className="flex h-full items-center justify-center p-6">
+          <p className="text-xs text-slate-500">MCP unavailable.</p>
+        </div>
+      );
+    }
+    return <McpServersSurface {...mcp} />;
   }
   return <ChatSurface {...chat} />;
 }

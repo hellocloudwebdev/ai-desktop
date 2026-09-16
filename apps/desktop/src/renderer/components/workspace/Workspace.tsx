@@ -18,6 +18,7 @@ import type {
   DocumentFileView,
   ExtensionsSurfaceProps,
   BrowserSurfaceProps,
+  McpServersSurfaceProps,
   ResearchSurfaceProps,
   InspectorProps,
   SelectedDocumentView,
@@ -46,6 +47,7 @@ export interface WorkspaceShellProps {
   readonly extensions: ExtensionsSurfaceProps;
   readonly browser: BrowserSurfaceProps;
   readonly research: ResearchSurfaceProps;
+  readonly mcp?: McpServersSurfaceProps;
   readonly inspector: InspectorProps;
   readonly composer: ComposerProps;
   // PR33.8: renderer — rich-surface host view (additive pass-through).
@@ -70,6 +72,7 @@ export function WorkspaceShell({
   extensions,
   browser,
   research,
+  mcp,
   inspector,
   composer,
   surfaceHost,
@@ -149,6 +152,7 @@ export function WorkspaceShell({
               extensions={extensions}
               browser={browser}
               research={research}
+              mcp={mcp}
               surfaceHost={surfaceHost}
             />
           </WorkspaceErrorBoundary>
