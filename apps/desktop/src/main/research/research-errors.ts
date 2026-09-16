@@ -132,6 +132,16 @@ export class ResearchUnavailable extends ResearchError {
   }
 }
 
+export class ResearchBudgetExceeded extends ResearchError {
+  readonly limit: string;
+
+  constructor(limit: string, message?: string, options?: ErrorOptions) {
+    super("RESEARCH_BUDGET_EXCEEDED", message ?? `Research budget exceeded: "${limit}"`, options);
+    this.name = "ResearchBudgetExceeded";
+    this.limit = limit;
+  }
+}
+
 /** Maps any unknown error to a canonical ResearchError (secrets redacted). */
 export function toCanonicalResearchError(err: unknown): ResearchError {
   if (err instanceof ResearchError) {
