@@ -43,6 +43,87 @@ export interface CodingSurfaceProps {
   onCancel(taskId: string): void;
 }
 
+// PR41: renderer — coding workspace views (explorer, tabs, search,
+// diagnostics, terminal, diff as plain data; operations via bridge).
+export interface WorkspaceFileNode {
+  readonly name: string;
+  readonly kind: "file" | "directory";
+  readonly path: string;
+  readonly children?: WorkspaceFileNode[];
+}
+
+export interface WorkspaceTab {
+  readonly path: string;
+  readonly content: string;
+  readonly dirty: boolean;
+  readonly conflict: boolean;
+  readonly mtimeMs?: number;
+}
+
+export interface WorkspaceSearchMatch {
+  readonly path: string;
+  readonly line: number;
+  readonly column: number;
+  readonly text: string;
+}
+
+export interface WorkspaceSearchView {
+  readonly matches: WorkspaceSearchMatch[];
+  readonly truncated: boolean;
+}
+
+export interface WorkspaceDiagnosticView {
+  readonly path: string;
+  readonly line: number;
+  readonly column: number;
+  readonly severity: "error" | "warning" | "information" | "hint";
+  readonly message: string;
+}
+
+export interface WorkspaceTerminalView {
+  readonly id: string;
+  readonly state: string;
+  readonly command: string;
+}
+
+export interface WorkspaceDiffView {
+  readonly path: string;
+  readonly hunks: Array<{
+    readonly lines: Array<{ readonly kind: "context" | "add" | "del"; readonly text: string }>;
+  }>;
+}
+
+export interface CodingWorkspaceProps {
+  readonly activeProjectId: string;
+  readonly files: WorkspaceFileNode[];
+  readonly tabs: WorkspaceTab[];
+  readonly activeTabPath: string | null;
+  readonly search: WorkspaceSearchView | null;
+  readonly diagnostics: WorkspaceDiagnosticView[];
+  readonly terminals: WorkspaceTerminalView[];
+  readonly terminalOutput: string | null;
+  readonly diff: WorkspaceDiffView | null;
+  readonly codingTasks: TaskView[];
+  readonly codingPrompt: string;
+  readonly codingRunning: boolean;
+  readonly workspaceError: string | null;
+  onRefreshFiles(): void;
+  onOpenFile(path: string): void;
+  onCloseTab(path: string): void;
+  onSelectTab(path: string): void;
+  onEditTab(path: string, content: string): void;
+  onSaveFile(path: string): void;
+  onSaveAllFiles(): void;
+  onRevertFile(path: string): void;
+  onSearch(query: string): void;
+  onTerminalCreate(command: string): void;
+  onTerminalStop(id: string): void;
+  onPromptChange(value: string): void;
+  onProjectChange(value: string): void;
+  onStartTask(): void;
+  onCancelTask(taskId: string): void;
+}
+
 export interface TasksSurfaceProps {
   readonly agentTasks: TaskView[];
   readonly codingTasks: TaskView[];

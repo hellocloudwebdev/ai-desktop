@@ -103,6 +103,22 @@ import {
   RealtimeSessionListCommandSchema,
   RealtimeTranscriptCommandSchema,
   RealtimeAudioCommandSchema,
+  WorkspaceFilesListCommandSchema,
+  WorkspaceFilesReadCommandSchema,
+  WorkspaceFilesWriteCommandSchema,
+  WorkspaceFilesCreateCommandSchema,
+  WorkspaceFilesRenameCommandSchema,
+  WorkspaceFilesDeleteCommandSchema,
+  WorkspaceSearchCommandSchema,
+  WorkspaceDiagnosticsReportCommandSchema,
+  WorkspaceDiagnosticsListCommandSchema,
+  WorkspaceDiagnosticsClearCommandSchema,
+  TerminalListCommandSchema,
+  TerminalCreateCommandSchema,
+  TerminalWriteCommandSchema,
+  TerminalResizeCommandSchema,
+  TerminalStopCommandSchema,
+  TerminalOutputCommandSchema,
   createToolCallId,
   type ChatCancelCommand,
   type ChatSendCommand,
@@ -195,6 +211,25 @@ import {
   type AttachmentsIpcDependencies,
 } from "../chat/attachments-ipc.js";
 import type { IpcBatcher } from "./batcher.js";
+import {
+  clearWorkspaceDiagnostics,
+  createTerminal,
+  createWorkspaceEntry,
+  deleteWorkspaceEntry,
+  listTerminals,
+  listWorkspaceDiagnostics,
+  listWorkspaceFiles,
+  readTerminalOutput,
+  readWorkspaceFile,
+  renameWorkspaceEntry,
+  reportWorkspaceDiagnostics,
+  resizeTerminal,
+  searchWorkspaceContent,
+  stopTerminal,
+  writeTerminal,
+  writeWorkspaceFile,
+  type WorkspaceIpcDependencies,
+} from "../workspace/index.js";
 
 export type CommandHandler<TInput, TOutput> = (
   input: TInput,
@@ -292,6 +327,7 @@ export interface RegisterIpcOptions {
   attachments?: AttachmentsIpcDependencies;
   mcpHost?: MCPHost;
   realtimeService?: RealtimeService;
+  workspaceDeps?: WorkspaceIpcDependencies;
 }
 
 export class IpcRegistry {
@@ -545,6 +581,8 @@ export function registerIpcHandlers(
     options && "mcpHost" in options ? options.mcpHost : undefined;
   const realtimeService: RealtimeService | undefined =
     options && "realtimeService" in options ? options.realtimeService : undefined;
+  const workspaceDeps: WorkspaceIpcDependencies | undefined =
+    options && "workspaceDeps" in options ? options.workspaceDeps : undefined;
   if (batcher) {
     registry.attachBatcher(batcher);
   }
@@ -2093,6 +2131,184 @@ export function registerIpcHandlers(
         return { accepted: true };
       }
       throw new Error("RealtimeService is not available");
+    },
+  );
+
+  // 91-100. Workspace commands (PR41): project-scoped list/read/write/
+  // create/rename/delete/search/diagnostics over the workspace services.
+  // Mirrors the attachments:* pattern above: no permission call in IPC
+  // (agent tools enforce), missing deps fail closed. There is
+  // intentionally NO workspace:execute / filesystem:execute /
+  // shell:execute / node:execute channel — execution flows through the
+  // agent tool router (CodingToolExecutor), never through IPC.
+  registry.registerCommand(
+    IPC_CHANNELS.WORKSPACE_FILES_LIST,
+    WorkspaceFilesListCommandSchema,
+    async (input) => {
+      if (workspaceDeps) {
+        return listWorkspaceFiles(workspaceDeps, input);
+      }
+      throw new Error("WorkspaceFileService is not available");
+    },
+  );
+
+  registry.registerCommand(
+    IPC_CHANNELS.WORKSPACE_FILES_READ,
+    WorkspaceFilesReadCommandSchema,
+    async (input) => {
+      if (workspaceDeps) {
+        return readWorkspaceFile(workspaceDeps, input);
+      }
+      throw new Error("WorkspaceFileService is not available");
+    },
+  );
+
+  registry.registerCommand(
+    IPC_CHANNELS.WORKSPACE_FILES_WRITE,
+    WorkspaceFilesWriteCommandSchema,
+    async (input) => {
+      if (workspaceDeps) {
+        return writeWorkspaceFile(workspaceDeps, input);
+      }
+      throw new Error("WorkspaceFileService is not available");
+    },
+  );
+
+  registry.registerCommand(
+    IPC_CHANNELS.WORKSPACE_FILES_CREATE,
+    WorkspaceFilesCreateCommandSchema,
+    async (input) => {
+      if (workspaceDeps) {
+        return createWorkspaceEntry(workspaceDeps, input);
+      }
+      throw new Error("WorkspaceFileService is not available");
+    },
+  );
+
+  registry.registerCommand(
+    IPC_CHANNELS.WORKSPACE_FILES_RENAME,
+    WorkspaceFilesRenameCommandSchema,
+    async (input) => {
+      if (workspaceDeps) {
+        return renameWorkspaceEntry(workspaceDeps, input);
+      }
+      throw new Error("WorkspaceFileService is not available");
+    },
+  );
+
+  registry.registerCommand(
+    IPC_CHANNELS.WORKSPACE_FILES_DELETE,
+    WorkspaceFilesDeleteCommandSchema,
+    async (input) => {
+      if (workspaceDeps) {
+        return deleteWorkspaceEntry(workspaceDeps, input);
+      }
+      throw new Error("WorkspaceFileService is not available");
+    },
+  );
+
+  registry.registerCommand(
+    IPC_CHANNELS.WORKSPACE_SEARCH,
+    WorkspaceSearchCommandSchema,
+    async (input) => {
+      if (workspaceDeps) {
+        return searchWorkspaceContent(workspaceDeps, input);
+      }
+      throw new Error("WorkspaceSearchService is not available");
+    },
+  );
+
+  registry.registerCommand(
+    IPC_CHANNELS.WORKSPACE_DIAGNOSTICS_REPORT,
+    WorkspaceDiagnosticsReportCommandSchema,
+    async (input) => {
+      if (workspaceDeps) {
+        return reportWorkspaceDiagnostics(workspaceDeps, input);
+      }
+      throw new Error("DiagnosticsService is not available");
+    },
+  );
+
+  registry.registerCommand(
+    IPC_CHANNELS.WORKSPACE_DIAGNOSTICS_LIST,
+    WorkspaceDiagnosticsListCommandSchema,
+    async (input) => {
+      if (workspaceDeps) {
+        return listWorkspaceDiagnostics(workspaceDeps, input);
+      }
+      throw new Error("DiagnosticsService is not available");
+    },
+  );
+
+  registry.registerCommand(
+    IPC_CHANNELS.WORKSPACE_DIAGNOSTICS_CLEAR,
+    WorkspaceDiagnosticsClearCommandSchema,
+    async (input) => {
+      if (workspaceDeps) {
+        return clearWorkspaceDiagnostics(workspaceDeps, input);
+      }
+      throw new Error("DiagnosticsService is not available");
+    },
+  );
+
+  // Terminal commands (PR41): project-scoped sessions over the PR27
+  // ExecutionManager. No stdin channel beyond fail-closed write; no shell
+  // spawning from renderer input outside sandboxed command execution.
+  registry.registerCommand(IPC_CHANNELS.TERMINAL_LIST, TerminalListCommandSchema, async (input) => {
+    if (workspaceDeps) {
+      return listTerminals(workspaceDeps, input);
+    }
+    throw new Error("TerminalService is not available");
+  });
+
+  registry.registerCommand(
+    IPC_CHANNELS.TERMINAL_CREATE,
+    TerminalCreateCommandSchema,
+    async (input) => {
+      if (workspaceDeps) {
+        return createTerminal(workspaceDeps, input);
+      }
+      throw new Error("TerminalService is not available");
+    },
+  );
+
+  registry.registerCommand(
+    IPC_CHANNELS.TERMINAL_WRITE,
+    TerminalWriteCommandSchema,
+    async (input) => {
+      if (workspaceDeps) {
+        return writeTerminal(workspaceDeps, input);
+      }
+      throw new Error("TerminalService is not available");
+    },
+  );
+
+  registry.registerCommand(
+    IPC_CHANNELS.TERMINAL_RESIZE,
+    TerminalResizeCommandSchema,
+    async (input) => {
+      if (workspaceDeps) {
+        return resizeTerminal(workspaceDeps, input);
+      }
+      throw new Error("TerminalService is not available");
+    },
+  );
+
+  registry.registerCommand(IPC_CHANNELS.TERMINAL_STOP, TerminalStopCommandSchema, async (input) => {
+    if (workspaceDeps) {
+      return stopTerminal(workspaceDeps, input);
+    }
+    throw new Error("TerminalService is not available");
+  });
+
+  registry.registerCommand(
+    IPC_CHANNELS.TERMINAL_OUTPUT,
+    TerminalOutputCommandSchema,
+    async (input) => {
+      if (workspaceDeps) {
+        return readTerminalOutput(workspaceDeps, input);
+      }
+      throw new Error("TerminalService is not available");
     },
   );
 }

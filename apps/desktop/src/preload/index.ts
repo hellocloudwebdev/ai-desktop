@@ -96,6 +96,22 @@ import {
   type RealtimeSessionListCommand,
   type RealtimeTranscriptCommand,
   type RealtimeAudioCommand,
+  type WorkspaceFilesListCommand,
+  type WorkspaceFilesReadCommand,
+  type WorkspaceFilesWriteCommand,
+  type WorkspaceFilesCreateCommand,
+  type WorkspaceFilesRenameCommand,
+  type WorkspaceFilesDeleteCommand,
+  type WorkspaceSearchCommand,
+  type WorkspaceDiagnosticsReportCommand,
+  type WorkspaceDiagnosticsListCommand,
+  type WorkspaceDiagnosticsClearCommand,
+  type TerminalListCommand,
+  type TerminalCreateCommand,
+  type TerminalWriteCommand,
+  type TerminalResizeCommand,
+  type TerminalStopCommand,
+  type TerminalOutputCommand,
 } from "@ai-desktop/shared";
 import type {
   AIEvent,
@@ -380,6 +396,51 @@ export interface DesktopApplicationApi {
     sendRealtimeAudio(
       command: RealtimeAudioCommand,
     ): Promise<IpcResponseEnvelope<{ accepted: boolean }>>;
+
+    // PR41: desktop workspace commands (project-scoped files/search/
+    // diagnostics; no execute channel — execution stays agent-side).
+    listWorkspaceFiles(
+      command: WorkspaceFilesListCommand,
+    ): Promise<IpcResponseEnvelope<{ result: unknown }>>;
+    readWorkspaceFile(
+      command: WorkspaceFilesReadCommand,
+    ): Promise<IpcResponseEnvelope<{ result: unknown }>>;
+    writeWorkspaceFile(
+      command: WorkspaceFilesWriteCommand,
+    ): Promise<IpcResponseEnvelope<{ result: unknown }>>;
+    createWorkspaceEntry(
+      command: WorkspaceFilesCreateCommand,
+    ): Promise<IpcResponseEnvelope<{ result: unknown }>>;
+    renameWorkspaceEntry(
+      command: WorkspaceFilesRenameCommand,
+    ): Promise<IpcResponseEnvelope<{ result: unknown }>>;
+    deleteWorkspaceEntry(
+      command: WorkspaceFilesDeleteCommand,
+    ): Promise<IpcResponseEnvelope<{ result: unknown }>>;
+    searchWorkspace(
+      command: WorkspaceSearchCommand,
+    ): Promise<IpcResponseEnvelope<{ result: unknown }>>;
+    reportWorkspaceDiagnostics(
+      command: WorkspaceDiagnosticsReportCommand,
+    ): Promise<IpcResponseEnvelope<{ result: unknown }>>;
+    listWorkspaceDiagnostics(
+      command: WorkspaceDiagnosticsListCommand,
+    ): Promise<IpcResponseEnvelope<{ diagnostics: unknown[] }>>;
+    clearWorkspaceDiagnostics(
+      command: WorkspaceDiagnosticsClearCommand,
+    ): Promise<IpcResponseEnvelope<{ result: unknown }>>;
+    listTerminals(command: TerminalListCommand): Promise<IpcResponseEnvelope<{ result: unknown }>>;
+    createTerminal(
+      command: TerminalCreateCommand,
+    ): Promise<IpcResponseEnvelope<{ result: unknown }>>;
+    writeTerminal(command: TerminalWriteCommand): Promise<IpcResponseEnvelope<{ result: unknown }>>;
+    resizeTerminal(
+      command: TerminalResizeCommand,
+    ): Promise<IpcResponseEnvelope<{ result: unknown }>>;
+    stopTerminal(command: TerminalStopCommand): Promise<IpcResponseEnvelope<{ result: unknown }>>;
+    readTerminalOutput(
+      command: TerminalOutputCommand,
+    ): Promise<IpcResponseEnvelope<{ result: unknown }>>;
   };
 
   /**
@@ -676,6 +737,54 @@ export function createDesktopApi(): DesktopApplicationApi {
       },
       async sendRealtimeAudio(command: RealtimeAudioCommand) {
         return ipcRenderer.invoke(IPC_CHANNELS.REALTIME_AUDIO, command);
+      },
+      async listWorkspaceFiles(command: WorkspaceFilesListCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_FILES_LIST, command);
+      },
+      async readWorkspaceFile(command: WorkspaceFilesReadCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_FILES_READ, command);
+      },
+      async writeWorkspaceFile(command: WorkspaceFilesWriteCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_FILES_WRITE, command);
+      },
+      async createWorkspaceEntry(command: WorkspaceFilesCreateCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_FILES_CREATE, command);
+      },
+      async renameWorkspaceEntry(command: WorkspaceFilesRenameCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_FILES_RENAME, command);
+      },
+      async deleteWorkspaceEntry(command: WorkspaceFilesDeleteCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_FILES_DELETE, command);
+      },
+      async searchWorkspace(command: WorkspaceSearchCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_SEARCH, command);
+      },
+      async reportWorkspaceDiagnostics(command: WorkspaceDiagnosticsReportCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_DIAGNOSTICS_REPORT, command);
+      },
+      async listWorkspaceDiagnostics(command: WorkspaceDiagnosticsListCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_DIAGNOSTICS_LIST, command);
+      },
+      async clearWorkspaceDiagnostics(command: WorkspaceDiagnosticsClearCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_DIAGNOSTICS_CLEAR, command);
+      },
+      async listTerminals(command: TerminalListCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.TERMINAL_LIST, command);
+      },
+      async createTerminal(command: TerminalCreateCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.TERMINAL_CREATE, command);
+      },
+      async writeTerminal(command: TerminalWriteCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.TERMINAL_WRITE, command);
+      },
+      async resizeTerminal(command: TerminalResizeCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.TERMINAL_RESIZE, command);
+      },
+      async stopTerminal(command: TerminalStopCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.TERMINAL_STOP, command);
+      },
+      async readTerminalOutput(command: TerminalOutputCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.TERMINAL_OUTPUT, command);
       },
     },
 

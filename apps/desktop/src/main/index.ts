@@ -82,6 +82,13 @@ import {
 import { DocumentService, DocumentsToolExecutor } from "./documents/index.js";
 import { IpcBatcher } from "./ipc/batcher.js";
 import { IpcRegistry, registerIpcHandlers } from "./ipc/index.js";
+import {
+  DiagnosticsService,
+  TerminalService,
+  WorkspaceFileService,
+  WorkspaceSearchService,
+  type WorkspaceIpcDependencies,
+} from "./workspace/index.js";
 
 export { ActiveStreamRegistry, ChatService, ModelSelectionService } from "./chat/index.js";
 export { IpcBatcher, type ChatStreamBatch } from "./ipc/batcher.js";
@@ -128,6 +135,10 @@ let documentsToolExecutor: DocumentsToolExecutor | null = null;
 let mediaArtifactStore: MediaArtifactStore | null = null;
 let attachmentRepository: AttachmentRepository | null = null;
 let realtimeService: RealtimeService | null = null;
+let workspaceFileService: WorkspaceFileService | null = null;
+let workspaceSearchService: WorkspaceSearchService | null = null;
+let diagnosticsService: DiagnosticsService | null = null;
+let terminalService: TerminalService | null = null;
 
 export function getProviderRegistry(): ProviderRegistry {
   if (!providerRegistry) {
@@ -693,6 +704,79 @@ export function getAttachmentsIpcDependencies(): AttachmentsIpcDependencies {
   };
 }
 
+/**
+ * WorkspaceFileService singleton (PR41): project-scoped file operations
+ * over the PR30 path policy + backend. The root resolver delegates to the
+ * CodingAgentService project->root map (unregistered projects fail closed
+ * with NO_WORKSPACE); no second filesystem or permission layer here —
+ * agent tools enforce permissions before reaching these services.
+ */
+export function getWorkspaceFileService(): WorkspaceFileService {
+  if (!workspaceFileService) {
+    workspaceFileService = new WorkspaceFileService({
+      resolveRoot: (projectId: string) => getCodingAgentService().resolveWorkspace(projectId),
+    });
+  }
+  return workspaceFileService;
+}
+
+/**
+ * WorkspaceSearchService singleton (PR41): project-scoped bounded
+ * cancellable content search sharing the file service's root resolver.
+ */
+export function getWorkspaceSearchService(): WorkspaceSearchService {
+  if (!workspaceSearchService) {
+    workspaceSearchService = new WorkspaceSearchService({
+      resolveRoot: (projectId: string) => getCodingAgentService().resolveWorkspace(projectId),
+    });
+  }
+  return workspaceSearchService;
+}
+
+/**
+ * DiagnosticsService singleton (PR41): in-memory per-project diagnostics
+ * store (no daemon, no filesystem). Task output adapters report into this
+ * store in a later PR; IPC exposes report/list/clear only.
+ */
+export function getDiagnosticsService(): DiagnosticsService {
+  if (!diagnosticsService) {
+    diagnosticsService = new DiagnosticsService();
+  }
+  return diagnosticsService;
+}
+
+/**
+ * Workspace IPC dependencies (PR41): thin-handler bundle passed into the
+ * IPC handler registration (mirrors the attachments pattern above).
+ */
+export function getWorkspaceIpcDependencies(): WorkspaceIpcDependencies {
+  return {
+    fileService: getWorkspaceFileService(),
+    searchService: getWorkspaceSearchService(),
+    diagnosticsService: getDiagnosticsService(),
+    terminalService: getTerminalService(),
+  };
+}
+
+/**
+ * TerminalService singleton (PR41): project-scoped terminal sessions over
+ * the PR27 ExecutionManager (LocalProcessSandboxProvider, same construction
+ * as the coding executor). Interactive stdin is fail-closed; shutdown
+ * cleanup is exported for app lifecycle wiring.
+ */
+export function getTerminalService(): TerminalService {
+  if (!terminalService) {
+    terminalService = new TerminalService({
+      executionManager: new DefaultExecutionManager({
+        sandboxProvider: new LocalProcessSandboxProvider(),
+      }),
+      resolveRoot: (projectId: string) => getCodingAgentService().resolveWorkspace(projectId),
+      permissionManager: getPermissionManager(),
+    });
+  }
+  return terminalService;
+}
+
 export function getSecureWebPreferences(preloadPath: string): Electron.WebPreferences {
   return {
     preload: preloadPath,
@@ -753,6 +837,7 @@ export function initIpc(options?: {
   researchService?: ResearchService;
   documentService?: DocumentService;
   attachments?: AttachmentsIpcDependencies;
+  workspaceDeps?: WorkspaceIpcDependencies;
 }): IpcRegistry {
   if (!ipcRegistry) {
     ipcRegistry = new IpcRegistry();
@@ -772,6 +857,7 @@ export function initIpc(options?: {
     const research = options?.researchService ?? getResearchService();
     const documents = options?.documentService ?? getDocumentService();
     const attachmentsDeps = options?.attachments ?? getAttachmentsIpcDependencies();
+    const workspace = options?.workspaceDeps ?? getWorkspaceIpcDependencies();
 
     registerIpcHandlers(ipcRegistry, {
       streamRegistry,
@@ -791,6 +877,7 @@ export function initIpc(options?: {
       documentService: documents,
       attachments: attachmentsDeps,
       realtimeService: getRealtimeService(),
+      workspaceDeps: workspace,
     });
   }
   return ipcRegistry;

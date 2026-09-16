@@ -1,11 +1,11 @@
 # Phase 0 — What Exists and What Does Not
 
 This document prevents the repository (and its documentation) from claiming functionality
-that does not exist. It reflects the state after **PR40 (Voice & Realtime
-Foundation)** and
+that does not exist. It reflects the state after **PR41 (Advanced Coding
+Workspace)** and
 is updated as each PR lands.
 
-## Implemented (as of PR40)
+## Implemented (as of PR41)
 
 - Repository foundation: pnpm workspace + Turborepo task graph (`build`, `dev`,
   `typecheck`, `lint`, `test`).
@@ -788,6 +788,31 @@ node.completed/node.failed/blocked/replan/completed/failed/cancelled` plus the
     authorization — plus lifecycle, interruption, isolation, failure, and
     cancellation E2E over fake providers. Full design in
     `docs/architecture/pr-40-voice-realtime.md`.
+- Advanced Coding Workspace (`apps/desktop`, `packages/shared`, PR41):
+  - `WorkspaceFileService` (tree/read/write/create/rename/delete with
+    mtime conflict detection + binary guard), `WorkspaceSearchService`
+    (case/whole-word/include filters, line/col, bounded, cancellable,
+    symlink-safe), in-memory `DiagnosticsService` (severity-ranked,
+    capped), and pure bounded LCS `workspace-diff` — all over the PR30
+    path policy + filesystem backend, no second filesystem authority.
+  - `TerminalService` (validated lifecycle, 8 sessions/project, 256 KB
+    tail-kept output, 30 s default / 120 s cap timeouts, idempotent
+    cleanup, stdin fail-closed) over the PR27 ExecutionManager with the
+    coding executor's sandbox construction. No pty, no shell spawn.
+  - Sixteen typed IPC commands (`workspace:files:*`, `workspace:search`,
+    `workspace:diagnostics:*`, `terminal:*`) + preload (no execute
+    channels; IPC enforces path policy, agent tools enforce permissions).
+    Canonical `builtin:filesystem.*` / `builtin:execution.run` untouched.
+  - Dependency-free explorer/editor/tabs/search/terminal/diff UI with
+    dirty indicators, save/revert/all, conflict UX, and agent task panel;
+    renderer-local tab state (layout persistence unchanged); renderer
+    source-asserted free of Node/Electron/fs/child_process.
+  - Security regression coverage: traversal/absolute/symlink/nested/
+    rename/delete escape with sentinels, metachar-as-argv, env-secret
+    non-inheritance, path-free error envelopes, oversized payloads,
+    forged IPC, cross-project isolation — plus file/conflict/search/
+    diagnostics/isolation/terminal E2E. Full design in
+    `docs/architecture/pr-41-advanced-coding-workspace.md`.
 - All remaining canonical packages stay **empty shells** (`package.json`, `tsconfig.json`,
   `src/index.ts` placeholder) — deliberately no premature domain functionality inside them.
 - Toolchain: TypeScript 5.9.3, ESLint 10.10.0, Vitest 4.1.10, Vite 8.1.0, Prettier 3.9.6,

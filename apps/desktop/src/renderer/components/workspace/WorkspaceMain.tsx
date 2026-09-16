@@ -7,6 +7,7 @@ import React from "react";
 import type { WorkspaceStore } from "../../workspace/store.js";
 import { ChatSurface } from "./surfaces/ChatSurface.js";
 import { CodingSurface } from "./surfaces/CodingSurface.js";
+import { CodingWorkspace } from "./surfaces/CodingWorkspace.js";
 import { ExtensionsSurface } from "./surfaces/ExtensionsSurface.js";
 import { McpServersSurface } from "./surfaces/McpServersSurface.js";
 import { VoiceSurface } from "./surfaces/VoiceSurface.js";
@@ -20,6 +21,7 @@ import type {
   BrowserSurfaceProps,
   ChatSurfaceProps,
   CodingSurfaceProps,
+  CodingWorkspaceProps,
   DocumentFileView,
   ExtensionsSurfaceProps,
   FileEntryView,
@@ -36,6 +38,7 @@ interface WorkspaceMainProps {
   readonly store: WorkspaceStore;
   readonly chat: ChatSurfaceProps;
   readonly coding: CodingSurfaceProps;
+  readonly codingWorkspace?: CodingWorkspaceProps;
   readonly tasks: TasksSurfaceProps;
   readonly activity: ActivityEventView[];
   readonly files: FileEntryView[];
@@ -66,6 +69,7 @@ export function WorkspaceMain({
   store,
   chat,
   coding,
+  codingWorkspace,
   tasks,
   activity,
   files,
@@ -106,6 +110,9 @@ export function WorkspaceMain({
     );
   }
   if (surface === "coding") {
+    if (codingWorkspace) {
+      return <CodingWorkspace {...codingWorkspace} />;
+    }
     return <CodingSurface {...coding} />;
   }
   if (surface === "tasks") {

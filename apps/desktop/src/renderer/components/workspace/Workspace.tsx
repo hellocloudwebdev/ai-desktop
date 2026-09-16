@@ -14,6 +14,7 @@ import { WorkspaceErrorBoundary } from "./WorkspaceErrorBoundary.js";
 import type {
   ChatSurfaceProps,
   CodingSurfaceProps,
+  CodingWorkspaceProps,
   ComposerProps,
   AttachmentFileView,
   DocumentFileView,
@@ -40,6 +41,7 @@ export interface WorkspaceShellProps {
   readonly sidebar: SidebarProps;
   readonly chat: ChatSurfaceProps;
   readonly coding: CodingSurfaceProps;
+  readonly codingWorkspace?: CodingWorkspaceProps;
   readonly tasks: TasksSurfaceProps;
   readonly activity: ActivityEventView[];
   readonly files: FileEntryView[];
@@ -76,6 +78,7 @@ export function WorkspaceShell({
   sidebar,
   chat,
   coding,
+  codingWorkspace,
   tasks,
   activity,
   files,
@@ -163,6 +166,7 @@ export function WorkspaceShell({
               store={store}
               chat={chat}
               coding={coding}
+              codingWorkspace={codingWorkspace}
               tasks={tasks}
               activity={activity}
               files={files}

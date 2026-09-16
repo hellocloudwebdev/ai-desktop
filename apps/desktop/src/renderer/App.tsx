@@ -31,6 +31,12 @@ import type {
   SurfaceView,
   VoiceSessionView,
   VoiceTranscriptView,
+  WorkspaceDiagnosticView,
+  WorkspaceDiffView,
+  WorkspaceFileNode,
+  WorkspaceSearchView,
+  WorkspaceTab,
+  WorkspaceTerminalView,
 } from "./components/workspace/surfaces/surface-props.js";
 
 const DEFAULT_CONVERSATION_ID = "01JM0000000000000000000001";
@@ -78,6 +84,17 @@ export function App(): React.ReactElement {
   const [codingPrompt, setCodingPrompt] = useState<string>("");
   const [codingProjectId, setCodingProjectId] = useState<string>("sample-project");
   const [codingRunning, setCodingRunning] = useState<boolean>(false);
+  // PR41: coding workspace state (App-owned backend state over the
+  // workspace:*/terminal:* bridge; CodingWorkspace is a pure view).
+  const [workspaceFiles, setWorkspaceFiles] = useState<WorkspaceFileNode[]>([]);
+  const [workspaceTabs, setWorkspaceTabs] = useState<WorkspaceTab[]>([]);
+  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<string | null>(null);
+  const [workspaceSearch, setWorkspaceSearch] = useState<WorkspaceSearchView | null>(null);
+  const [workspaceDiagnostics, setWorkspaceDiagnostics] = useState<WorkspaceDiagnosticView[]>([]);
+  const [workspaceTerminals, setWorkspaceTerminals] = useState<WorkspaceTerminalView[]>([]);
+  const [workspaceTerminalOutput, setWorkspaceTerminalOutput] = useState<string | null>(null);
+  const [workspaceDiff, setWorkspaceDiff] = useState<WorkspaceDiffView | null>(null);
+  const [workspaceError, setWorkspaceError] = useState<string | null>(null);
   // Activity feed: bounded view over subscribed conversation events (PR31.11).
   const [activityEvents, setActivityEvents] = useState<ActivityEventView[]>([]);
   // Touched files derive from tool results in canonical events (PR31.11).
@@ -369,6 +386,308 @@ export function App(): React.ReactElement {
   useEffect(() => {
     void refreshDocuments();
   }, [refreshDocuments]);
+
+  useEffect(() => {
+    void refreshDocuments();
+  }, [refreshDocuments]);
+
+  // PR41: coding workspace through the workspace:*/terminal:* bridge.
+  // Tabs/dirty state are renderer-local; the filesystem stays authoritative
+  // main-side (conflict detection via expectedMtimeMs on save).
+  const refreshWorkspaceFiles = useCallback(async () => {
+    if (typeof window === "undefined" || !window.api) return;
+    try {
+      const res = await window.api.commands.listWorkspaceFiles({
+        projectId: workspace.state.activeProjectId,
+      });
+      if (res.ok) {
+        const result = res.value.result as { entries?: WorkspaceFileNode[] };
+        setWorkspaceFiles(Array.isArray(result.entries) ? result.entries : []);
+      } else if (!res.ok) {
+        setWorkspaceError(res.error.message);
+      }
+    } catch (err) {
+      setWorkspaceError(err instanceof Error ? err.message : String(err));
+    }
+  }, [workspace.state.activeProjectId]);
+
+  const refreshWorkspaceDiagnostics = useCallback(async () => {
+    if (typeof window === "undefined" || !window.api) return;
+    try {
+      const res = await window.api.commands.listWorkspaceDiagnostics({
+        projectId: workspace.state.activeProjectId,
+      });
+      if (res.ok && Array.isArray(res.value.diagnostics)) {
+        setWorkspaceDiagnostics(
+          (res.value.diagnostics as Array<Record<string, unknown>>).map((d) => ({
+            path: String(d["path"] ?? ""),
+            line: Number(d["line"] ?? 1),
+            column: Number(d["column"] ?? 1),
+            severity: String(d["severity"] ?? "information") as WorkspaceDiagnosticView["severity"],
+            message: String(d["message"] ?? ""),
+          })),
+        );
+      }
+    } catch {
+      // Diagnostics refresh is best-effort.
+    }
+  }, [workspace.state.activeProjectId]);
+
+  const refreshWorkspaceTerminals = useCallback(async () => {
+    if (typeof window === "undefined" || !window.api) return;
+    try {
+      const res = await window.api.commands.listTerminals({
+        projectId: workspace.state.activeProjectId,
+      });
+      if (res.ok) {
+        const result = res.value.result as Array<Record<string, unknown>>;
+        setWorkspaceTerminals(
+          (Array.isArray(result) ? result : []).map((t) => ({
+            id: String(t["id"] ?? ""),
+            state: String(t["state"] ?? ""),
+            command: String(t["command"] ?? ""),
+          })),
+        );
+      }
+    } catch {
+      // Terminal refresh is best-effort.
+    }
+  }, [workspace.state.activeProjectId]);
+
+  useEffect(() => {
+    void refreshWorkspaceFiles();
+    void refreshWorkspaceDiagnostics();
+    void refreshWorkspaceTerminals();
+  }, [refreshWorkspaceFiles, refreshWorkspaceDiagnostics, refreshWorkspaceTerminals]);
+
+  const handleOpenWorkspaceFile = useCallback(
+    async (path: string) => {
+      if (typeof window === "undefined" || !window.api) return;
+      setWorkspaceError(null);
+      try {
+        const res = await window.api.commands.readWorkspaceFile({
+          projectId: workspace.state.activeProjectId,
+          path,
+        });
+        if (res.ok) {
+          const result = res.value.result as {
+            content?: string;
+            mtimeMs?: number;
+            truncated?: boolean;
+          };
+          setWorkspaceTabs((prev) => {
+            if (prev.some((t) => t.path === path)) {
+              return prev;
+            }
+            const next = [
+              ...prev,
+              {
+                path,
+                content: String(result.content ?? ""),
+                dirty: false,
+                conflict: false,
+                mtimeMs: typeof result.mtimeMs === "number" ? result.mtimeMs : undefined,
+              },
+            ];
+            return next.slice(-10);
+          });
+          setActiveWorkspaceTab(path);
+        } else if (!res.ok) {
+          setWorkspaceError(res.error.message);
+        }
+      } catch (err) {
+        setWorkspaceError(err instanceof Error ? err.message : String(err));
+      }
+    },
+    [workspace.state.activeProjectId],
+  );
+
+  const handleEditWorkspaceTab = useCallback((path: string, content: string) => {
+    setWorkspaceTabs((prev) =>
+      prev.map((t) => (t.path === path ? { ...t, content, dirty: true } : t)),
+    );
+  }, []);
+
+  const handleSaveWorkspaceFile = useCallback(
+    async (path: string) => {
+      if (typeof window === "undefined" || !window.api) return;
+      const tab = workspaceTabs.find((t) => t.path === path);
+      if (!tab) {
+        return;
+      }
+      try {
+        const res = await window.api.commands.writeWorkspaceFile({
+          projectId: workspace.state.activeProjectId,
+          path,
+          content: tab.content,
+          ...(typeof tab.mtimeMs === "number" ? { expectedMtimeMs: tab.mtimeMs } : {}),
+        });
+        if (res.ok) {
+          const result = res.value.result as { mtimeMs?: number };
+          setWorkspaceTabs((prev) =>
+            prev.map((t) =>
+              t.path === path
+                ? {
+                    ...t,
+                    dirty: false,
+                    conflict: false,
+                    ...(typeof result.mtimeMs === "number" ? { mtimeMs: result.mtimeMs } : {}),
+                  }
+                : t,
+            ),
+          );
+          setWorkspaceDiff(null);
+        } else if (!res.ok) {
+          if (res.error.message.includes("EXTERNAL_MODIFIED")) {
+            setWorkspaceTabs((prev) =>
+              prev.map((t) => (t.path === path ? { ...t, conflict: true } : t)),
+            );
+          }
+          setWorkspaceError(res.error.message);
+        }
+      } catch (err) {
+        setWorkspaceError(err instanceof Error ? err.message : String(err));
+      }
+    },
+    [workspace.state.activeProjectId, workspaceTabs],
+  );
+
+  const handleSaveAllWorkspaceFiles = useCallback(async () => {
+    for (const tab of workspaceTabs.filter((t) => t.dirty)) {
+      await handleSaveWorkspaceFile(tab.path);
+    }
+  }, [workspaceTabs, handleSaveWorkspaceFile]);
+
+  const handleRevertWorkspaceFile = useCallback(
+    async (path: string) => {
+      if (typeof window === "undefined" || !window.api) return;
+      try {
+        const res = await window.api.commands.readWorkspaceFile({
+          projectId: workspace.state.activeProjectId,
+          path,
+        });
+        if (res.ok) {
+          const result = res.value.result as { content?: string; mtimeMs?: number };
+          setWorkspaceTabs((prev) =>
+            prev.map((t) =>
+              t.path === path
+                ? {
+                    ...t,
+                    content: String(result.content ?? ""),
+                    dirty: false,
+                    conflict: false,
+                    ...(typeof result.mtimeMs === "number" ? { mtimeMs: result.mtimeMs } : {}),
+                  }
+                : t,
+            ),
+          );
+        }
+      } catch (err) {
+        setWorkspaceError(err instanceof Error ? err.message : String(err));
+      }
+    },
+    [workspace.state.activeProjectId],
+  );
+
+  const handleCloseWorkspaceTab = useCallback(
+    (path: string) => {
+      const tab = workspaceTabs.find((t) => t.path === path);
+      if (tab?.dirty) {
+        const save = window.confirm(`Save changes to ${path} before closing?`);
+        if (save) {
+          void handleSaveWorkspaceFile(path);
+          return;
+        }
+      }
+      setWorkspaceTabs((prev) => prev.filter((t) => t.path !== path));
+      setActiveWorkspaceTab((prev) => (prev === path ? null : prev));
+    },
+    [workspaceTabs, handleSaveWorkspaceFile],
+  );
+
+  const handleWorkspaceSearch = useCallback(
+    async (query: string) => {
+      if (typeof window === "undefined" || !window.api) return;
+      try {
+        const res = await window.api.commands.searchWorkspace({
+          projectId: workspace.state.activeProjectId,
+          query,
+        });
+        if (res.ok) {
+          const result = res.value.result as {
+            matches?: Array<{ path?: string; line?: number; column?: number; text?: string }>;
+            truncated?: boolean;
+          };
+          setWorkspaceSearch({
+            matches: (result.matches ?? []).map((m) => ({
+              path: String(m.path ?? ""),
+              line: Number(m.line ?? 1),
+              column: Number(m.column ?? 1),
+              text: String(m.text ?? ""),
+            })),
+            truncated: result.truncated === true,
+          });
+        } else if (!res.ok) {
+          setWorkspaceError(res.error.message);
+        }
+      } catch (err) {
+        setWorkspaceError(err instanceof Error ? err.message : String(err));
+      }
+    },
+    [workspace.state.activeProjectId],
+  );
+
+  const handleTerminalCreate = useCallback(
+    async (command: string) => {
+      if (typeof window === "undefined" || !window.api) return;
+      const [cmd, ...args] = command.split(/\s+/).filter(Boolean);
+      if (!cmd) {
+        return;
+      }
+      try {
+        const res = await window.api.commands.createTerminal({
+          projectId: workspace.state.activeProjectId,
+          command: cmd,
+          args,
+        });
+        if (res.ok) {
+          await refreshWorkspaceTerminals();
+          const result = res.value.result as { id?: string };
+          if (typeof result.id === "string") {
+            const out = await window.api.commands.readTerminalOutput({
+              projectId: workspace.state.activeProjectId,
+              sessionId: result.id,
+            });
+            if (out.ok) {
+              const output = out.value.result as { text?: string };
+              setWorkspaceTerminalOutput(String(output.text ?? ""));
+            }
+          }
+        } else if (!res.ok) {
+          setWorkspaceError(res.error.message);
+        }
+      } catch (err) {
+        setWorkspaceError(err instanceof Error ? err.message : String(err));
+      }
+    },
+    [workspace.state.activeProjectId, refreshWorkspaceTerminals],
+  );
+
+  const handleTerminalStop = useCallback(
+    async (id: string) => {
+      if (typeof window === "undefined" || !window.api) return;
+      try {
+        await window.api.commands.stopTerminal({
+          projectId: workspace.state.activeProjectId,
+          sessionId: id,
+        });
+        await refreshWorkspaceTerminals();
+      } catch (err) {
+        setWorkspaceError(err instanceof Error ? err.message : String(err));
+      }
+    },
+    [workspace.state.activeProjectId, refreshWorkspaceTerminals],
+  );
 
   // PR39: project attachments through the attachments:* preload bridge.
   // No-ops when the bridge is absent (preload not yet updated, or
@@ -1423,6 +1742,39 @@ export function App(): React.ReactElement {
         },
         onStart: () => void handleStartCodingTask(),
         onCancel: (taskId) => void handleCancelCodingTask(taskId),
+      }}
+      codingWorkspace={{
+        activeProjectId: workspace.state.activeProjectId,
+        files: workspaceFiles,
+        tabs: workspaceTabs,
+        activeTabPath: activeWorkspaceTab,
+        search: workspaceSearch,
+        diagnostics: workspaceDiagnostics,
+        terminals: workspaceTerminals,
+        terminalOutput: workspaceTerminalOutput,
+        diff: workspaceDiff,
+        codingTasks,
+        codingPrompt,
+        codingRunning,
+        workspaceError,
+        onRefreshFiles: () => void refreshWorkspaceFiles(),
+        onOpenFile: (path) => void handleOpenWorkspaceFile(path),
+        onCloseTab: handleCloseWorkspaceTab,
+        onSelectTab: setActiveWorkspaceTab,
+        onEditTab: handleEditWorkspaceTab,
+        onSaveFile: (path) => void handleSaveWorkspaceFile(path),
+        onSaveAllFiles: () => void handleSaveAllWorkspaceFiles(),
+        onRevertFile: (path) => void handleRevertWorkspaceFile(path),
+        onSearch: (query) => void handleWorkspaceSearch(query),
+        onTerminalCreate: (command) => void handleTerminalCreate(command),
+        onTerminalStop: (id) => void handleTerminalStop(id),
+        onPromptChange: setCodingPrompt,
+        onProjectChange: (projectId) => {
+          setCodingProjectId(projectId);
+          workspace.selectProject(projectId);
+        },
+        onStartTask: () => void handleStartCodingTask(),
+        onCancelTask: (taskId) => void handleCancelCodingTask(taskId),
       }}
       tasks={{
         agentTasks,

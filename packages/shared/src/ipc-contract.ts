@@ -176,6 +176,28 @@ export const IPC_CHANNELS = {
   REALTIME_SESSION_LIST: "realtime:session:list",
   REALTIME_TRANSCRIPT: "realtime:transcript",
   REALTIME_AUDIO: "realtime:audio",
+
+  // Desktop workspace operations (PR41). NOTE: there is intentionally NO
+  // workspace:execute / filesystem:execute / shell:execute / node:execute
+  // channel — execution flows through the agent tool router
+  // (CodingToolExecutor with PermissionManager mediation), never through
+  // raw IPC.
+  WORKSPACE_FILES_LIST: "workspace:files:list",
+  WORKSPACE_FILES_READ: "workspace:files:read",
+  WORKSPACE_FILES_WRITE: "workspace:files:write",
+  WORKSPACE_FILES_CREATE: "workspace:files:create",
+  WORKSPACE_FILES_RENAME: "workspace:files:rename",
+  WORKSPACE_FILES_DELETE: "workspace:files:delete",
+  WORKSPACE_SEARCH: "workspace:search",
+  WORKSPACE_DIAGNOSTICS_REPORT: "workspace:diagnostics:report",
+  WORKSPACE_DIAGNOSTICS_LIST: "workspace:diagnostics:list",
+  WORKSPACE_DIAGNOSTICS_CLEAR: "workspace:diagnostics:clear",
+  TERMINAL_LIST: "terminal:list",
+  TERMINAL_CREATE: "terminal:create",
+  TERMINAL_WRITE: "terminal:write",
+  TERMINAL_RESIZE: "terminal:resize",
+  TERMINAL_STOP: "terminal:stop",
+  TERMINAL_OUTPUT: "terminal:output",
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];
@@ -1122,6 +1144,179 @@ export const RealtimeAudioCommandSchema = z.object({
 });
 
 export type RealtimeAudioCommand = z.infer<typeof RealtimeAudioCommandSchema>;
+
+// ---------------------------------------------------------------------------
+// Desktop Workspace Commands (PR41)
+// Project-scoped file, search, and diagnostics operations over the
+// main-process WorkspaceFileService / WorkspaceSearchService /
+// DiagnosticsService. Pagination-free and bounded: path fields 1..1024,
+// content <= 256KB, query 1..200, diagnostics entries <= 500 per report.
+// There is intentionally NO workspace:execute / filesystem:execute /
+// shell:execute / node:execute schema — execution is never exposed on IPC.
+// ---------------------------------------------------------------------------
+
+export const WORKSPACE_CONTENT_MAX_CHARS = 262_144;
+export const WORKSPACE_DIAGNOSTICS_REPORT_MAX = 500;
+
+const WorkspaceProjectIdField = z.string().trim().min(1).max(256);
+const WorkspacePathField = z.string().trim().min(1).max(1024);
+
+export const WorkspaceFilesListCommandSchema = z.object({
+  projectId: WorkspaceProjectIdField,
+  path: WorkspacePathField.optional(),
+  depth: z.number().int().min(0).max(4).optional(),
+});
+
+export type WorkspaceFilesListCommand = z.infer<typeof WorkspaceFilesListCommandSchema>;
+
+export const WorkspaceFilesReadCommandSchema = z.object({
+  projectId: WorkspaceProjectIdField,
+  path: WorkspacePathField,
+  startLine: z.number().int().positive().optional(),
+  endLine: z.number().int().positive().optional(),
+  maxBytes: z.number().int().positive().max(262_144).optional(),
+});
+
+export type WorkspaceFilesReadCommand = z.infer<typeof WorkspaceFilesReadCommandSchema>;
+
+export const WorkspaceFilesWriteCommandSchema = z.object({
+  projectId: WorkspaceProjectIdField,
+  path: WorkspacePathField,
+  content: z.string().max(WORKSPACE_CONTENT_MAX_CHARS),
+  expectedMtimeMs: z.number().nonnegative().optional(),
+});
+
+export type WorkspaceFilesWriteCommand = z.infer<typeof WorkspaceFilesWriteCommandSchema>;
+
+export const WorkspaceFilesCreateCommandSchema = z.object({
+  projectId: WorkspaceProjectIdField,
+  path: WorkspacePathField,
+  content: z.string().max(WORKSPACE_CONTENT_MAX_CHARS).optional(),
+  directory: z.boolean().optional(),
+});
+
+export type WorkspaceFilesCreateCommand = z.infer<typeof WorkspaceFilesCreateCommandSchema>;
+
+export const WorkspaceFilesRenameCommandSchema = z.object({
+  projectId: WorkspaceProjectIdField,
+  from: WorkspacePathField,
+  to: WorkspacePathField,
+});
+
+export type WorkspaceFilesRenameCommand = z.infer<typeof WorkspaceFilesRenameCommandSchema>;
+
+export const WorkspaceFilesDeleteCommandSchema = z.object({
+  projectId: WorkspaceProjectIdField,
+  path: WorkspacePathField,
+});
+
+export type WorkspaceFilesDeleteCommand = z.infer<typeof WorkspaceFilesDeleteCommandSchema>;
+
+export const WorkspaceSearchCommandSchema = z.object({
+  projectId: WorkspaceProjectIdField,
+  path: WorkspacePathField.optional(),
+  query: z.string().trim().min(1).max(200),
+  caseSensitive: z.boolean().optional(),
+  wholeWord: z.boolean().optional(),
+  include: z.string().trim().min(1).max(256).optional(),
+  maxResults: z.number().int().positive().max(200).optional(),
+});
+
+export type WorkspaceSearchCommand = z.infer<typeof WorkspaceSearchCommandSchema>;
+
+const WorkspaceDiagnosticSeveritySchema = z.enum(["error", "warning", "information", "hint"]);
+
+export const WorkspaceDiagnosticsReportCommandSchema = z.object({
+  projectId: WorkspaceProjectIdField,
+  source: z.string().trim().min(1).max(128),
+  diagnostics: z
+    .array(
+      z.object({
+        path: z.string().trim().min(1).max(1024),
+        line: z.number().int().positive(),
+        column: z.number().int().positive(),
+        severity: WorkspaceDiagnosticSeveritySchema,
+        message: z.string().trim().min(1).max(2000),
+        code: z.string().trim().min(1).max(128).optional(),
+      }),
+    )
+    .max(WORKSPACE_DIAGNOSTICS_REPORT_MAX),
+});
+
+export type WorkspaceDiagnosticsReportCommand = z.infer<
+  typeof WorkspaceDiagnosticsReportCommandSchema
+>;
+
+export const WorkspaceDiagnosticsListCommandSchema = z.object({
+  projectId: WorkspaceProjectIdField,
+  path: WorkspacePathField.optional(),
+});
+
+export type WorkspaceDiagnosticsListCommand = z.infer<typeof WorkspaceDiagnosticsListCommandSchema>;
+
+export const WorkspaceDiagnosticsClearCommandSchema = z.object({
+  projectId: WorkspaceProjectIdField,
+  source: z.string().trim().min(1).max(128).optional(),
+});
+
+export type WorkspaceDiagnosticsClearCommand = z.infer<
+  typeof WorkspaceDiagnosticsClearCommandSchema
+>;
+
+// ---------------------------------------------------------------------------
+// Terminal Commands (PR41)
+// Sessions run commands through the PR27 ExecutionManager (sandboxed,
+// permission-gated). No stdin channel (fail-closed), no shell spawning
+// from renderer input beyond the sandboxed command execution.
+// ---------------------------------------------------------------------------
+
+export const TerminalListCommandSchema = z.object({
+  projectId: WorkspaceProjectIdField,
+});
+
+export type TerminalListCommand = z.infer<typeof TerminalListCommandSchema>;
+
+export const TerminalCreateCommandSchema = z.object({
+  projectId: WorkspaceProjectIdField,
+  cwd: z.string().trim().min(1).max(1024).optional(),
+  command: z.string().trim().min(1).max(2048).optional(),
+  args: z.array(z.string().max(1024)).max(32).optional(),
+  timeoutMs: z.number().int().positive().max(120000).optional(),
+});
+
+export type TerminalCreateCommand = z.infer<typeof TerminalCreateCommandSchema>;
+
+export const TerminalWriteCommandSchema = z.object({
+  projectId: WorkspaceProjectIdField,
+  sessionId: z.string().trim().min(1).max(128),
+  input: z.string().max(4096),
+});
+
+export type TerminalWriteCommand = z.infer<typeof TerminalWriteCommandSchema>;
+
+export const TerminalResizeCommandSchema = z.object({
+  projectId: WorkspaceProjectIdField,
+  sessionId: z.string().trim().min(1).max(128),
+  cols: z.number().int().min(20).max(500),
+  rows: z.number().int().min(5).max(100),
+});
+
+export type TerminalResizeCommand = z.infer<typeof TerminalResizeCommandSchema>;
+
+export const TerminalStopCommandSchema = z.object({
+  projectId: WorkspaceProjectIdField,
+  sessionId: z.string().trim().min(1).max(128),
+});
+
+export type TerminalStopCommand = z.infer<typeof TerminalStopCommandSchema>;
+
+export const TerminalOutputCommandSchema = z.object({
+  projectId: WorkspaceProjectIdField,
+  sessionId: z.string().trim().min(1).max(128),
+  tailBytes: z.number().int().positive().max(32768).optional(),
+});
+
+export type TerminalOutputCommand = z.infer<typeof TerminalOutputCommandSchema>;
 
 // ---------------------------------------------------------------------------
 // Extension Payloads (PR32)

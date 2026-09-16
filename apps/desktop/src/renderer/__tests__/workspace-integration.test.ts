@@ -8,6 +8,7 @@
 import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
+import { IPC_CHANNELS } from "@ai-desktop/shared";
 
 const RENDERER_SRC = path.join(__dirname, "..");
 
@@ -95,7 +96,7 @@ describe("renderer: workspace integration (PR31)", () => {
     }
   });
 
-  it("no new IPC channels were added for the workspace", () => {
+  it("workspace IPC stays narrow (PR41: typed channels, no execute escape hatches)", () => {
     const contract = fs.readFileSync(
       path.join(
         RENDERER_SRC,
@@ -110,8 +111,40 @@ describe("renderer: workspace integration (PR31)", () => {
       ),
       "utf8",
     );
-    expect(contract).not.toContain("workspace:");
-    expect(contract).not.toContain("WORKSPACE_");
+    // PR41 adds exactly the typed workspace file/search/diagnostics channels.
+    for (const channel of [
+      "workspace:files:list",
+      "workspace:files:read",
+      "workspace:files:write",
+      "workspace:files:create",
+      "workspace:files:rename",
+      "workspace:files:delete",
+      "workspace:search",
+      "workspace:diagnostics:report",
+      "workspace:diagnostics:list",
+      "workspace:diagnostics:clear",
+      "terminal:list",
+      "terminal:create",
+      "terminal:write",
+      "terminal:resize",
+      "terminal:stop",
+      "terminal:output",
+    ]) {
+      expect(contract).toContain(channel);
+    }
+    // No generic execution escape hatch, ever (repo convention: assert
+    // registered channel values, not source text, so prohibition comments
+    // can stay in the contract).
+    const values = Object.values(IPC_CHANNELS) as string[];
+    for (const forbidden of [
+      "workspace:execute",
+      "filesystem:execute",
+      "shell:execute",
+      "node:execute",
+    ]) {
+      expect(values).not.toContain(forbidden);
+    }
+    expect(values.filter((c) => c.includes("execute"))).toEqual([]);
   });
 
   it("no ai-core workspace domain was created (presentation stays local)", () => {

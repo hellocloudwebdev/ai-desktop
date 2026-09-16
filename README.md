@@ -1,6 +1,6 @@
 # ai-desktop
 
-A desktop AI assistant. This repository is currently at **PR40 — Voice & Realtime Foundation**:
+A desktop AI assistant. This repository is currently at **PR41 — Advanced Coding Workspace**:
 shared primitives, canonical AI domain contracts, projections, in-process EventBus,
 permission checkpoint, SQLite WAL event repository, OS-backed credential store, canonical
 provider contracts, concrete `AnthropicAdapter`, concrete `GeminiAdapter`, Electron 44 desktop
@@ -101,7 +101,14 @@ unsupported-verdict, desktop session lifecycle with per-chunk permission and ide
 cleanup, final-transcript chat handoff, tool bridge through the universal lifecycle,
 nine typed `realtime:*` IPC commands with preload bridge, Voice workspace surface with
 microphone indicator and transcripts, and injection/isolation/secret security tests with
-lifecycle/interruption/isolation/failure/cancellation E2E) are
+lifecycle/interruption/isolation/failure/cancellation E2E), and the
+Advanced Coding Workspace (project file service with tree/read/write/create/rename/delete
+and mtime conflict detection, bounded cancellable project search, in-memory diagnostics
+store, pure bounded LCS diff, sandboxed terminal sessions with output ceiling and
+fail-closed stdin, sixteen typed `workspace:*`/`terminal:*` IPC commands with preload
+bridge, dependency-free explorer/editor/tabs/search/terminal/diff UI with dirty and
+conflict UX, and traversal/symlink/metachar/secret security tests with file, conflict,
+search, diagnostics, isolation, and terminal E2E) are
 implemented. Future packages remain empty shells awaiting their respective
 implementation PRs — see [docs/architecture/phase-0.md](docs/architecture/phase-0.md) for the honest list of what is
 and is not implemented.
