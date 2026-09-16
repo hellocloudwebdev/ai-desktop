@@ -85,6 +85,10 @@ function translateContentPart(part: ContentPart, model: ModelDefinition): Anthro
     case "file":
     case "audio":
     case "video":
+      // PR39: verified against installed @anthropic-ai/sdk 0.124.0 —
+      // ContentBlockParam supports text/image/document/tool blocks only;
+      // there is no audio/video input block. The typed error preserves
+      // provider/model/modality for negotiation callers.
       throw new UnsupportedCapabilityError(
         part.type,
         `Anthropic Messages API does not currently support direct "${part.type}" parts`,

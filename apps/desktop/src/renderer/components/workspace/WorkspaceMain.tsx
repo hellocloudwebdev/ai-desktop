@@ -15,6 +15,7 @@ import { RichSurfaceHost } from "./surfaces/RichSurfaceHost.js";
 import { ActivitySurface, FilesSurface, TasksSurface } from "./surfaces/TaskSurfaces.js";
 import type {
   ActivityEventView,
+  AttachmentFileView,
   BrowserSurfaceProps,
   ChatSurfaceProps,
   CodingSurfaceProps,
@@ -23,6 +24,7 @@ import type {
   FileEntryView,
   McpServersSurfaceProps,
   ResearchSurfaceProps,
+  SelectedAttachmentPreview,
   SelectedDocumentView,
   SurfaceHostProps,
   TasksSurfaceProps,
@@ -39,6 +41,16 @@ interface WorkspaceMainProps {
   readonly selectedDocument?: SelectedDocumentView | null;
   readonly onSelectDocument?: (documentId: string | null) => void;
   readonly documentsError?: string | null;
+  readonly attachments?: AttachmentFileView[];
+  readonly selectedAttachmentPreview?: SelectedAttachmentPreview | null;
+  readonly onPreviewAttachment?: (attachmentId: string | null) => void;
+  readonly attachmentsError?: string | null;
+  readonly onUploadAttachment?: (file: {
+    name: string;
+    mimeType: string;
+    dataBase64: string;
+  }) => void;
+  readonly onDeleteAttachment?: (attachmentId: string) => void;
   readonly extensions: ExtensionsSurfaceProps;
   readonly browser: BrowserSurfaceProps;
   readonly research: ResearchSurfaceProps;
@@ -58,6 +70,12 @@ export function WorkspaceMain({
   selectedDocument,
   onSelectDocument,
   documentsError,
+  attachments,
+  selectedAttachmentPreview,
+  onPreviewAttachment,
+  attachmentsError,
+  onUploadAttachment,
+  onDeleteAttachment,
   extensions,
   browser,
   research,
@@ -101,6 +119,12 @@ export function WorkspaceMain({
         selectedDocument={selectedDocument}
         onSelectDocument={onSelectDocument}
         documentsError={documentsError}
+        attachments={attachments}
+        selectedAttachmentPreview={selectedAttachmentPreview}
+        onPreviewAttachment={onPreviewAttachment}
+        attachmentsError={attachmentsError}
+        onUploadAttachment={onUploadAttachment}
+        onDeleteAttachment={onDeleteAttachment}
       />
     );
   }

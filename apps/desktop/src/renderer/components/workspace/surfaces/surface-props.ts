@@ -79,6 +79,37 @@ export interface FilesSurfaceProps {
   readonly selectedDocument?: SelectedDocumentView | null;
   readonly onSelectDocument?: (documentId: string | null) => void;
   readonly documentsError?: string | null;
+  // PR39: project attachments (metadata + bounded image-only preview).
+  // Bytes travel upload-side as base64 through attachments:* IPC; previews
+  // arrive as small data: thumbnails (images) or metadata cards (audio/video).
+  readonly attachments?: AttachmentFileView[];
+  readonly selectedAttachmentPreview?: SelectedAttachmentPreview | null;
+  readonly attachmentsError?: string | null;
+  readonly onUploadAttachment?: (file: {
+    name: string;
+    mimeType: string;
+    dataBase64: string;
+  }) => void;
+  readonly onDeleteAttachment?: (attachmentId: string) => void;
+  readonly onPreviewAttachment?: (attachmentId: string | null) => void;
+}
+
+// PR39: renderer — project attachment views (metadata as plain data;
+// image thumbnails as bounded data: URLs; audio/video render as a
+// metadata card without bytes).
+export interface AttachmentFileView {
+  readonly attachmentId: string;
+  readonly filename: string;
+  readonly mimeType: string;
+  readonly sizeBytes: number;
+  readonly status: string;
+}
+
+export interface SelectedAttachmentPreview {
+  readonly attachmentId: string;
+  readonly kind: "image" | "card";
+  readonly mimeType: string;
+  readonly dataBase64: string | null;
 }
 
 // PR37: renderer — project document views (metadata + bounded preview as

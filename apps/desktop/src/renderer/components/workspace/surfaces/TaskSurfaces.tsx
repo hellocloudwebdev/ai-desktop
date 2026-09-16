@@ -141,7 +141,35 @@ export function FilesSurface({
   selectedDocument = null,
   onSelectDocument,
   documentsError = null,
+  attachments = [],
+  selectedAttachmentPreview = null,
+  attachmentsError = null,
+  onUploadAttachment,
+  onDeleteAttachment,
+  onPreviewAttachment,
 }: FilesSurfaceProps): React.ReactElement {
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+  const handlePickedFile = (file: File): void => {
+    if (!onUploadAttachment) {
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result !== "string") {
+        return;
+      }
+      // FileReader data: URL → strip the prefix, keep bounded base64 only.
+      const comma = result.indexOf(",");
+      const dataBase64 = comma >= 0 ? result.slice(comma + 1) : result;
+      onUploadAttachment({
+        name: file.name,
+        mimeType: file.type || "application/octet-stream",
+        dataBase64,
+      });
+    };
+    reader.readAsDataURL(file);
+  };
   return (
     <div className="px-6 py-4 overflow-y-auto text-xs">
       <p className="text-slate-400 mb-2">
@@ -211,6 +239,83 @@ export function FilesSurface({
       <p className="mt-3 text-[10px] text-slate-500">
         Read-only context. Editing uses the coding tools.
       </p>
+      {/* PR39: project attachments (upload + list + delete + preview). */}
+      <p className="mt-4 mb-2 text-slate-400">
+        Attachments: <span className="font-mono text-slate-200">{attachments.length}</span>
+      </p>
+      {attachmentsError && <p className="text-red-400 mb-2">{attachmentsError}</p>}
+      <input
+        ref={fileInputRef}
+        type="file"
+        className="hidden"
+        aria-label="Upload attachment"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) {
+            handlePickedFile(file);
+          }
+          e.target.value = "";
+        }}
+      />
+      <button
+        type="button"
+        onClick={() => fileInputRef.current?.click()}
+        disabled={!onUploadAttachment}
+        className="rounded-lg bg-indigo-700 hover:bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white transition-colors disabled:opacity-50 mb-2"
+      >
+        Upload attachment
+      </button>
+      {attachments.length === 0 ? (
+        <p className="text-slate-500">No attachments uploaded in this project yet.</p>
+      ) : (
+        <ul className="space-y-1">
+          {attachments.map((a) => (
+            <li key={a.attachmentId} className="rounded bg-slate-800/60 px-2 py-1.5">
+              <button
+                type="button"
+                onClick={() => onPreviewAttachment?.(a.attachmentId)}
+                className="font-mono text-slate-200 break-all hover:text-white text-left"
+              >
+                {a.filename}
+              </button>
+              <span className="text-slate-400 ml-2">
+                {a.mimeType} · {a.sizeBytes} bytes · {a.status}
+              </span>
+              <button
+                type="button"
+                onClick={() => onDeleteAttachment?.(a.attachmentId)}
+                aria-label={`Delete attachment ${a.filename}`}
+                className="ml-2 text-rose-300 hover:text-rose-100"
+              >
+                Delete
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {selectedAttachmentPreview && (
+        <div className="mt-3 rounded bg-slate-800/60 px-2 py-1.5">
+          {selectedAttachmentPreview.kind === "image" && selectedAttachmentPreview.dataBase64 ? (
+            <img
+              src={`data:${selectedAttachmentPreview.mimeType};base64,${selectedAttachmentPreview.dataBase64}`}
+              alt="Attachment preview"
+              className="max-h-48 rounded"
+            />
+          ) : (
+            <p className="text-slate-300">
+              {selectedAttachmentPreview.mimeType} preview unavailable as an image; metadata card
+              only.
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={() => onPreviewAttachment?.(null)}
+            className="text-slate-400 hover:text-slate-200 mt-2"
+          >
+            Close preview
+          </button>
+        </div>
+      )}
     </div>
   );
 }

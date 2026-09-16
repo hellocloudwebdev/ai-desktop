@@ -78,6 +78,11 @@ import {
   DocumentsSearchCommandSchema,
   DocumentsIngestCommandSchema,
   DocumentsDeleteCommandSchema,
+  AttachmentsListCommandSchema,
+  AttachmentsGetCommandSchema,
+  AttachmentsUploadCommandSchema,
+  AttachmentsDeleteCommandSchema,
+  AttachmentsPreviewCommandSchema,
   McpServerListCommandSchema,
   McpServerGetCommandSchema,
   McpServerConnectCommandSchema,
@@ -171,6 +176,14 @@ import type { ResearchService } from "../research/index.js";
 import type { DocumentService } from "../documents/index.js";
 import type { MCPHost } from "@ai-desktop/mcp";
 import type { ActiveStreamRegistry, ChatService, ModelSelectionService } from "../chat/index.js";
+import {
+  deleteAttachment,
+  getAttachment,
+  listAttachments,
+  previewAttachment,
+  uploadAttachment,
+  type AttachmentsIpcDependencies,
+} from "../chat/attachments-ipc.js";
 import type { IpcBatcher } from "./batcher.js";
 
 export type CommandHandler<TInput, TOutput> = (
@@ -266,6 +279,7 @@ export interface RegisterIpcOptions {
   browserService?: BrowserService;
   researchService?: ResearchService;
   documentService?: DocumentService;
+  attachments?: AttachmentsIpcDependencies;
   mcpHost?: MCPHost;
 }
 
@@ -514,6 +528,8 @@ export function registerIpcHandlers(
     options && "researchService" in options ? options.researchService : undefined;
   const documentService: DocumentService | undefined =
     options && "documentService" in options ? options.documentService : undefined;
+  const attachments: AttachmentsIpcDependencies | undefined =
+    options && "attachments" in options ? options.attachments : undefined;
   const mcpHost: MCPHost | undefined =
     options && "mcpHost" in options ? options.mcpHost : undefined;
   if (batcher) {
@@ -1779,7 +1795,68 @@ export function registerIpcHandlers(
     },
   );
 
-  // 67-77. MCP server commands (PR38): status/capabilities/resources/
+  // 67-71. Attachments commands (PR39): project-scoped list/get/upload/
+  // delete/preview over MediaArtifactStore + PrismaAttachmentRepository.
+  // Mirrors the documents:* pattern above: no permission call in IPC
+  // (tools enforce), missing deps fail closed. There is intentionally NO
+  // attachments:read-path / media:readPath channel — bytes never leave
+  // main except as a bounded image-only preview.
+  registry.registerCommand(
+    IPC_CHANNELS.ATTACHMENTS_LIST,
+    AttachmentsListCommandSchema,
+    async (input) => {
+      if (attachments) {
+        return listAttachments(attachments, input);
+      }
+      throw new Error("AttachmentService is not available");
+    },
+  );
+
+  registry.registerCommand(
+    IPC_CHANNELS.ATTACHMENTS_GET,
+    AttachmentsGetCommandSchema,
+    async (input) => {
+      if (attachments) {
+        return getAttachment(attachments, input);
+      }
+      throw new Error("AttachmentService is not available");
+    },
+  );
+
+  registry.registerCommand(
+    IPC_CHANNELS.ATTACHMENTS_UPLOAD,
+    AttachmentsUploadCommandSchema,
+    async (input) => {
+      if (attachments) {
+        return uploadAttachment(attachments, input);
+      }
+      throw new Error("AttachmentService is not available");
+    },
+  );
+
+  registry.registerCommand(
+    IPC_CHANNELS.ATTACHMENTS_DELETE,
+    AttachmentsDeleteCommandSchema,
+    async (input) => {
+      if (attachments) {
+        return deleteAttachment(attachments, input);
+      }
+      throw new Error("AttachmentService is not available");
+    },
+  );
+
+  registry.registerCommand(
+    IPC_CHANNELS.ATTACHMENTS_PREVIEW,
+    AttachmentsPreviewCommandSchema,
+    async (input) => {
+      if (attachments) {
+        return previewAttachment(attachments, input);
+      }
+      throw new Error("AttachmentService is not available");
+    },
+  );
+
+  // 72-82. MCP server commands (PR38): status/capabilities/resources/
   // prompts/subscriptions over the desktop MCP host. No mcp:execute —
   // execution flows through the agent tool router.
   registry.registerCommand(IPC_CHANNELS.MCP_SERVER_LIST, McpServerListCommandSchema, async () => {

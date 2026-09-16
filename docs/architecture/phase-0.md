@@ -1,11 +1,11 @@
 # Phase 0 — What Exists and What Does Not
 
 This document prevents the repository (and its documentation) from claiming functionality
-that does not exist. It reflects the state after **PR38 (Advanced MCP &
-MCP Apps Foundation)** and
+that does not exist. It reflects the state after **PR39 (Multimodal
+Foundation)** and
 is updated as each PR lands.
 
-## Implemented (as of PR38)
+## Implemented (as of PR39)
 
 - Repository foundation: pnpm workspace + Turborepo task graph (`build`, `dev`,
   `typecheck`, `lint`, `test`).
@@ -730,6 +730,36 @@ node.completed/node.failed/blocked/replan/completed/failed/cancelled` plus the
     secret non-exposure, and forged actions — plus full-lifecycle,
     recovery, and cancellation E2E over a real SDK fixture server.
     Full design in `docs/architecture/pr-38-advanced-mcp.md`.
+- Multimodal Foundation (`packages/ai-core`, `packages/providers`,
+  `packages/storage`, `apps/desktop`, PR39):
+  - Canonical contracts in `ai-core` (`multimodal.ts`): branded artifact/
+    attachment IDs, artifact/data/remote-URL media sources, MIME allowlists
+    with validated image/audio/video parts, 10 centralized bounds,
+    attachment lifecycle with validated transitions, capability negotiation
+    (first-unsupported-wins, typed errors, never secrets), 11-code media
+    error taxonomy, untrusted-media framing, audit-only request events,
+    and capability-aware risk mapping.
+  - Providers: Gemini audio/video `inlineData` translation with byte caps
+    and capability gating plus `audio`/`video` on flash/pro catalogs
+    (lite conservatively unchanged); Anthropic audio/video/file keep
+    typed errors (SDK-verified: no audio input blocks).
+  - Chat: optional multimodal parts with extended negotiation (audio/
+    video capabilities, part-count and media-byte bounds) failing before
+    any provider call; streaming/cancellation/memory/tools untouched.
+    Agent Runtime unchanged (metadata payloads + pass-through invoker).
+  - `MediaArtifactStore` (bytes under project dirs, path-policy
+    containment, magic-byte + decompression-bomb validation, scoped
+    load/delete, abort-aware save) + Prisma `AttachmentRecord` →
+    `attachments` table with repository. No automatic document/memory
+    ingestion.
+  - `attachments:list/get/upload/delete/preview` IPC + preload, Files
+    attachments panel, chat thumbnails/metadata cards, renderer free of
+    privileged imports.
+  - Security regression coverage: traversal/symlink/MIME-spoof/bomb/
+    oversize/expansion/cross-project/secret/isolation tests plus framed
+    injection tests; E2E (vision flow, zero-call unsupported-model
+    failure, isolation, idempotent cancellation). Full design in
+    `docs/architecture/pr-39-multimodal.md`.
 - All remaining canonical packages stay **empty shells** (`package.json`, `tsconfig.json`,
   `src/index.ts` placeholder) — deliberately no premature domain functionality inside them.
 - Toolchain: TypeScript 5.9.3, ESLint 10.10.0, Vitest 4.1.10, Vite 8.1.0, Prettier 3.9.6,

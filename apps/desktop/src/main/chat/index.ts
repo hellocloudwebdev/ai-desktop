@@ -12,3 +12,14 @@ export {
   type ModelSelectionServiceOptions,
   type ResolvedModelRoute,
 } from "./model-selection-service.js";
+export {
+  deleteAttachment,
+  getAttachment,
+  listAttachments,
+  previewAttachment,
+  uploadAttachment,
+  type AttachmentPreviewView,
+  type AttachmentsIpcDependencies,
+  type AttachmentView,
+} from "./attachments-ipc.js";
+export { checkImageMagic, MAX_IMAGE_PIXELS } from "./media-artifacts.js";

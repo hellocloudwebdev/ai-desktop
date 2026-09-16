@@ -25,7 +25,34 @@ import type {
   ModelDefinition,
   ToolDefinition,
 } from "@ai-desktop/ai-core";
+import {
+  MULTIMEDIA_MAX_AUDIO_BYTES,
+  MULTIMEDIA_MAX_IMAGE_BYTES,
+  MULTIMEDIA_MAX_VIDEO_BYTES,
+} from "@ai-desktop/ai-core";
 import { UnsupportedCapabilityError } from "../core/provider-errors.js";
+
+/** PR39: base64 payload byte size (decoded estimate). */
+function decodedBytes(base64: string): number {
+  return Math.floor(base64.length * 0.75);
+}
+
+/** PR39: enforces per-modality byte caps before building native parts. */
+function enforceMediaCap(kind: "image" | "audio" | "video", base64: string): void {
+  const cap =
+    kind === "image"
+      ? MULTIMEDIA_MAX_IMAGE_BYTES
+      : kind === "audio"
+        ? MULTIMEDIA_MAX_AUDIO_BYTES
+        : MULTIMEDIA_MAX_VIDEO_BYTES;
+  if (decodedBytes(base64) > cap) {
+    throw new UnsupportedCapabilityError(
+      kind,
+      `"${kind}" payload exceeds the ${cap}-byte limit`,
+      undefined,
+    );
+  }
+}
 
 /**
  * Translates a canonical ContentPart into a Gemini-native Part.
@@ -42,6 +69,7 @@ function translateContentPart(part: ContentPart, model: ModelDefinition): Part {
           modelId: model.id,
         });
       }
+      enforceMediaCap("image", part.data);
       return {
         inlineData: {
           mimeType: part.mimeType,
@@ -112,6 +140,11 @@ function translateContentPart(part: ContentPart, model: ModelDefinition): Part {
         );
       }
       if ("data" in part && typeof part.data === "string") {
+        if (part.type === "audio") {
+          enforceMediaCap("audio", part.data);
+        } else if (part.type === "video") {
+          enforceMediaCap("video", part.data);
+        }
         return {
           inlineData: {
             mimeType: part.mimeType,

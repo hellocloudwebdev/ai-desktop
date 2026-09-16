@@ -137,6 +137,17 @@ export const IPC_CHANNELS = {
   DOCUMENTS_INGEST: "documents:ingest",
   DOCUMENTS_DELETE: "documents:delete",
 
+  // Project attachment operations (PR39). NOTE: there is intentionally NO
+  // attachments:read-path / attachments:execute / media:readPath channel —
+  // bytes live in the main-process MediaArtifactStore; the renderer receives
+  // metadata plus a bounded image-only thumbnail preview (max 200KB).
+  // Audio/video previews return a metadata card without bytes.
+  ATTACHMENTS_LIST: "attachments:list",
+  ATTACHMENTS_GET: "attachments:get",
+  ATTACHMENTS_UPLOAD: "attachments:upload",
+  ATTACHMENTS_DELETE: "attachments:delete",
+  ATTACHMENTS_PREVIEW: "attachments:preview",
+
   // MCP server operations (PR38). NOTE: there is intentionally NO
   // mcp:execute channel — tool execution flows through the agent tool
   // router (McpToolExecutor), never arbitrary IPC.
@@ -903,6 +914,55 @@ export const DocumentsDeleteCommandSchema = z.object({
 });
 
 export type DocumentsDeleteCommand = z.infer<typeof DocumentsDeleteCommandSchema>;
+
+// ---------------------------------------------------------------------------
+// Attachment Commands (PR39)
+// Upload travels as base64 (IPC-safe); main re-checks byte bounds after
+// decoding and validates image magic bytes. Preview returns bounded
+// image-only thumbnail bytes (max 200KB); audio/video return a metadata
+// card without bytes. There is intentionally NO attachments:read-path /
+// media:readPath channel — the renderer never receives filesystem paths.
+// ---------------------------------------------------------------------------
+
+export const ATTACHMENTS_UPLOAD_MAX_BASE64 = 36_000_000;
+export const ATTACHMENTS_PREVIEW_MAX_BYTES = 204_800;
+
+export const AttachmentsListCommandSchema = z.object({
+  projectId: z.string().trim().min(1).max(256),
+});
+
+export type AttachmentsListCommand = z.infer<typeof AttachmentsListCommandSchema>;
+
+export const AttachmentsGetCommandSchema = z.object({
+  projectId: z.string().trim().min(1).max(256),
+  attachmentId: UlidStringSchema,
+});
+
+export type AttachmentsGetCommand = z.infer<typeof AttachmentsGetCommandSchema>;
+
+export const AttachmentsUploadCommandSchema = z.object({
+  projectId: z.string().trim().min(1).max(256),
+  fileName: z.string().trim().min(1).max(255),
+  mimeType: z.string().trim().min(1).max(128),
+  contentBase64: z.string().min(1).max(ATTACHMENTS_UPLOAD_MAX_BASE64),
+});
+
+export type AttachmentsUploadCommand = z.infer<typeof AttachmentsUploadCommandSchema>;
+
+export const AttachmentsDeleteCommandSchema = z.object({
+  projectId: z.string().trim().min(1).max(256),
+  attachmentId: UlidStringSchema,
+});
+
+export type AttachmentsDeleteCommand = z.infer<typeof AttachmentsDeleteCommandSchema>;
+
+export const AttachmentsPreviewCommandSchema = z.object({
+  projectId: z.string().trim().min(1).max(256),
+  attachmentId: UlidStringSchema,
+  maxBytes: z.number().int().positive().max(ATTACHMENTS_PREVIEW_MAX_BYTES).optional(),
+});
+
+export type AttachmentsPreviewCommand = z.infer<typeof AttachmentsPreviewCommandSchema>;
 
 // ---------------------------------------------------------------------------
 // MCP Server Commands (PR38)

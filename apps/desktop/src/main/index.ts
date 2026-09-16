@@ -25,6 +25,7 @@ import {
 import {
   DuplicateSequenceError,
   StorageDatabase,
+  PrismaAttachmentRepository,
   PrismaEventRepository,
   PrismaProviderProfileRepository,
   PrismaConversationModelRepository,
@@ -34,6 +35,7 @@ import {
   PrismaDocumentRepository,
   PrismaExtensionRepository,
   PrismaExtensionProjectBindingRepository,
+  type AttachmentRepository,
   type EventRepository,
   type ProviderProfileRepository,
   type ConversationModelRepository,
@@ -48,6 +50,8 @@ import { SkillInstaller, SkillManager, SkillToolRegistry } from "@ai-desktop/ski
 import { MemoryService } from "@ai-desktop/memory";
 import { DefaultExecutionManager, LocalProcessSandboxProvider } from "@ai-desktop/execution";
 import { ActiveStreamRegistry, ChatService, ModelSelectionService } from "./chat/index.js";
+import { MediaArtifactStore } from "./chat/media-artifacts.js";
+import type { AttachmentsIpcDependencies } from "./chat/attachments-ipc.js";
 import { AgentService } from "./agent/index.js";
 import { CodingAgentService, CodingToolExecutor } from "./agent/index.js";
 import { ExtensionService, PluginToolRegistry } from "./extensions/index.js";
@@ -118,6 +122,8 @@ let researchService: ResearchService | null = null;
 let researchToolExecutor: ResearchToolExecutor | null = null;
 let documentService: DocumentService | null = null;
 let documentsToolExecutor: DocumentsToolExecutor | null = null;
+let mediaArtifactStore: MediaArtifactStore | null = null;
+let attachmentRepository: AttachmentRepository | null = null;
 
 export function getProviderRegistry(): ProviderRegistry {
   if (!providerRegistry) {
@@ -617,6 +623,46 @@ export function getDocumentsToolExecutor(): DocumentsToolExecutor {
   return documentsToolExecutor;
 }
 
+/**
+ * MediaArtifactStore singleton (PR39): filesystem-backed binary store for
+ * chat attachments, rooted under the Electron userData dir (mirroring the
+ * skills/extensions singleton root resolution below). Bytes never cross IPC
+ * except as a bounded image-only preview.
+ */
+export function getMediaArtifactStore(): MediaArtifactStore {
+  if (!mediaArtifactStore) {
+    const rootDir =
+      app && typeof app.getPath === "function"
+        ? path.join(app.getPath("userData"), "media-artifacts")
+        : path.resolve(process.cwd(), ".ai-desktop/media-artifacts");
+    mediaArtifactStore = new MediaArtifactStore({ rootDir });
+  }
+  return mediaArtifactStore;
+}
+
+/**
+ * AttachmentRepository singleton (PR39): Prisma-backed attachment metadata
+ * over the shared StorageDatabase (bytes stay in MediaArtifactStore).
+ */
+export function getAttachmentRepository(): AttachmentRepository {
+  if (!attachmentRepository) {
+    const { database: db } = getStorage();
+    attachmentRepository = new PrismaAttachmentRepository(db);
+  }
+  return attachmentRepository;
+}
+
+/**
+ * Attachments IPC dependencies (PR39): thin-handler bundle passed into the
+ * IPC handler registration (mirrors how documentService is passed).
+ */
+export function getAttachmentsIpcDependencies(): AttachmentsIpcDependencies {
+  return {
+    artifactStore: getMediaArtifactStore(),
+    attachmentRepository: getAttachmentRepository(),
+  };
+}
+
 export function getSecureWebPreferences(preloadPath: string): Electron.WebPreferences {
   return {
     preload: preloadPath,
@@ -675,6 +721,8 @@ export function initIpc(options?: {
   surfaceService?: SurfaceService;
   browserService?: BrowserService;
   researchService?: ResearchService;
+  documentService?: DocumentService;
+  attachments?: AttachmentsIpcDependencies;
 }): IpcRegistry {
   if (!ipcRegistry) {
     ipcRegistry = new IpcRegistry();
@@ -692,6 +740,8 @@ export function initIpc(options?: {
     const surfaces = options?.surfaceService ?? getSurfaceService();
     const browser = options?.browserService ?? getBrowserService();
     const research = options?.researchService ?? getResearchService();
+    const documents = options?.documentService ?? getDocumentService();
+    const attachmentsDeps = options?.attachments ?? getAttachmentsIpcDependencies();
 
     registerIpcHandlers(ipcRegistry, {
       streamRegistry,
@@ -708,6 +758,8 @@ export function initIpc(options?: {
       surfaceService: surfaces,
       browserService: browser,
       researchService: research,
+      documentService: documents,
+      attachments: attachmentsDeps,
     });
   }
   return ipcRegistry;

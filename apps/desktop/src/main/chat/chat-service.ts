@@ -32,10 +32,16 @@ import {
   projectConversation,
   projectMessages,
   textPart,
+  MAX_PARTS_PER_MESSAGE,
+  MAX_MEDIA_BYTES_PER_MESSAGE,
+  imagePart,
+  audioPart,
+  videoPart,
   type AIEvent,
   type ChatMessageInput,
   type ChatRequest,
   type ChatRequestOptions,
+  type ContentPart,
   type Conversation,
   type Message,
   type MessageCreatedEvent,
@@ -80,6 +86,24 @@ export interface SendMessageInput {
   tools?: readonly ToolDefinition[];
   options?: ChatRequestOptions;
   includeMemory?: boolean;
+  /**
+   * PR39: optional multimodal parts appended after the text content.
+   * Payloads arrive as small data strings or artifact references resolved
+   * by the caller; the service validates MIME + capability before execution.
+   */
+  parts?: readonly MultimodalInputPart[];
+}
+
+export interface MultimodalInputPart {
+  readonly type: "image" | "audio" | "video";
+  readonly mimeType: string;
+  /** Small inline base64 payload (bounded by MULTIMEDIA_* caps). */
+  readonly data?: string;
+  /** Artifact reference (artifactId) resolved via MediaArtifactStore. */
+  readonly artifactId?: string;
+  readonly width?: number;
+  readonly height?: number;
+  readonly alt?: string;
 }
 
 export interface SendMessageResult {
@@ -139,6 +163,53 @@ export function validateRequestCapabilities(request: ChatRequest, model: ModelDe
           { providerId: model.providerId, modelId: model.id },
         );
       }
+    }
+  }
+
+  // 5. PR39: audio / video capabilities (fail before provider execution).
+  for (const msg of request.messages) {
+    for (const part of msg.content) {
+      if (part.type === "audio" && !model.capabilities.includes("audio")) {
+        throw new UnsupportedCapabilityError(
+          "audio",
+          `Model "${model.id}" does not support audio input`,
+          { providerId: model.providerId, modelId: model.id },
+        );
+      }
+      if (part.type === "video" && !model.capabilities.includes("video")) {
+        throw new UnsupportedCapabilityError(
+          "video",
+          `Model "${model.id}" does not support video input`,
+          { providerId: model.providerId, modelId: model.id },
+        );
+      }
+    }
+  }
+
+  // 6. PR39: message bounds (part count + total media bytes).
+  for (const msg of request.messages) {
+    if (msg.content.length > MAX_PARTS_PER_MESSAGE) {
+      throw new UnsupportedCapabilityError(
+        "message-bounds",
+        `Message exceeds ${MAX_PARTS_PER_MESSAGE} parts`,
+        { providerId: model.providerId, modelId: model.id },
+      );
+    }
+    let mediaBytes = 0;
+    for (const part of msg.content) {
+      if (part.type === "image" || part.type === "audio" || part.type === "video") {
+        const data = (part as { data?: unknown }).data;
+        if (typeof data === "string") {
+          mediaBytes += Math.floor(data.length * 0.75);
+        }
+      }
+    }
+    if (mediaBytes > MAX_MEDIA_BYTES_PER_MESSAGE) {
+      throw new UnsupportedCapabilityError(
+        "message-bounds",
+        `Message media exceeds ${MAX_MEDIA_BYTES_PER_MESSAGE} bytes`,
+        { providerId: model.providerId, modelId: model.id },
+      );
     }
   }
 }
@@ -227,7 +298,26 @@ export class ChatService {
       historicalEvents.length > 0 ? Math.max(...historicalEvents.map((e) => e.sequence)) + 1 : 0;
 
     // 3. Project conversation state to construct canonical ChatRequest (§39.15, §39.16)
-    const userContent = [textPart(input.content)];
+    // PR39: optional multimodal parts travel alongside the text part.
+    const userContent: ContentPart[] = [textPart(input.content)];
+    for (const part of input.parts ?? []) {
+      if (part.type === "image" && part.data !== undefined) {
+        userContent.push(
+          imagePart(part.mimeType, part.data, {
+            ...(part.width !== undefined ? { width: part.width } : {}),
+            ...(part.height !== undefined ? { height: part.height } : {}),
+            ...(part.alt !== undefined ? { alt: part.alt } : {}),
+          }),
+        );
+      } else if (part.type === "audio" && part.data !== undefined) {
+        userContent.push(audioPart(part.mimeType, part.data));
+      } else if (part.type === "video" && part.data !== undefined) {
+        userContent.push(videoPart(part.mimeType, part.data));
+      }
+      // Artifact references (artifactId without data) resolve through the
+      // MediaArtifactStore at the IPC layer before reaching sendMessage;
+      // unresolved references are never silently submitted.
+    }
     const userMessageInput: ChatMessageInput = {
       id: userMessageId,
       role: "user",

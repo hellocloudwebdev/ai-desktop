@@ -1,6 +1,6 @@
 # ai-desktop
 
-A desktop AI assistant. This repository is currently at **PR38 — Advanced MCP & MCP Apps**:
+A desktop AI assistant. This repository is currently at **PR39 — Multimodal Foundation**:
 shared primitives, canonical AI domain contracts, projections, in-process EventBus,
 permission checkpoint, SQLite WAL event repository, OS-backed credential store, canonical
 provider contracts, concrete `AnthropicAdapter`, concrete `GeminiAdapter`, Electron 44 desktop
@@ -86,7 +86,15 @@ structured tool results with server provenance, streamable-http transport, secre
 resolution with stdio env allowlist, pure MCP App surface bridge into renderable
 RichSurface descriptors with validated interactions, desktop host singleton with eleven
 typed `mcp:*` IPC commands and preload bridge, MCP Servers workspace surface, and
-injection/poisoning/forgery/isolation/secret security tests with full-lifecycle E2E) are
+injection/poisoning/forgery/isolation/secret security tests with full-lifecycle E2E), and the
+Multimodal Foundation (canonical text/image/audio/video parts with MIME allowlists and
+centralized bounds, attachment lifecycle with validated transitions, capability negotiation
+failing before provider execution, Gemini audio/video translation with byte caps and
+flash/pro catalog entries, typed Anthropic audio/video errors, multimodal chat parts with
+extended negotiation, project-scoped media artifact store with magic-byte and
+decompression-bomb validation, attachment metadata persistence, `attachments:*` typed IPC
+with preload bridge, Files attachments panel with chat thumbnails, and
+traversal/spoof/isolation security tests with vision/isolation/cancellation E2E) are
 implemented. Future packages remain empty shells awaiting their respective
 implementation PRs — see [docs/architecture/phase-0.md](docs/architecture/phase-0.md) for the honest list of what is
 and is not implemented.

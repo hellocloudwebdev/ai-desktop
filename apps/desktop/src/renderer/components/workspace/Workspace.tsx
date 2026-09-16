@@ -15,12 +15,14 @@ import type {
   ChatSurfaceProps,
   CodingSurfaceProps,
   ComposerProps,
+  AttachmentFileView,
   DocumentFileView,
   ExtensionsSurfaceProps,
   BrowserSurfaceProps,
   McpServersSurfaceProps,
   ResearchSurfaceProps,
   InspectorProps,
+  SelectedAttachmentPreview,
   SelectedDocumentView,
   SidebarProps,
   SurfaceHostProps,
@@ -44,6 +46,16 @@ export interface WorkspaceShellProps {
   readonly selectedDocument?: SelectedDocumentView | null;
   readonly onSelectDocument?: (documentId: string | null) => void;
   readonly documentsError?: string | null;
+  readonly attachments?: AttachmentFileView[];
+  readonly selectedAttachmentPreview?: SelectedAttachmentPreview | null;
+  readonly onPreviewAttachment?: (attachmentId: string | null) => void;
+  readonly attachmentsError?: string | null;
+  readonly onUploadAttachment?: (file: {
+    name: string;
+    mimeType: string;
+    dataBase64: string;
+  }) => void;
+  readonly onDeleteAttachment?: (attachmentId: string) => void;
   readonly extensions: ExtensionsSurfaceProps;
   readonly browser: BrowserSurfaceProps;
   readonly research: ResearchSurfaceProps;
@@ -69,6 +81,12 @@ export function WorkspaceShell({
   selectedDocument,
   onSelectDocument,
   documentsError,
+  attachments,
+  selectedAttachmentPreview,
+  onPreviewAttachment,
+  attachmentsError,
+  onUploadAttachment,
+  onDeleteAttachment,
   extensions,
   browser,
   research,
@@ -149,6 +167,12 @@ export function WorkspaceShell({
               selectedDocument={selectedDocument}
               onSelectDocument={onSelectDocument}
               documentsError={documentsError}
+              attachments={attachments}
+              selectedAttachmentPreview={selectedAttachmentPreview}
+              onPreviewAttachment={onPreviewAttachment}
+              attachmentsError={attachmentsError}
+              onUploadAttachment={onUploadAttachment}
+              onDeleteAttachment={onDeleteAttachment}
               extensions={extensions}
               browser={browser}
               research={research}

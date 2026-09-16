@@ -2,9 +2,29 @@
 //
 // Existing conversation UI: message bubbles, permission banner, error banner.
 // Behavior unchanged: ChatService + IPC + projections remain the owners.
+//
+// PR39: bounded inline-image rendering for image message parts. Only parts
+// whose payload stays under the cap render as thumbnails; larger payloads
+// (provider-bound main-side bytes) render as a placeholder card.
+// Audio/video parts render as metadata cards, never as embedded media.
 
 import React from "react";
 import type { ChatSurfaceProps } from "./surface-props.js";
+
+const CHAT_IMAGE_RENDER_BYTES = 500_000;
+
+function imagePayloadLength(data: string): number {
+  if (data.startsWith("data:")) {
+    const comma = data.indexOf(",");
+    return comma >= 0 ? data.length - comma - 1 : data.length;
+  }
+  // Raw base64 payload (chat-service image parts carry bare base64).
+  return data.length;
+}
+
+function toImageSrc(mimeType: string, data: string): string {
+  return data.startsWith("data:") ? data : `data:${mimeType};base64,${data}`;
+}
 
 export function ChatSurface({
   messages,
@@ -31,6 +51,10 @@ export function ChatSurface({
           messages.map((msg) => {
             const isUser = msg.role === "user";
             const text = renderMessageText(msg.content);
+            const mediaParts = msg.content.filter(
+              (p): p is Extract<typeof p, { type: "image" | "audio" | "video" }> =>
+                p.type === "image" || p.type === "audio" || p.type === "video",
+            );
 
             return (
               <div key={msg.id} className={`flex flex-col ${isUser ? "items-end" : "items-start"}`}>
@@ -65,6 +89,35 @@ export function ChatSurface({
                   <div className="text-sm leading-relaxed whitespace-pre-wrap">
                     {text || (msg.status === "streaming" ? "…" : "")}
                   </div>
+                  {mediaParts.length > 0 ? (
+                    <div className="mt-2 space-y-2">
+                      {mediaParts.map((part, index) => {
+                        const key = `${msg.id}-media-${index}`;
+                        if (part.type === "image") {
+                          if (imagePayloadLength(part.data) >= CHAT_IMAGE_RENDER_BYTES) {
+                            return (
+                              <p key={key} className="text-xs text-slate-400">
+                                [image attachment: {part.mimeType} — preview too large]
+                              </p>
+                            );
+                          }
+                          return (
+                            <img
+                              key={key}
+                              src={toImageSrc(part.mimeType, part.data)}
+                              alt={part.alt ?? "Attached image"}
+                              className="max-h-48 rounded-lg"
+                            />
+                          );
+                        }
+                        return (
+                          <p key={key} className="text-xs text-slate-400">
+                            [{part.type} attachment: {part.mimeType}]
+                          </p>
+                        );
+                      })}
+                    </div>
+                  ) : null}
                 </div>
               </div>
             );

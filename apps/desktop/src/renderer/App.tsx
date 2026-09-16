@@ -17,6 +17,7 @@ import {
 import { WorkspaceShell } from "./components/workspace/Workspace.js";
 import type {
   ActivityEventView,
+  AttachmentFileView,
   BrowserPageView,
   DocumentFileView,
   ExtensionView,
@@ -25,6 +26,7 @@ import type {
   ResearchDocumentView,
   ResearchProviderStatusView,
   ResearchResultView,
+  SelectedAttachmentPreview,
   SelectedDocumentView,
   SurfaceView,
 } from "./components/workspace/surfaces/surface-props.js";
@@ -105,6 +107,12 @@ export function App(): React.ReactElement {
   const [projectDocuments, setProjectDocuments] = useState<DocumentFileView[]>([]);
   const [selectedDocument, setSelectedDocument] = useState<SelectedDocumentView | null>(null);
   const [documentsError, setDocumentsError] = useState<string | null>(null);
+  // PR39: project attachments (App-owned backend state over the
+  // attachments:* preload bridge; Files surface is a pure view).
+  const [projectAttachments, setProjectAttachments] = useState<AttachmentFileView[]>([]);
+  const [selectedAttachmentPreview, setSelectedAttachmentPreview] =
+    useState<SelectedAttachmentPreview | null>(null);
+  const [attachmentsError, setAttachmentsError] = useState<string | null>(null);
   // PR38: MCP servers list + selection (App-owned backend state over the
   // mcp:* preload bridge; McpServers surface is a pure view).
   const [mcpServers, setMcpServers] = useState<McpServerView[]>([]);
@@ -349,6 +357,114 @@ export function App(): React.ReactElement {
   useEffect(() => {
     void refreshDocuments();
   }, [refreshDocuments]);
+
+  // PR39: project attachments through the attachments:* preload bridge.
+  // No-ops when the bridge is absent (preload not yet updated, or
+  // non-Electron hosts). Uploads travel as base64; previews arrive as
+  // bounded image bytes or metadata cards — never raw paths.
+  const refreshAttachments = useCallback(async () => {
+    if (typeof window === "undefined" || !window.api) return;
+    try {
+      const res = await window.api.commands.listAttachments({
+        projectId: workspace.state.activeProjectId,
+      });
+      if (res.ok && Array.isArray(res.value.attachments)) {
+        setProjectAttachments(
+          (res.value.attachments as Array<Record<string, unknown>>).map((a) => ({
+            attachmentId: String(a["attachmentId"] ?? ""),
+            filename: String(a["filename"] ?? ""),
+            mimeType: String(a["mimeType"] ?? ""),
+            sizeBytes: Number(a["sizeBytes"] ?? 0),
+            status: String(a["status"] ?? ""),
+          })),
+        );
+      } else if (!res.ok) {
+        setAttachmentsError(res.error.message);
+      }
+    } catch (err) {
+      setAttachmentsError(err instanceof Error ? err.message : String(err));
+    }
+  }, [workspace.state.activeProjectId]);
+
+  const handleUploadAttachment = useCallback(
+    async (file: { name: string; mimeType: string; dataBase64: string }) => {
+      if (typeof window === "undefined" || !window.api) return;
+      try {
+        const res = await window.api.commands.uploadAttachment({
+          projectId: workspace.state.activeProjectId,
+          fileName: file.name,
+          mimeType: file.mimeType,
+          contentBase64: file.dataBase64,
+        });
+        if (res.ok) {
+          await refreshAttachments();
+        } else {
+          setAttachmentsError(res.error.message);
+        }
+      } catch (err) {
+        setAttachmentsError(err instanceof Error ? err.message : String(err));
+      }
+    },
+    [refreshAttachments, workspace.state.activeProjectId],
+  );
+
+  const handleDeleteAttachment = useCallback(
+    async (attachmentId: string) => {
+      if (typeof window === "undefined" || !window.api) return;
+      try {
+        const res = await window.api.commands.deleteAttachment({
+          projectId: workspace.state.activeProjectId,
+          attachmentId,
+        });
+        if (res.ok) {
+          if (selectedAttachmentPreview?.attachmentId === attachmentId) {
+            setSelectedAttachmentPreview(null);
+          }
+          await refreshAttachments();
+        } else {
+          setAttachmentsError(res.error.message);
+        }
+      } catch (err) {
+        setAttachmentsError(err instanceof Error ? err.message : String(err));
+      }
+    },
+    [refreshAttachments, selectedAttachmentPreview, workspace.state.activeProjectId],
+  );
+
+  const handlePreviewAttachment = useCallback(
+    async (attachmentId: string | null) => {
+      if (typeof window === "undefined" || !window.api) return;
+      if (attachmentId === null) {
+        setSelectedAttachmentPreview(null);
+        return;
+      }
+      try {
+        const res = await window.api.commands.previewAttachment({
+          projectId: workspace.state.activeProjectId,
+          attachmentId,
+        });
+        if (res.ok && res.value.preview) {
+          const p = res.value.preview as Record<string, unknown>;
+          const meta = (p["metadata"] as Record<string, unknown> | undefined) ?? {};
+          setSelectedAttachmentPreview({
+            attachmentId,
+            kind: p["kind"] === "image" ? "image" : "card",
+            mimeType: String(p["mimeType"] ?? meta["mimeType"] ?? ""),
+            dataBase64: typeof p["dataBase64"] === "string" ? (p["dataBase64"] as string) : null,
+          });
+        } else if (!res.ok) {
+          setAttachmentsError(res.error.message);
+        }
+      } catch (err) {
+        setAttachmentsError(err instanceof Error ? err.message : String(err));
+      }
+    },
+    [workspace.state.activeProjectId],
+  );
+
+  useEffect(() => {
+    void refreshAttachments();
+  }, [refreshAttachments]);
 
   // PR38: load MCP servers through the preload bridge. No-ops when the
   // bridge is absent (preload not yet updated, or non-Electron hosts).
@@ -1149,6 +1265,12 @@ export function App(): React.ReactElement {
       selectedDocument={selectedDocument}
       onSelectDocument={(documentId) => void handleSelectDocument(documentId)}
       documentsError={documentsError}
+      attachments={projectAttachments}
+      selectedAttachmentPreview={selectedAttachmentPreview}
+      onPreviewAttachment={(attachmentId) => void handlePreviewAttachment(attachmentId)}
+      attachmentsError={attachmentsError}
+      onUploadAttachment={(file) => void handleUploadAttachment(file)}
+      onDeleteAttachment={(attachmentId) => void handleDeleteAttachment(attachmentId)}
       extensions={{
         extensions,
         activeProjectId: workspace.state.activeProjectId,

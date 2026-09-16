@@ -232,3 +232,22 @@ model ExtensionProjectBindingRecord {
   @@index([projectId])
   @@map("extension_project_bindings")
 }
+
+// PR39: Multimodal attachment metadata (bytes live in the desktop
+// MediaArtifactStore; only safe metadata persists here).
+model AttachmentRecord {
+  attachmentId   String // canonical AttachmentId (ULID)
+  projectId      String
+  filename       String
+  mimeType       String
+  sizeBytes      Int
+  checksumSha256 String
+  status         String // "pending" | "validated" | "available" | "failed" | "deleted"
+  artifactId     String // canonical MediaArtifactId reference
+  createdAt      BigInt // epoch milliseconds
+  updatedAt      BigInt // epoch milliseconds
+
+  @@id([attachmentId])
+  @@index([projectId])
+  @@map("attachments")
+}

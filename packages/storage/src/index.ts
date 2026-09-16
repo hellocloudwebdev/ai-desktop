@@ -81,3 +81,11 @@ export type {
   UpdateDocumentStatusData,
 } from "./documents/document-repository.js";
 export { PrismaDocumentRepository } from "./documents/prisma-document-repository.js";
+
+// PR39: Attachment metadata persistence (bytes stay in MediaArtifactStore)
+export type {
+  AttachmentRepository,
+  StoredAttachment,
+  CreateAttachmentData,
+} from "./attachments/attachment-repository.js";
+export { PrismaAttachmentRepository } from "./attachments/prisma-attachment-repository.js";

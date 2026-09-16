@@ -71,6 +71,11 @@ import {
   type DocumentsSearchCommand,
   type DocumentsIngestCommand,
   type DocumentsDeleteCommand,
+  type AttachmentsListCommand,
+  type AttachmentsGetCommand,
+  type AttachmentsUploadCommand,
+  type AttachmentsDeleteCommand,
+  type AttachmentsPreviewCommand,
   type McpServerListCommand,
   type McpServerGetCommand,
   type McpServerConnectCommand,
@@ -286,6 +291,24 @@ export interface DesktopApplicationApi {
     deleteDocument(
       command: DocumentsDeleteCommand,
     ): Promise<IpcResponseEnvelope<{ result: unknown }>>;
+
+    // PR39: project attachment commands (list/get/upload/delete + bounded
+    // image-only preview; no read-path channel — bytes stay main-side).
+    listAttachments(
+      command: AttachmentsListCommand,
+    ): Promise<IpcResponseEnvelope<{ attachments: unknown[] }>>;
+    getAttachment(
+      command: AttachmentsGetCommand,
+    ): Promise<IpcResponseEnvelope<{ attachment: unknown }>>;
+    uploadAttachment(
+      command: AttachmentsUploadCommand,
+    ): Promise<IpcResponseEnvelope<{ attachment: unknown }>>;
+    deleteAttachment(
+      command: AttachmentsDeleteCommand,
+    ): Promise<IpcResponseEnvelope<{ deleted: boolean }>>;
+    previewAttachment(
+      command: AttachmentsPreviewCommand,
+    ): Promise<IpcResponseEnvelope<{ preview: unknown }>>;
 
     // PR38: MCP server commands (status/capabilities/resources/prompts/
     // subscriptions; execution flows through the agent tool router).
@@ -539,6 +562,21 @@ export function createDesktopApi(): DesktopApplicationApi {
       },
       async deleteDocument(command: DocumentsDeleteCommand) {
         return ipcRenderer.invoke(IPC_CHANNELS.DOCUMENTS_DELETE, command);
+      },
+      async listAttachments(command: AttachmentsListCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.ATTACHMENTS_LIST, command);
+      },
+      async getAttachment(command: AttachmentsGetCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.ATTACHMENTS_GET, command);
+      },
+      async uploadAttachment(command: AttachmentsUploadCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.ATTACHMENTS_UPLOAD, command);
+      },
+      async deleteAttachment(command: AttachmentsDeleteCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.ATTACHMENTS_DELETE, command);
+      },
+      async previewAttachment(command: AttachmentsPreviewCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.ATTACHMENTS_PREVIEW, command);
       },
       async listMcpServers(command: McpServerListCommand) {
         return ipcRenderer.invoke(IPC_CHANNELS.MCP_SERVER_LIST, command);

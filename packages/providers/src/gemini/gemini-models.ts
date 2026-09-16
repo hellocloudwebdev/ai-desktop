@@ -6,6 +6,10 @@
 //   3. Uses canonical ModelId and ProviderId from @ai-desktop/ai-core.
 //   4. Zero Gemini SDK (@google/genai) imports in this file (locked architectural boundary).
 //   5. Capabilities are mapped conservatively: Flash-Lite does NOT declare thinking.
+//   6. PR39: gemini-2.5-flash/pro declare audio + video input. The installed
+//      SDK (2.21.0) Part type carries inlineData/fileData with arbitrary MIME,
+//      and Gemini 2.5 Flash/Pro accept audio/video input. Flash-Lite is left
+//      unchanged (conservative: audio/video unverified for the lite tier).
 
 import {
   asModelId,
@@ -32,6 +36,8 @@ export const GEMINI_MODELS: readonly ModelDefinition[] = [
       "text_generation",
       "streaming",
       "vision",
+      "audio",
+      "video",
       "tool_use",
       "thinking",
       "structured_output",
@@ -63,6 +69,8 @@ export const GEMINI_MODELS: readonly ModelDefinition[] = [
       "text_generation",
       "streaming",
       "vision",
+      "audio",
+      "video",
       "tool_use",
       "thinking",
       "structured_output",
