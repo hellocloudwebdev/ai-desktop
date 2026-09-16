@@ -10,7 +10,6 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import {
-  createDocumentChunkId,
   createDocumentId,
   DOCUMENT_MAX_CONCURRENT_INGESTIONS,
   DOCUMENT_MAX_EXTRACTED_CHARS,
@@ -48,6 +47,32 @@ import {
 import { normalizeParsedDocument } from "./document-normalizer.js";
 import { LexicalDocumentRetriever } from "./document-retriever.js";
 import { resolveWorkspacePath } from "../agent/filesystem/path-policy.js";
+
+const CROCKFORD_BASE32 = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+
+/**
+ * Derives a stable ULID-shaped chunk id from the chunk checksum, so
+ * re-ingesting identical content yields identical chunk identities.
+ * Not time-ordered (stability wins over recency for chunk ids).
+ */
+export function deterministicChunkId(checksumSha256: string): DocumentChunkId {
+  const bytes = Buffer.from(checksumSha256.slice(0, 32), "hex");
+  let bits = 0;
+  let bitCount = 0;
+  let out = "";
+  for (const byte of bytes) {
+    bits = (bits << 8) | (byte as number);
+    bitCount += 8;
+    while (bitCount >= 5 && out.length < 26) {
+      bitCount -= 5;
+      out += CROCKFORD_BASE32[(bits >>> bitCount) & 31];
+    }
+  }
+  while (out.length < 26) {
+    out += "0";
+  }
+  return out as DocumentChunkId;
+}
 
 export interface DocumentServiceDeps {
   readonly repository: DocumentRepository;
@@ -357,7 +382,7 @@ export class DocumentService {
     try {
       await this._repository.createChunks(
         chunks.map((chunk) => ({
-          chunkId: createDocumentChunkId(),
+          chunkId: deterministicChunkId(chunk.checksum),
           documentId,
           projectId,
           ordinal: chunk.ordinal,

@@ -72,6 +72,16 @@ describe("DocumentChunker", () => {
     }
   });
 
+  it("namespaces checksums by content checksum when provided", () => {
+    const chunker = new DocumentChunker({ maxChunkChars: 100, overlapChars: 0 });
+    const text = longText(5);
+    const a = chunker.chunk({ documentId: "d1", projectId: "p1", text, checksum: "c1" });
+    const b = chunker.chunk({ documentId: "d2", projectId: "p1", text, checksum: "c1" });
+    const c = chunker.chunk({ documentId: "d3", projectId: "p1", text, checksum: "c2" });
+    expect(a.map((x) => x.checksum)).toEqual(b.map((x) => x.checksum));
+    expect(a.map((x) => x.checksum)).not.toEqual(c.map((x) => x.checksum));
+  });
+
   it("assigns page locators from page structure", () => {
     const chunker = new DocumentChunker({ maxChunkChars: 60, overlapChars: 0 });
     const chunks = chunker.chunk({

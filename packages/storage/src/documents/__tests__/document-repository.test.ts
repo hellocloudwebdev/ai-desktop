@@ -15,7 +15,7 @@ import { PrismaDocumentRepository } from "../prisma-document-repository.js";
 import type { CreateDocumentChunkData } from "../document-repository.js";
 
 const CREATE_DOCUMENTS_SQL = `
-CREATE TABLE IF NOT EXISTS "DocumentRecord" (
+CREATE TABLE IF NOT EXISTS "documents" (
     "documentId" TEXT NOT NULL PRIMARY KEY,
     "projectId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS "DocumentRecord" (
     "createdAt" BIGINT NOT NULL,
     "updatedAt" BIGINT NOT NULL
 );
-CREATE TABLE IF NOT EXISTS "DocumentChunkRecord" (
+CREATE TABLE IF NOT EXISTS "document_chunks" (
     "chunkId" TEXT NOT NULL PRIMARY KEY,
     "documentId" TEXT NOT NULL,
     "projectId" TEXT NOT NULL,
@@ -46,11 +46,11 @@ CREATE TABLE IF NOT EXISTS "DocumentChunkRecord" (
     "locatorPage" INTEGER,
     "checksumSha256" TEXT NOT NULL
 );
-CREATE INDEX IF NOT EXISTS "DocumentRecord_projectId_idx" ON "DocumentRecord"("projectId");
-CREATE INDEX IF NOT EXISTS "DocumentRecord_projectId_status_idx" ON "DocumentRecord"("projectId", "status");
-CREATE INDEX IF NOT EXISTS "DocumentChunkRecord_projectId_idx" ON "DocumentChunkRecord"("projectId");
-CREATE INDEX IF NOT EXISTS "DocumentChunkRecord_documentId_idx" ON "DocumentChunkRecord"("documentId");
-CREATE INDEX IF NOT EXISTS "DocumentChunkRecord_projectId_documentId_idx" ON "DocumentChunkRecord"("projectId", "documentId");
+CREATE INDEX IF NOT EXISTS "documents_projectId_idx" ON "documents"("projectId");
+CREATE INDEX IF NOT EXISTS "documents_projectId_status_idx" ON "documents"("projectId", "status");
+CREATE INDEX IF NOT EXISTS "document_chunks_projectId_idx" ON "document_chunks"("projectId");
+CREATE INDEX IF NOT EXISTS "document_chunks_documentId_idx" ON "document_chunks"("documentId");
+CREATE INDEX IF NOT EXISTS "document_chunks_projectId_documentId_idx" ON "document_chunks"("projectId", "documentId");
 `;
 
 const CHECKSUM_A = "a".repeat(64);

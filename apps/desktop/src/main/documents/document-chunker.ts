@@ -5,8 +5,10 @@
 // re-opens with trailing sentences of its predecessor (bounded by
 // overlapChars) so context survives boundaries. Page locators come from the
 // parsed page structure; chunk checksums are SHA-256 over
-// `${documentId}:${ordinal}:${text}`. Deterministic: identical input always
-// yields identical chunks.
+// `${namespace}:${ordinal}:${text}` where namespace is the content-derived
+// document checksum (stable across re-ingestion; distinct documents never
+// share a namespace). Deterministic: identical input always yields identical
+// chunks, including identical chunk checksums.
 
 import { createHash } from "node:crypto";
 import { DocumentCancelled, DocumentProcessingFailed } from "./document-errors.js";
@@ -107,11 +109,12 @@ export class DocumentChunker {
         continue;
       }
       const locator = locateChunk(slice[0] as string, chunkText, input.pages, ordinal);
+      const namespace = input.checksum ?? input.documentId;
       chunks.push({
         ordinal,
         text: chunkText,
         locator,
-        checksum: sha256Hex(`${input.documentId}:${ordinal}:${chunkText}`),
+        checksum: sha256Hex(`${namespace}:${ordinal}:${chunkText}`),
       });
       ordinal += 1;
       if (end >= units.length) {

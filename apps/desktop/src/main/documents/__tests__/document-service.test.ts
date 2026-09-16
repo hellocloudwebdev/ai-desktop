@@ -209,6 +209,33 @@ describe("DocumentService ingest", () => {
     expect(listed[0]?.name).toBe("notes.txt");
   });
 
+  it("assigns stable chunk ids across re-ingestion of identical content", async () => {
+    const bytes = enc("Stable identity text. Second sentence here for chunking.");
+    const first = makeService();
+    const resultA = await first.service.ingest({
+      projectId: "p1",
+      fileName: "a.txt",
+      mimeType: "text/plain",
+      bytes,
+    });
+    const second = makeService();
+    const resultB = await second.service.ingest({
+      projectId: "p1",
+      fileName: "a.txt",
+      mimeType: "text/plain",
+      bytes,
+    });
+    const chunksA = await first.repo.listChunksByDocument(resultA.documentId, "p1");
+    const chunksB = await second.repo.listChunksByDocument(resultB.documentId, "p1");
+    const idsA = chunksA.map((c) => c.chunkId);
+    const idsB = chunksB.map((c) => c.chunkId);
+    expect(idsA.length).toBeGreaterThan(0);
+    expect(idsA).toEqual(idsB);
+    for (const id of idsA) {
+      expect(id).toMatch(/^[0123456789ABCDEFGHJKMNPQRSTVWXYZ]{26}$/i);
+    }
+  });
+
   it("ingests markdown and records the heading as title", async () => {
     const { service } = makeService();
     const result = await service.ingest({

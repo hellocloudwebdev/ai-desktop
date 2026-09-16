@@ -197,6 +197,7 @@ model DocumentRecord {
 
   @@index([projectId])
   @@index([projectId, status])
+  @@map("documents")
 }
 
 // PR37: Document Intelligence chunk persistence
@@ -216,6 +217,7 @@ model DocumentChunkRecord {
   @@index([projectId])
   @@index([documentId])
   @@index([projectId, documentId])
+  @@map("document_chunks")
 }
 // PR32: Extension-to-project enablement bindings
 // Records per-project enablement of installed extensions.
