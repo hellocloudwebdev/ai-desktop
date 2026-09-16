@@ -1,6 +1,6 @@
 # ai-desktop
 
-A desktop AI assistant. This repository is currently at **PR39 — Multimodal Foundation**:
+A desktop AI assistant. This repository is currently at **PR40 — Voice & Realtime Foundation**:
 shared primitives, canonical AI domain contracts, projections, in-process EventBus,
 permission checkpoint, SQLite WAL event repository, OS-backed credential store, canonical
 provider contracts, concrete `AnthropicAdapter`, concrete `GeminiAdapter`, Electron 44 desktop
@@ -94,7 +94,14 @@ flash/pro catalog entries, typed Anthropic audio/video errors, multimodal chat p
 extended negotiation, project-scoped media artifact store with magic-byte and
 decompression-bomb validation, attachment metadata persistence, `attachments:*` typed IPC
 with preload bridge, Files attachments panel with chat thumbnails, and
-traversal/spoof/isolation security tests with vision/isolation/cancellation E2E) are
+traversal/spoof/isolation security tests with vision/isolation/cancellation E2E), and the
+Voice & Realtime Foundation (session state machine with validated transitions,
+capability negotiation, Gemini Live provider wiring with Anthropic
+unsupported-verdict, desktop session lifecycle with per-chunk permission and idempotent
+cleanup, final-transcript chat handoff, tool bridge through the universal lifecycle,
+nine typed `realtime:*` IPC commands with preload bridge, Voice workspace surface with
+microphone indicator and transcripts, and injection/isolation/secret security tests with
+lifecycle/interruption/isolation/failure/cancellation E2E) are
 implemented. Future packages remain empty shells awaiting their respective
 implementation PRs — see [docs/architecture/phase-0.md](docs/architecture/phase-0.md) for the honest list of what is
 and is not implemented.

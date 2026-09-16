@@ -25,4 +25,5 @@ export * from "./events.js";
 export * from "./errors.js";
 export * from "./models.js";
 export * from "./multimodal.js";
+export * from "./realtime.js";
 export * from "./projections/index.js";

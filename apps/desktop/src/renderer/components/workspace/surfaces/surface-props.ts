@@ -209,6 +209,44 @@ export interface McpServersSurfaceProps {
   onDisconnect(serverId: string): void;
 }
 
+// PR40: renderer — voice/realtime surface views (session status +
+// transcripts as plain data; capture/playback stay main-side).
+export interface VoiceSessionView {
+  readonly sessionId: string;
+  readonly state:
+    | "idle"
+    | "requesting-permission"
+    | "starting"
+    | "active"
+    | "listening"
+    | "thinking"
+    | "speaking"
+    | "interrupted"
+    | "stopping"
+    | "stopped"
+    | "failed"
+    | "cancelled";
+  readonly modelId: string;
+  readonly providerId: string;
+}
+
+export interface VoiceTranscriptView {
+  readonly turnId: string;
+  readonly text: string;
+}
+
+export interface VoiceSurfaceProps {
+  readonly activeProjectId: string;
+  readonly session: VoiceSessionView | null;
+  readonly partialTranscript: string | null;
+  readonly finalTranscripts: VoiceTranscriptView[];
+  readonly isWorking: boolean;
+  readonly error: string | null;
+  onStart(): void;
+  onInterrupt(): void;
+  onStop(): void;
+}
+
 export interface ExtensionsSummary {
   readonly total: number;
   readonly active: number;

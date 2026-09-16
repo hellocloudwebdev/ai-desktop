@@ -29,6 +29,8 @@ import type {
   SelectedAttachmentPreview,
   SelectedDocumentView,
   SurfaceView,
+  VoiceSessionView,
+  VoiceTranscriptView,
 } from "./components/workspace/surfaces/surface-props.js";
 
 const DEFAULT_CONVERSATION_ID = "01JM0000000000000000000001";
@@ -117,6 +119,16 @@ export function App(): React.ReactElement {
   // mcp:* preload bridge; McpServers surface is a pure view).
   const [mcpServers, setMcpServers] = useState<McpServerView[]>([]);
   const [selectedMcpServerId, setSelectedMcpServerId] = useState<string | null>(null);
+  // PR40: voice session state (App-owned backend state over the realtime:*
+  // bridge; Voice surface is a pure view). Microphone capture uses the
+  // browser MediaRecorder API (renderer-side, user-gated); chunks stream
+  // to main as bounded base64. Playback uses WebAudio from main events.
+  const [voiceSession, setVoiceSession] = useState<VoiceSessionView | null>(null);
+  const [voicePartial, setVoicePartial] = useState<string | null>(null);
+  const [voiceFinals, setVoiceFinals] = useState<VoiceTranscriptView[]>([]);
+  const [voiceWorking, setVoiceWorking] = useState<boolean>(false);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+  const voiceCaptureRef = useRef<{ stream: MediaStream; recorder: MediaRecorder } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   // PR34.5: load browser pages through the preload bridge
@@ -509,6 +521,171 @@ export function App(): React.ReactElement {
     },
     [refreshMcpServers],
   );
+
+  // PR40: voice session helpers (realtime:* bridge; microphone via the
+  // browser MediaRecorder API, released immediately on stop/error).
+  const stopVoiceCapture = useCallback(() => {
+    const capture = voiceCaptureRef.current;
+    voiceCaptureRef.current = null;
+    try {
+      capture?.recorder.stop();
+    } catch {
+      // Recorder stop is best-effort; stream release below is authoritative.
+    }
+    for (const track of capture?.stream.getTracks() ?? []) {
+      track.stop();
+    }
+  }, []);
+
+  const refreshVoiceSession = useCallback(async (sessionId: string) => {
+    if (typeof window === "undefined" || !window.api) return;
+    try {
+      const res = await window.api.commands.getRealtimeSession({ sessionId });
+      if (res.ok && res.value.session) {
+        const s = res.value.session as Record<string, unknown>;
+        setVoiceSession({
+          sessionId: String(s["sessionId"] ?? sessionId),
+          state: String(s["state"] ?? "idle") as VoiceSessionView["state"],
+          modelId: String(s["modelId"] ?? ""),
+          providerId: String(s["providerId"] ?? ""),
+        });
+      }
+    } catch (err) {
+      console.warn("Failed to refresh voice session:", err);
+    }
+  }, []);
+
+  const handleStartVoice = useCallback(async () => {
+    if (typeof window === "undefined" || !window.api) return;
+    setVoiceWorking(true);
+    setVoiceError(null);
+    setVoicePartial(null);
+    try {
+      const created = await window.api.commands.createRealtimeSession({
+        projectId: workspace.state.activeProjectId,
+        modelId: selectedModelId || "gemini:gemini-2.5-flash",
+      });
+      if (!created.ok || !created.value.session) {
+        setVoiceError(created.ok ? "Session creation failed" : created.error.message);
+        return;
+      }
+      const sessionId = String(
+        (created.value.session as Record<string, unknown>)["sessionId"] ?? "",
+      );
+      const started = await window.api.commands.startRealtimeSession({ sessionId });
+      if (!started.ok || !started.value.session) {
+        setVoiceError(started.ok ? "Session start failed" : started.error.message);
+        return;
+      }
+      await refreshVoiceSession(sessionId);
+      // Microphone capture (user-gated by the browser; released on stop).
+      const commands = window.api.commands;
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+        voiceCaptureRef.current = { stream, recorder };
+        recorder.ondataavailable = (event: BlobEvent) => {
+          if (event.data.size === 0) {
+            return;
+          }
+          const reader = new FileReader();
+          reader.onload = () => {
+            const url = String(reader.result ?? "");
+            const base64 = url.includes(",") ? (url.split(",").pop() ?? "") : "";
+            if (base64.length > 0 && base64.length <= 87380) {
+              void commands.sendRealtimeAudio({ sessionId, payloadBase64: base64 });
+            }
+          };
+          reader.readAsDataURL(event.data);
+        };
+        recorder.start(1000);
+      } catch (err) {
+        setVoiceError(
+          `Microphone unavailable: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    } catch (err) {
+      setVoiceError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setVoiceWorking(false);
+    }
+  }, [workspace.state.activeProjectId, selectedModelId, refreshVoiceSession]);
+
+  const handleInterruptVoice = useCallback(async () => {
+    if (typeof window === "undefined" || !window.api || !voiceSession) return;
+    try {
+      const res = await window.api.commands.interruptRealtimeSession({
+        sessionId: voiceSession.sessionId,
+      });
+      if (res.ok) {
+        await refreshVoiceSession(voiceSession.sessionId);
+      }
+    } catch (err) {
+      console.warn("Failed to interrupt voice session:", err);
+    }
+  }, [voiceSession, refreshVoiceSession]);
+
+  const handleStopVoice = useCallback(async () => {
+    if (typeof window === "undefined" || !window.api || !voiceSession) return;
+    stopVoiceCapture();
+    try {
+      await window.api.commands.stopRealtimeSession({ sessionId: voiceSession.sessionId });
+      await refreshVoiceSession(voiceSession.sessionId);
+    } catch (err) {
+      console.warn("Failed to stop voice session:", err);
+    }
+  }, [voiceSession, refreshVoiceSession, stopVoiceCapture]);
+
+  // PR40: poll live session state + transcripts (bounded retained buffer
+  // main-side; polling keeps the renderer on typed invoke only).
+  useEffect(() => {
+    if (!voiceSession) {
+      return;
+    }
+    const sessionId = voiceSession.sessionId;
+    const timer = setInterval(() => {
+      void (async () => {
+        if (typeof window === "undefined" || !window.api) return;
+        try {
+          const [stateRes, transcriptRes] = await Promise.all([
+            window.api.commands.getRealtimeSession({ sessionId }),
+            window.api.commands.getRealtimeTranscript({ sessionId }),
+          ]);
+          if (stateRes.ok && stateRes.value.session) {
+            const s = stateRes.value.session as Record<string, unknown>;
+            setVoiceSession({
+              sessionId,
+              state: String(s["state"] ?? "idle") as VoiceSessionView["state"],
+              modelId: String(s["modelId"] ?? ""),
+              providerId: String(s["providerId"] ?? ""),
+            });
+            if (["stopped", "failed", "cancelled"].includes(String(s["state"] ?? ""))) {
+              stopVoiceCapture();
+              clearInterval(timer);
+            }
+          }
+          if (transcriptRes.ok && transcriptRes.value.transcript) {
+            const t = transcriptRes.value.transcript as {
+              partial?: { text?: string } | null;
+              finals?: Array<{ turnId?: string; text?: string }>;
+            };
+            setVoicePartial(typeof t.partial?.text === "string" ? t.partial.text : null);
+            setVoiceFinals(
+              Array.isArray(t.finals)
+                ? t.finals.map((f, i) => ({
+                    turnId: String(f.turnId ?? `turn-${i}`),
+                    text: String(f.text ?? ""),
+                  }))
+                : [],
+            );
+          }
+        } catch {
+          // Polling is best-effort; errors surface on explicit actions.
+        }
+      })();
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [voiceSession?.sessionId, stopVoiceCapture]);
 
   // PR32: extension mutation handlers (mutate via bridge, then refresh).
   const handleEnableExtension = useCallback(
@@ -1297,6 +1474,17 @@ export function App(): React.ReactElement {
         selectedServerId: selectedMcpServerId,
         onSelectServer: setSelectedMcpServerId,
         onDisconnect: (serverId) => void handleDisconnectMcpServer(serverId),
+      }}
+      voice={{
+        activeProjectId: workspace.state.activeProjectId,
+        session: voiceSession,
+        partialTranscript: voicePartial,
+        finalTranscripts: voiceFinals,
+        isWorking: voiceWorking,
+        error: voiceError,
+        onStart: () => void handleStartVoice(),
+        onInterrupt: () => void handleInterruptVoice(),
+        onStop: () => void handleStopVoice(),
       }}
       research={{
         activeProjectId: workspace.state.activeProjectId,

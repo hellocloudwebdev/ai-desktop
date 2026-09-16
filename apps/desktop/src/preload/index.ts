@@ -87,6 +87,15 @@ import {
   type McpPromptGetCommand,
   type McpSubscribeCommand,
   type McpUnsubscribeCommand,
+  type RealtimeCapabilitiesCommand,
+  type RealtimeSessionCreateCommand,
+  type RealtimeSessionStartCommand,
+  type RealtimeSessionInterruptCommand,
+  type RealtimeSessionStopCommand,
+  type RealtimeSessionGetCommand,
+  type RealtimeSessionListCommand,
+  type RealtimeTranscriptCommand,
+  type RealtimeAudioCommand,
 } from "@ai-desktop/shared";
 import type {
   AIEvent,
@@ -341,6 +350,36 @@ export interface DesktopApplicationApi {
     unsubscribeMcp(
       command: McpUnsubscribeCommand,
     ): Promise<IpcResponseEnvelope<{ unsubscribed: boolean }>>;
+
+    // PR40: realtime voice commands (session lifecycle + bounded audio
+    // chunks; no execute channel, no microphone/provider handles).
+    getRealtimeCapabilities(
+      command: RealtimeCapabilitiesCommand,
+    ): Promise<IpcResponseEnvelope<{ providers: unknown[] }>>;
+    createRealtimeSession(
+      command: RealtimeSessionCreateCommand,
+    ): Promise<IpcResponseEnvelope<{ session: unknown }>>;
+    startRealtimeSession(
+      command: RealtimeSessionStartCommand,
+    ): Promise<IpcResponseEnvelope<{ session: unknown }>>;
+    interruptRealtimeSession(
+      command: RealtimeSessionInterruptCommand,
+    ): Promise<IpcResponseEnvelope<{ session: unknown }>>;
+    stopRealtimeSession(
+      command: RealtimeSessionStopCommand,
+    ): Promise<IpcResponseEnvelope<{ session: unknown }>>;
+    getRealtimeSession(
+      command: RealtimeSessionGetCommand,
+    ): Promise<IpcResponseEnvelope<{ session: unknown }>>;
+    listRealtimeSessions(
+      command: RealtimeSessionListCommand,
+    ): Promise<IpcResponseEnvelope<{ sessions: unknown[] }>>;
+    getRealtimeTranscript(
+      command: RealtimeTranscriptCommand,
+    ): Promise<IpcResponseEnvelope<{ transcript: unknown }>>;
+    sendRealtimeAudio(
+      command: RealtimeAudioCommand,
+    ): Promise<IpcResponseEnvelope<{ accepted: boolean }>>;
   };
 
   /**
@@ -610,6 +649,33 @@ export function createDesktopApi(): DesktopApplicationApi {
       },
       async unsubscribeMcp(command: McpUnsubscribeCommand) {
         return ipcRenderer.invoke(IPC_CHANNELS.MCP_UNSUBSCRIBE, command);
+      },
+      async getRealtimeCapabilities(command: RealtimeCapabilitiesCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.REALTIME_CAPABILITIES, command);
+      },
+      async createRealtimeSession(command: RealtimeSessionCreateCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.REALTIME_SESSION_CREATE, command);
+      },
+      async startRealtimeSession(command: RealtimeSessionStartCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.REALTIME_SESSION_START, command);
+      },
+      async interruptRealtimeSession(command: RealtimeSessionInterruptCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.REALTIME_SESSION_INTERRUPT, command);
+      },
+      async stopRealtimeSession(command: RealtimeSessionStopCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.REALTIME_SESSION_STOP, command);
+      },
+      async getRealtimeSession(command: RealtimeSessionGetCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.REALTIME_SESSION_GET, command);
+      },
+      async listRealtimeSessions(command: RealtimeSessionListCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.REALTIME_SESSION_LIST, command);
+      },
+      async getRealtimeTranscript(command: RealtimeTranscriptCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.REALTIME_TRANSCRIPT, command);
+      },
+      async sendRealtimeAudio(command: RealtimeAudioCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.REALTIME_AUDIO, command);
       },
     },
 

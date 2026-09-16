@@ -27,6 +27,7 @@ import type {
   SidebarProps,
   SurfaceHostProps,
   TasksSurfaceProps,
+  VoiceSurfaceProps,
   ActivityEventView,
   FileEntryView,
 } from "./surfaces/surface-props.js";
@@ -60,6 +61,7 @@ export interface WorkspaceShellProps {
   readonly browser: BrowserSurfaceProps;
   readonly research: ResearchSurfaceProps;
   readonly mcp?: McpServersSurfaceProps;
+  readonly voice?: VoiceSurfaceProps;
   readonly inspector: InspectorProps;
   readonly composer: ComposerProps;
   // PR33.8: renderer — rich-surface host view (additive pass-through).
@@ -91,6 +93,7 @@ export function WorkspaceShell({
   browser,
   research,
   mcp,
+  voice,
   inspector,
   composer,
   surfaceHost,
@@ -177,6 +180,7 @@ export function WorkspaceShell({
               browser={browser}
               research={research}
               mcp={mcp}
+              voice={voice}
               surfaceHost={surfaceHost}
             />
           </WorkspaceErrorBoundary>

@@ -1,11 +1,11 @@
 # Phase 0 — What Exists and What Does Not
 
 This document prevents the repository (and its documentation) from claiming functionality
-that does not exist. It reflects the state after **PR39 (Multimodal
+that does not exist. It reflects the state after **PR40 (Voice & Realtime
 Foundation)** and
 is updated as each PR lands.
 
-## Implemented (as of PR39)
+## Implemented (as of PR40)
 
 - Repository foundation: pnpm workspace + Turborepo task graph (`build`, `dev`,
   `typecheck`, `lint`, `test`).
@@ -760,6 +760,34 @@ node.completed/node.failed/blocked/replan/completed/failed/cancelled` plus the
     injection tests; E2E (vision flow, zero-call unsupported-model
     failure, isolation, idempotent cancellation). Full design in
     `docs/architecture/pr-39-multimodal.md`.
+- Voice & Realtime Foundation (`packages/ai-core`, `packages/providers`,
+  `apps/desktop`, PR40):
+  - Canonical contracts in `ai-core` (`realtime.ts`): branded session/
+    turn/stream IDs, audio format/chunk schemas with validation, 6 bounds,
+    strict state machine with validated transitions, capability strings
+    with negotiation, partial/final transcript model, extension-category
+    event schemas (durable: session/final/turn only), 8-code error
+    taxonomy, transcript framing, and capture-high risk mapping.
+  - Providers: neutral `RealtimeProvider`/`RealtimeProviderSession`
+    interfaces; Gemini Live wiring against verified SDK 2.21.0 symbols
+    (bounded queues, structural message mapping, env-keyed client
+    factory); Anthropic unsupported-verdict (SDK-verified absence).
+  - Desktop `RealtimeService`: permission-gated lifecycle (one active
+    session per project), per-chunk capture re-checks, bounded queues,
+    idempotent interruption/cancellation with single canonical cleanup,
+    ephemeral partials/audio vs durable lifecycle/finals, final-transcript
+    chat handoff, tool bridge through the universal lifecycle, and a
+    bounded retained-transcript buffer for UI polling.
+  - Nine typed `realtime:*` IPC commands + preload (no execute channel;
+    handles/sessions never cross), Voice workspace surface (mic
+    indicator, state, transcripts, controls; capture via MediaRecorder,
+    released on stop), and renderer free of privileged imports.
+  - Security regression coverage: permission bypass/revocation, project
+    isolation, secret-shape proofs, injection framing, oversized/queue
+    bounds, forgery/stale-session rejection, poisoning truncation, tool
+    authorization — plus lifecycle, interruption, isolation, failure, and
+    cancellation E2E over fake providers. Full design in
+    `docs/architecture/pr-40-voice-realtime.md`.
 - All remaining canonical packages stay **empty shells** (`package.json`, `tsconfig.json`,
   `src/index.ts` placeholder) — deliberately no premature domain functionality inside them.
 - Toolchain: TypeScript 5.9.3, ESLint 10.10.0, Vitest 4.1.10, Vite 8.1.0, Prettier 3.9.6,

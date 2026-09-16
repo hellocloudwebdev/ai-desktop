@@ -162,6 +162,20 @@ export const IPC_CHANNELS = {
   MCP_PROMPT_GET: "mcp:getPrompt",
   MCP_SUBSCRIBE: "mcp:subscribe",
   MCP_UNSUBSCRIBE: "mcp:unsubscribe",
+
+  // Realtime voice operations (PR40). NOTE: there is intentionally NO
+  // realtime:execute / voice:execute / audio:execute channel — audio flows
+  // as bounded typed commands; execution flows through the agent tool
+  // router. Microphone handles and provider sessions never cross IPC.
+  REALTIME_CAPABILITIES: "realtime:capabilities",
+  REALTIME_SESSION_CREATE: "realtime:session:create",
+  REALTIME_SESSION_START: "realtime:session:start",
+  REALTIME_SESSION_INTERRUPT: "realtime:session:interrupt",
+  REALTIME_SESSION_STOP: "realtime:session:stop",
+  REALTIME_SESSION_GET: "realtime:session:get",
+  REALTIME_SESSION_LIST: "realtime:session:list",
+  REALTIME_TRANSCRIPT: "realtime:transcript",
+  REALTIME_AUDIO: "realtime:audio",
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];
@@ -1043,6 +1057,71 @@ export const McpUnsubscribeCommandSchema = z.object({
 });
 
 export type McpUnsubscribeCommand = z.infer<typeof McpUnsubscribeCommandSchema>;
+
+// ---------------------------------------------------------------------------
+// Realtime Voice Commands (PR40)
+// Audio travels as bounded base64 chunks; sessions/handles never cross IPC.
+// ---------------------------------------------------------------------------
+
+export const RealtimeCapabilitiesCommandSchema = z.object({
+  modelId: z.string().trim().min(1).max(128).optional(),
+  projectId: z.string().trim().min(1).max(256).optional(),
+});
+
+export type RealtimeCapabilitiesCommand = z.infer<typeof RealtimeCapabilitiesCommandSchema>;
+
+export const RealtimeSessionCreateCommandSchema = z.object({
+  projectId: z.string().trim().min(1).max(256),
+  modelId: z.string().trim().min(1).max(128),
+  providerId: z.string().trim().min(1).max(64).optional(),
+  conversationId: z.string().trim().min(1).max(100).optional(),
+  turnDetection: z.enum(["provider", "client", "manual"]).optional(),
+});
+
+export type RealtimeSessionCreateCommand = z.infer<typeof RealtimeSessionCreateCommandSchema>;
+
+export const RealtimeSessionStartCommandSchema = z.object({
+  sessionId: UlidStringSchema,
+});
+
+export type RealtimeSessionStartCommand = z.infer<typeof RealtimeSessionStartCommandSchema>;
+
+export const RealtimeSessionInterruptCommandSchema = z.object({
+  sessionId: UlidStringSchema,
+});
+
+export type RealtimeSessionInterruptCommand = z.infer<typeof RealtimeSessionInterruptCommandSchema>;
+
+export const RealtimeSessionStopCommandSchema = z.object({
+  sessionId: UlidStringSchema,
+});
+
+export type RealtimeSessionStopCommand = z.infer<typeof RealtimeSessionStopCommandSchema>;
+
+export const RealtimeSessionGetCommandSchema = z.object({
+  sessionId: UlidStringSchema,
+});
+
+export type RealtimeSessionGetCommand = z.infer<typeof RealtimeSessionGetCommandSchema>;
+
+export const RealtimeSessionListCommandSchema = z.object({
+  projectId: z.string().trim().min(1).max(256).optional(),
+});
+
+export type RealtimeSessionListCommand = z.infer<typeof RealtimeSessionListCommandSchema>;
+
+export const RealtimeTranscriptCommandSchema = z.object({
+  sessionId: UlidStringSchema,
+});
+
+export type RealtimeTranscriptCommand = z.infer<typeof RealtimeTranscriptCommandSchema>;
+
+export const RealtimeAudioCommandSchema = z.object({
+  sessionId: UlidStringSchema,
+  payloadBase64: z.string().min(1).max(87_380),
+});
+
+export type RealtimeAudioCommand = z.infer<typeof RealtimeAudioCommandSchema>;
 
 // ---------------------------------------------------------------------------
 // Extension Payloads (PR32)

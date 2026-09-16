@@ -47,3 +47,28 @@ export * from "./registry/index.js";
 
 // Gemini provider models and catalog (PR21.2)
 export * from "./gemini/index.js";
+
+// Realtime providers (PR40 — SDK types stay inside this package)
+export type {
+  RealtimeProvider,
+  RealtimeProviderSession,
+  RealtimeProviderEvent,
+  RealtimeSessionRequest,
+  ProviderRealtimeCapabilities,
+} from "./realtime/realtime-provider.js";
+export {
+  negotiateRealtimeCapabilities,
+  unsupportedRealtimeCapabilities,
+  DEFAULT_REALTIME_REQUESTED,
+  REALTIME_EVENT_QUEUE_CAP,
+  REALTIME_DEFAULT_AUDIO_MIME_TYPE,
+  REALTIME_QUEUE_OVERFLOW_PREFIX,
+  realtimeAudioMimeType,
+} from "./realtime/realtime-provider.js";
+export { AnthropicRealtimeProvider } from "./realtime/anthropic-realtime.js";
+export {
+  GeminiLiveProvider,
+  GeminiLiveSession,
+  createGeminiLiveProvider,
+  createGeminiLiveProviderFromEnv,
+} from "./realtime/gemini-live.js";

@@ -45,7 +45,9 @@ describe("gemini audio/video translation", () => {
       requestWith([{ type: "audio", mimeType: "audio/mpeg", data: "AAAA" }]),
       geminiModel("gemini:gemini-2.5-flash"),
     );
-    const contents = params.contents as Array<{ parts?: Array<{ inlineData?: { mimeType: string } }> }>;
+    const contents = params.contents as Array<{
+      parts?: Array<{ inlineData?: { mimeType: string } }>;
+    }>;
     expect(contents[0]?.parts?.[0]?.inlineData?.mimeType).toBe("audio/mpeg");
   });
 
@@ -54,7 +56,9 @@ describe("gemini audio/video translation", () => {
       requestWith([{ type: "video", mimeType: "video/mp4", data: "BBBB" }]),
       geminiModel("gemini:gemini-2.5-pro"),
     );
-    const contents = params.contents as Array<{ parts?: Array<{ inlineData?: { mimeType: string } }> }>;
+    const contents = params.contents as Array<{
+      parts?: Array<{ inlineData?: { mimeType: string } }>;
+    }>;
     expect(contents[0]?.parts?.[0]?.inlineData?.mimeType).toBe("video/mp4");
   });
 

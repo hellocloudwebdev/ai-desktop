@@ -17,11 +17,14 @@ import {
   AnthropicAdapter,
   ANTHROPIC_MODELS,
   ANTHROPIC_PROVIDER_ID,
+  AnthropicRealtimeProvider,
   GeminiAdapter,
   GEMINI_MODELS,
   GEMINI_PROVIDER_ID,
+  createGeminiLiveProviderFromEnv,
   ProviderRegistry,
 } from "@ai-desktop/providers";
+import { RealtimeService } from "./realtime/index.js";
 import {
   DuplicateSequenceError,
   StorageDatabase,
@@ -124,6 +127,7 @@ let documentService: DocumentService | null = null;
 let documentsToolExecutor: DocumentsToolExecutor | null = null;
 let mediaArtifactStore: MediaArtifactStore | null = null;
 let attachmentRepository: AttachmentRepository | null = null;
+let realtimeService: RealtimeService | null = null;
 
 export function getProviderRegistry(): ProviderRegistry {
   if (!providerRegistry) {
@@ -653,6 +657,32 @@ export function getAttachmentRepository(): AttachmentRepository {
 }
 
 /**
+ * RealtimeService singleton (PR40): voice session lifecycle over the
+ * provider realtime adapters. The Gemini Live client resolves its API key
+ * from the operator-configured GEMINI_API_KEY environment variable at
+ * session start (the SDK's standard convention); without a key, session
+ * creation fails with a typed provider error. Keys never touch logs,
+ * events, or storage. Anthropic exposes realtime: unsupported.
+ */
+export function getRealtimeService(): RealtimeService {
+  if (!realtimeService) {
+    realtimeService = new RealtimeService({
+      permissionManager: getPermissionManager(),
+      eventBus: getEventBus(),
+      providers: [new AnthropicRealtimeProvider(), createGeminiLiveProviderFromEnv()],
+      chatHandoff: async (input) => {
+        await getChatService().sendMessage({
+          conversationId: input.conversationId,
+          content: input.content,
+          projectId: input.projectId,
+        });
+      },
+    });
+  }
+  return realtimeService;
+}
+
+/**
  * Attachments IPC dependencies (PR39): thin-handler bundle passed into the
  * IPC handler registration (mirrors how documentService is passed).
  */
@@ -760,6 +790,7 @@ export function initIpc(options?: {
       researchService: research,
       documentService: documents,
       attachments: attachmentsDeps,
+      realtimeService: getRealtimeService(),
     });
   }
   return ipcRegistry;

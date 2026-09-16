@@ -94,6 +94,15 @@ import {
   McpPromptGetCommandSchema,
   McpSubscribeCommandSchema,
   McpUnsubscribeCommandSchema,
+  RealtimeCapabilitiesCommandSchema,
+  RealtimeSessionCreateCommandSchema,
+  RealtimeSessionStartCommandSchema,
+  RealtimeSessionInterruptCommandSchema,
+  RealtimeSessionStopCommandSchema,
+  RealtimeSessionGetCommandSchema,
+  RealtimeSessionListCommandSchema,
+  RealtimeTranscriptCommandSchema,
+  RealtimeAudioCommandSchema,
   createToolCallId,
   type ChatCancelCommand,
   type ChatSendCommand,
@@ -175,6 +184,7 @@ import type { BrowserService } from "../browser/index.js";
 import type { ResearchService } from "../research/index.js";
 import type { DocumentService } from "../documents/index.js";
 import type { MCPHost } from "@ai-desktop/mcp";
+import type { RealtimeService } from "../realtime/index.js";
 import type { ActiveStreamRegistry, ChatService, ModelSelectionService } from "../chat/index.js";
 import {
   deleteAttachment,
@@ -281,6 +291,7 @@ export interface RegisterIpcOptions {
   documentService?: DocumentService;
   attachments?: AttachmentsIpcDependencies;
   mcpHost?: MCPHost;
+  realtimeService?: RealtimeService;
 }
 
 export class IpcRegistry {
@@ -532,6 +543,8 @@ export function registerIpcHandlers(
     options && "attachments" in options ? options.attachments : undefined;
   const mcpHost: MCPHost | undefined =
     options && "mcpHost" in options ? options.mcpHost : undefined;
+  const realtimeService: RealtimeService | undefined =
+    options && "realtimeService" in options ? options.realtimeService : undefined;
   if (batcher) {
     registry.attachBatcher(batcher);
   }
@@ -1963,6 +1976,123 @@ export function registerIpcHandlers(
         return { unsubscribed: true };
       }
       throw new Error("MCP host is not available");
+    },
+  );
+
+  // 83-90. Realtime voice commands (PR40): session lifecycle + bounded
+  // audio chunks over the RealtimeService. No realtime:execute — audio
+  // flows as typed chunks; execution flows through the agent tool router.
+  // Microphone handles and provider sessions never cross IPC.
+  registry.registerCommand(
+    IPC_CHANNELS.REALTIME_CAPABILITIES,
+    RealtimeCapabilitiesCommandSchema,
+    async () => {
+      if (realtimeService) {
+        return { providers: realtimeService.providerCapabilities() };
+      }
+      return { providers: [] };
+    },
+  );
+
+  registry.registerCommand(
+    IPC_CHANNELS.REALTIME_SESSION_CREATE,
+    RealtimeSessionCreateCommandSchema,
+    async (input) => {
+      if (realtimeService) {
+        const snapshot = await realtimeService.createSession({
+          projectId: input.projectId,
+          modelId: input.modelId,
+          ...(input.providerId ? { providerId: input.providerId } : {}),
+          ...(input.conversationId ? { conversationId: input.conversationId } : {}),
+          ...(input.turnDetection ? { turnDetection: input.turnDetection } : {}),
+        });
+        return { session: snapshot };
+      }
+      throw new Error("RealtimeService is not available");
+    },
+  );
+
+  registry.registerCommand(
+    IPC_CHANNELS.REALTIME_SESSION_START,
+    RealtimeSessionStartCommandSchema,
+    async (input) => {
+      if (realtimeService) {
+        const snapshot = await realtimeService.startSession(input.sessionId);
+        return { session: snapshot };
+      }
+      throw new Error("RealtimeService is not available");
+    },
+  );
+
+  registry.registerCommand(
+    IPC_CHANNELS.REALTIME_SESSION_INTERRUPT,
+    RealtimeSessionInterruptCommandSchema,
+    async (input) => {
+      if (realtimeService) {
+        const snapshot = await realtimeService.interrupt(input.sessionId);
+        return { session: snapshot };
+      }
+      throw new Error("RealtimeService is not available");
+    },
+  );
+
+  registry.registerCommand(
+    IPC_CHANNELS.REALTIME_SESSION_STOP,
+    RealtimeSessionStopCommandSchema,
+    async (input) => {
+      if (realtimeService) {
+        const snapshot = await realtimeService.stopSession(input.sessionId);
+        return { session: snapshot };
+      }
+      throw new Error("RealtimeService is not available");
+    },
+  );
+
+  registry.registerCommand(
+    IPC_CHANNELS.REALTIME_SESSION_GET,
+    RealtimeSessionGetCommandSchema,
+    async (input) => {
+      if (realtimeService) {
+        return { session: realtimeService.snapshot(input.sessionId) };
+      }
+      throw new Error("RealtimeService is not available");
+    },
+  );
+
+  registry.registerCommand(
+    IPC_CHANNELS.REALTIME_SESSION_LIST,
+    RealtimeSessionListCommandSchema,
+    async (input) => {
+      if (realtimeService) {
+        const sessions = realtimeService.listSessions(
+          input.projectId !== undefined ? input.projectId : undefined,
+        );
+        return { sessions };
+      }
+      return { sessions: [] };
+    },
+  );
+
+  registry.registerCommand(
+    IPC_CHANNELS.REALTIME_TRANSCRIPT,
+    RealtimeTranscriptCommandSchema,
+    async (input) => {
+      if (realtimeService) {
+        return { transcript: realtimeService.getTranscripts(input.sessionId) };
+      }
+      throw new Error("RealtimeService is not available");
+    },
+  );
+
+  registry.registerCommand(
+    IPC_CHANNELS.REALTIME_AUDIO,
+    RealtimeAudioCommandSchema,
+    async (input) => {
+      if (realtimeService) {
+        await realtimeService.ingestAudio(input.sessionId, input.payloadBase64);
+        return { accepted: true };
+      }
+      throw new Error("RealtimeService is not available");
     },
   );
 }
