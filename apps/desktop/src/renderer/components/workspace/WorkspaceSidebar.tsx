@@ -18,6 +18,7 @@ const SURFACE_TABS: Array<{ id: WorkspaceSurface; label: string }> = [
   { id: "research", label: "Research" },
   { id: "mcp", label: "MCP" },
   { id: "voice", label: "Voice" },
+  { id: "git", label: "Source Control" },
 ];
 
 export function WorkspaceSidebar({

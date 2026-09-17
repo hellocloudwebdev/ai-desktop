@@ -11,6 +11,7 @@ import { CodingWorkspace } from "./surfaces/CodingWorkspace.js";
 import { ExtensionsSurface } from "./surfaces/ExtensionsSurface.js";
 import { McpServersSurface } from "./surfaces/McpServersSurface.js";
 import { VoiceSurface } from "./surfaces/VoiceSurface.js";
+import { GitReviewSurface } from "./surfaces/GitReviewSurface.js";
 import { BrowserSurface } from "./surfaces/BrowserSurface.js";
 import { ResearchSurface } from "./surfaces/ResearchSurface.js";
 import { RichSurfaceHost } from "./surfaces/RichSurfaceHost.js";
@@ -167,6 +168,9 @@ export function WorkspaceMain({
       );
     }
     return <VoiceSurface {...voice} />;
+  }
+  if (surface === "git") {
+    return <GitReviewSurface projectId={store.state.activeProjectId} />;
   }
   return <ChatSurface {...chat} />;
 }

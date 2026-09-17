@@ -198,6 +198,19 @@ export const IPC_CHANNELS = {
   TERMINAL_RESIZE: "terminal:resize",
   TERMINAL_STOP: "terminal:stop",
   TERMINAL_OUTPUT: "terminal:output",
+
+  // Git operations (PR42). NOTE: there is intentionally NO
+  // git:execute channel — execution flows through the agent tool router
+  // (GitToolExecutor with PermissionManager mediation), never through
+  // raw IPC.
+  GIT_DETECT: "git:detect",
+  GIT_STATUS: "git:status",
+  GIT_DIFF: "git:diff",
+  GIT_LOG: "git:log",
+  GIT_BRANCHES: "git:branches",
+  GIT_STAGE: "git:stage",
+  GIT_UNSTAGE: "git:unstage",
+  GIT_COMMIT: "git:commit",
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];
@@ -1317,6 +1330,72 @@ export const TerminalOutputCommandSchema = z.object({
 });
 
 export type TerminalOutputCommand = z.infer<typeof TerminalOutputCommandSchema>;
+
+// ---------------------------------------------------------------------------
+// Git Commands (PR42)
+// Project-scoped repository inspection and staging operations over the
+// main-process GitService. Bounded: project ids 1..256, paths 1..1024,
+// stage/unstage path lists 1..500, log limit 1..100, commit messages
+// 1..32768 chars. There is intentionally NO git:execute schema — execution
+// is never exposed on IPC.
+// ---------------------------------------------------------------------------
+
+export const GitProjectId = z.string().trim().min(1).max(256);
+export const GitPath = z.string().trim().min(1).max(1024);
+
+export const GitDetectCommandSchema = z.object({
+  projectId: GitProjectId,
+});
+
+export type GitDetectCommand = z.infer<typeof GitDetectCommandSchema>;
+
+export const GitStatusCommandSchema = z.object({
+  projectId: GitProjectId,
+});
+
+export type GitStatusCommand = z.infer<typeof GitStatusCommandSchema>;
+
+export const GitDiffCommandSchema = z.object({
+  projectId: GitProjectId,
+  staged: z.boolean().default(false),
+  path: GitPath.optional(),
+});
+
+export type GitDiffCommand = z.infer<typeof GitDiffCommandSchema>;
+
+export const GitLogCommandSchema = z.object({
+  projectId: GitProjectId,
+  limit: z.number().int().min(1).max(100).default(20),
+});
+
+export type GitLogCommand = z.infer<typeof GitLogCommandSchema>;
+
+export const GitBranchesCommandSchema = z.object({
+  projectId: GitProjectId,
+});
+
+export type GitBranchesCommand = z.infer<typeof GitBranchesCommandSchema>;
+
+export const GitStageCommandSchema = z.object({
+  projectId: GitProjectId,
+  paths: z.array(GitPath).min(1).max(500),
+});
+
+export type GitStageCommand = z.infer<typeof GitStageCommandSchema>;
+
+export const GitUnstageCommandSchema = z.object({
+  projectId: GitProjectId,
+  paths: z.array(GitPath).min(1).max(500),
+});
+
+export type GitUnstageCommand = z.infer<typeof GitUnstageCommandSchema>;
+
+export const GitCommitCommandSchema = z.object({
+  projectId: GitProjectId,
+  message: z.string().trim().min(1).max(32768),
+});
+
+export type GitCommitCommand = z.infer<typeof GitCommitCommandSchema>;
 
 // ---------------------------------------------------------------------------
 // Extension Payloads (PR32)
