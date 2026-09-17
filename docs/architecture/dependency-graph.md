@@ -48,7 +48,7 @@ is forbidden.
 | `memory`        | `ai-core`, `storage`, `providers`, `shared`                                                                                                                                                                                                    |
 | `agent-runtime` | `ai-core`, `providers`, `permissions`, `mcp`, `skills`, `execution`, `memory`, `storage`, `shared`                                                                                                                                             |
 | `workspace`     | not yet defined — edges are added in later PRs as workspace UI dependencies are locked                                                                                                                                                         |
-| `desktop`       | `agent-runtime`, `ai-core`, `mcp`, `permissions`, `plugins`, `providers`, `shared`, `storage` (and, transitively, everything above) — PR38 adds the direct `desktop → mcp` edge for the MCP host singleton, IPC handlers, and surface provider |
+| `desktop`       | `agent-runtime`, `ai-core`, `mcp`, `permissions`, `plugins`, `providers`, `shared`, `storage` (and, transitively, everything above) — PR38 adds the direct `desktop → mcp` edge for the MCP host singleton, IPC handlers, and surface provider; PR42 reuses the existing `desktop → ai-core` / `shared` / `permissions` edges (no new edges) |
 | `plugins`       | `ai-core`, `shared` — PR32 extension/plugin ecosystem foundation (manifest, capability, lifecycle, registry, trust, event, tool-contribution contracts; storage + permission mediation stay host-owned in `desktop`)                           |
 
 ## Deliberate, non-obvious edges

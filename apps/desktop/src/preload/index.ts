@@ -112,6 +112,14 @@ import {
   type TerminalResizeCommand,
   type TerminalStopCommand,
   type TerminalOutputCommand,
+  type GitDetectCommand,
+  type GitStatusCommand,
+  type GitDiffCommand,
+  type GitLogCommand,
+  type GitBranchesCommand,
+  type GitStageCommand,
+  type GitUnstageCommand,
+  type GitCommitCommand,
 } from "@ai-desktop/shared";
 import type {
   AIEvent,
@@ -441,6 +449,19 @@ export interface DesktopApplicationApi {
     readTerminalOutput(
       command: TerminalOutputCommand,
     ): Promise<IpcResponseEnvelope<{ result: unknown }>>;
+
+    // PR42: git commands (project-scoped detect/status/diff/log/branches/
+    // stage/unstage/commit; no execute channel — execution stays agent-side).
+    detectGitRepository(
+      command: GitDetectCommand,
+    ): Promise<IpcResponseEnvelope<{ result: unknown }>>;
+    getGitStatus(command: GitStatusCommand): Promise<IpcResponseEnvelope<{ result: unknown }>>;
+    getGitDiff(command: GitDiffCommand): Promise<IpcResponseEnvelope<{ result: unknown }>>;
+    getGitLog(command: GitLogCommand): Promise<IpcResponseEnvelope<{ result: unknown }>>;
+    getGitBranches(command: GitBranchesCommand): Promise<IpcResponseEnvelope<{ result: unknown }>>;
+    stageGitPaths(command: GitStageCommand): Promise<IpcResponseEnvelope<{ result: unknown }>>;
+    unstageGitPaths(command: GitUnstageCommand): Promise<IpcResponseEnvelope<{ result: unknown }>>;
+    commitGitStaged(command: GitCommitCommand): Promise<IpcResponseEnvelope<{ result: unknown }>>;
   };
 
   /**
@@ -785,6 +806,30 @@ export function createDesktopApi(): DesktopApplicationApi {
       },
       async readTerminalOutput(command: TerminalOutputCommand) {
         return ipcRenderer.invoke(IPC_CHANNELS.TERMINAL_OUTPUT, command);
+      },
+      async detectGitRepository(command: GitDetectCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.GIT_DETECT, command);
+      },
+      async getGitStatus(command: GitStatusCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.GIT_STATUS, command);
+      },
+      async getGitDiff(command: GitDiffCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.GIT_DIFF, command);
+      },
+      async getGitLog(command: GitLogCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.GIT_LOG, command);
+      },
+      async getGitBranches(command: GitBranchesCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.GIT_BRANCHES, command);
+      },
+      async stageGitPaths(command: GitStageCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.GIT_STAGE, command);
+      },
+      async unstageGitPaths(command: GitUnstageCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.GIT_UNSTAGE, command);
+      },
+      async commitGitStaged(command: GitCommitCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.GIT_COMMIT, command);
       },
     },
 

@@ -89,6 +89,7 @@ import {
   WorkspaceSearchService,
   type WorkspaceIpcDependencies,
 } from "./workspace/index.js";
+import { GitService, GitToolExecutor, type GitIpcDependencies } from "./git/index.js";
 
 export { ActiveStreamRegistry, ChatService, ModelSelectionService } from "./chat/index.js";
 export { IpcBatcher, type ChatStreamBatch } from "./ipc/batcher.js";
@@ -139,6 +140,8 @@ let workspaceFileService: WorkspaceFileService | null = null;
 let workspaceSearchService: WorkspaceSearchService | null = null;
 let diagnosticsService: DiagnosticsService | null = null;
 let terminalService: TerminalService | null = null;
+let gitService: GitService | null = null;
+let gitToolExecutor: GitToolExecutor | null = null;
 
 export function getProviderRegistry(): ProviderRegistry {
   if (!providerRegistry) {
@@ -387,6 +390,7 @@ export function getAgentService(options?: {
   browserExecutor?: ConstructorParameters<typeof AgentService>[0]["browserExecutor"];
   researchExecutor?: ConstructorParameters<typeof AgentService>[0]["researchExecutor"];
   documentsExecutor?: ConstructorParameters<typeof AgentService>[0]["documentsExecutor"];
+  gitExecutor?: ConstructorParameters<typeof AgentService>[0]["gitExecutor"];
   pluginExecutor?: ConstructorParameters<typeof AgentService>[0]["pluginExecutor"];
 }): AgentService {
   if (!agentService || options) {
@@ -409,6 +413,9 @@ export function getAgentService(options?: {
       ...(options?.documentsExecutor
         ? { documentsExecutor: options.documentsExecutor }
         : { documentsExecutor: getDocumentsToolExecutor() }),
+      ...(options?.gitExecutor
+        ? { gitExecutor: options.gitExecutor }
+        : { gitExecutor: getGitToolExecutor() }),
       pluginExecutor,
     });
     if (!options) {
@@ -777,6 +784,46 @@ export function getTerminalService(): TerminalService {
   return terminalService;
 }
 
+/**
+ * GitService singleton (PR42): project-scoped repository inspection and
+ * staging operations over the git CLI. The root resolver delegates to the
+ * CodingAgentService project->root map (unregistered projects fail closed
+ * with NO_WORKSPACE); no second filesystem or permission layer here —
+ * agent tools enforce permissions before reaching this service.
+ */
+export function getGitService(): GitService {
+  if (!gitService) {
+    gitService = new GitService({
+      resolveRoot: (projectId: string) => getCodingAgentService().resolveWorkspace(projectId),
+    });
+  }
+  return gitService;
+}
+
+/**
+ * Git IPC dependencies (PR42): thin-handler bundle passed into the
+ * IPC handler registration (mirrors the workspace pattern above).
+ */
+export function getGitIpcDependencies(): GitIpcDependencies {
+  return {
+    gitService: getGitService(),
+  };
+}
+
+/**
+ * GitToolExecutor singleton (PR42): universal resolve -> validate ->
+ * permission -> execute lifecycle over the GitService.
+ */
+export function getGitToolExecutor(): GitToolExecutor {
+  if (!gitToolExecutor) {
+    gitToolExecutor = new GitToolExecutor({
+      permissionManager: getPermissionManager(),
+      gitService: getGitService(),
+    });
+  }
+  return gitToolExecutor;
+}
+
 export function getSecureWebPreferences(preloadPath: string): Electron.WebPreferences {
   return {
     preload: preloadPath,
@@ -838,6 +885,7 @@ export function initIpc(options?: {
   documentService?: DocumentService;
   attachments?: AttachmentsIpcDependencies;
   workspaceDeps?: WorkspaceIpcDependencies;
+  gitDeps?: GitIpcDependencies;
 }): IpcRegistry {
   if (!ipcRegistry) {
     ipcRegistry = new IpcRegistry();
@@ -858,6 +906,7 @@ export function initIpc(options?: {
     const documents = options?.documentService ?? getDocumentService();
     const attachmentsDeps = options?.attachments ?? getAttachmentsIpcDependencies();
     const workspace = options?.workspaceDeps ?? getWorkspaceIpcDependencies();
+    const gitDeps = options?.gitDeps ?? getGitIpcDependencies();
 
     registerIpcHandlers(ipcRegistry, {
       streamRegistry,
@@ -878,6 +927,7 @@ export function initIpc(options?: {
       attachments: attachmentsDeps,
       realtimeService: getRealtimeService(),
       workspaceDeps: workspace,
+      gitDeps,
     });
   }
   return ipcRegistry;

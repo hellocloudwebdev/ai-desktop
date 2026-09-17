@@ -132,6 +132,7 @@ export interface DesktopToolRouterDeps {
   readonly browserExecutor?: ToolExecutorLike;
   readonly researchExecutor?: ToolExecutorLike;
   readonly documentsExecutor?: ToolExecutorLike;
+  readonly gitExecutor?: ToolExecutorLike;
   readonly pluginExecutor?: ToolExecutorLike;
 }
 
@@ -149,6 +150,7 @@ export class DesktopToolRouter implements ToolInvoker {
   private readonly _browserExecutor?: DesktopToolRouterDeps["browserExecutor"];
   private readonly _researchExecutor?: DesktopToolRouterDeps["researchExecutor"];
   private readonly _documentsExecutor?: DesktopToolRouterDeps["documentsExecutor"];
+  private readonly _gitExecutor?: DesktopToolRouterDeps["gitExecutor"];
   private readonly _pluginExecutor?: DesktopToolRouterDeps["pluginExecutor"];
 
   constructor(deps: DesktopToolRouterDeps) {
@@ -159,6 +161,7 @@ export class DesktopToolRouter implements ToolInvoker {
     this._browserExecutor = deps.browserExecutor;
     this._researchExecutor = deps.researchExecutor;
     this._documentsExecutor = deps.documentsExecutor;
+    this._gitExecutor = deps.gitExecutor;
     this._pluginExecutor = deps.pluginExecutor;
     void this._permissionManager;
   }
@@ -189,9 +192,11 @@ export class DesktopToolRouter implements ToolInvoker {
             ? (this._documentsExecutor ?? this._builtinExecutor)
             : toolName.startsWith("builtin:browser.")
               ? (this._browserExecutor ?? this._builtinExecutor)
-              : toolName.startsWith("builtin:")
-                ? this._builtinExecutor
-                : this._mcpExecutor;
+              : toolName.startsWith("builtin:git.")
+                ? (this._gitExecutor ?? this._builtinExecutor)
+                : toolName.startsWith("builtin:")
+                  ? this._builtinExecutor
+                  : this._mcpExecutor;
     if (!executor) {
       return {
         toolCallId: context.toolCallId,
@@ -300,6 +305,7 @@ export interface AgentServiceDeps {
   readonly browserExecutor?: DesktopToolRouterDeps["browserExecutor"];
   readonly researchExecutor?: DesktopToolRouterDeps["researchExecutor"];
   readonly documentsExecutor?: DesktopToolRouterDeps["documentsExecutor"];
+  readonly gitExecutor?: DesktopToolRouterDeps["gitExecutor"];
   readonly pluginExecutor?: DesktopToolRouterDeps["pluginExecutor"];
   readonly maxNodeIterations?: number;
   readonly defaultModelId?: ModelId;
@@ -326,6 +332,7 @@ export class AgentService {
         browserExecutor: deps.browserExecutor,
         researchExecutor: deps.researchExecutor,
         documentsExecutor: deps.documentsExecutor,
+        gitExecutor: deps.gitExecutor,
         pluginExecutor: deps.pluginExecutor,
       }),
       eventSink,

@@ -119,6 +119,14 @@ import {
   TerminalResizeCommandSchema,
   TerminalStopCommandSchema,
   TerminalOutputCommandSchema,
+  GitDetectCommandSchema,
+  GitStatusCommandSchema,
+  GitDiffCommandSchema,
+  GitLogCommandSchema,
+  GitBranchesCommandSchema,
+  GitStageCommandSchema,
+  GitUnstageCommandSchema,
+  GitCommitCommandSchema,
   createToolCallId,
   type ChatCancelCommand,
   type ChatSendCommand,
@@ -230,6 +238,17 @@ import {
   writeWorkspaceFile,
   type WorkspaceIpcDependencies,
 } from "../workspace/index.js";
+import {
+  commitGitStaged,
+  detectGitRepository,
+  getGitBranches,
+  getGitDiff,
+  getGitLog,
+  getGitStatus,
+  stageGitPaths,
+  unstageGitPaths,
+  type GitIpcDependencies,
+} from "../git/git-ipc.js";
 
 export type CommandHandler<TInput, TOutput> = (
   input: TInput,
@@ -328,6 +347,7 @@ export interface RegisterIpcOptions {
   mcpHost?: MCPHost;
   realtimeService?: RealtimeService;
   workspaceDeps?: WorkspaceIpcDependencies;
+  gitDeps?: GitIpcDependencies;
 }
 
 export class IpcRegistry {
@@ -583,6 +603,8 @@ export function registerIpcHandlers(
     options && "realtimeService" in options ? options.realtimeService : undefined;
   const workspaceDeps: WorkspaceIpcDependencies | undefined =
     options && "workspaceDeps" in options ? options.workspaceDeps : undefined;
+  const gitDeps: GitIpcDependencies | undefined =
+    options && "gitDeps" in options ? options.gitDeps : undefined;
   if (batcher) {
     registry.attachBatcher(batcher);
   }
@@ -2311,4 +2333,66 @@ export function registerIpcHandlers(
       throw new Error("TerminalService is not available");
     },
   );
+
+  // 101-108. Git commands (PR42): project-scoped detect/status/diff/log/
+  // branches/stage/unstage/commit over the GitService. Mirrors the
+  // workspace:* pattern above: no permission call in IPC (agent tools
+  // enforce via GitToolExecutor), missing deps fail closed. There is
+  // intentionally NO git:execute channel — execution flows through the
+  // agent tool router (GitToolExecutor), never through IPC.
+  registry.registerCommand(IPC_CHANNELS.GIT_DETECT, GitDetectCommandSchema, async (input) => {
+    if (!gitDeps) {
+      throw new Error("GitService is not available");
+    }
+    return detectGitRepository(gitDeps, input);
+  });
+
+  registry.registerCommand(IPC_CHANNELS.GIT_STATUS, GitStatusCommandSchema, async (input) => {
+    if (!gitDeps) {
+      throw new Error("GitService is not available");
+    }
+    return getGitStatus(gitDeps, input);
+  });
+
+  registry.registerCommand(IPC_CHANNELS.GIT_DIFF, GitDiffCommandSchema, async (input) => {
+    if (!gitDeps) {
+      throw new Error("GitService is not available");
+    }
+    return getGitDiff(gitDeps, input);
+  });
+
+  registry.registerCommand(IPC_CHANNELS.GIT_LOG, GitLogCommandSchema, async (input) => {
+    if (!gitDeps) {
+      throw new Error("GitService is not available");
+    }
+    return getGitLog(gitDeps, input);
+  });
+
+  registry.registerCommand(IPC_CHANNELS.GIT_BRANCHES, GitBranchesCommandSchema, async (input) => {
+    if (!gitDeps) {
+      throw new Error("GitService is not available");
+    }
+    return getGitBranches(gitDeps, input);
+  });
+
+  registry.registerCommand(IPC_CHANNELS.GIT_STAGE, GitStageCommandSchema, async (input) => {
+    if (!gitDeps) {
+      throw new Error("GitService is not available");
+    }
+    return stageGitPaths(gitDeps, input);
+  });
+
+  registry.registerCommand(IPC_CHANNELS.GIT_UNSTAGE, GitUnstageCommandSchema, async (input) => {
+    if (!gitDeps) {
+      throw new Error("GitService is not available");
+    }
+    return unstageGitPaths(gitDeps, input);
+  });
+
+  registry.registerCommand(IPC_CHANNELS.GIT_COMMIT, GitCommitCommandSchema, async (input) => {
+    if (!gitDeps) {
+      throw new Error("GitService is not available");
+    }
+    return commitGitStaged(gitDeps, input);
+  });
 }
