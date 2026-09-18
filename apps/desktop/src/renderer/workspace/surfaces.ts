@@ -5,6 +5,13 @@
 // Results stay unknown until normalized into SurfaceView records. An absent
 // bridge (non-Electron hosts, tests without window) yields empty results,
 // never a crash.
+//
+// PR43: renderer — the background-task bridge lives in
+// `./background-tasks.js` (window.api.backgroundTasks list/get/start/
+// pause/resume/cancel/respond with a local-stub fallback) and is
+// re-exported here so the Task Center has one workspace import surface.
+
+export * from "./background-tasks.js";
 
 import type { SurfaceView } from "../components/workspace/surfaces/surface-props.js";
 

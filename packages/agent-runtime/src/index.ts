@@ -7,4 +7,6 @@
 export * from "./events/index.js";
 export * from "./runtime/types.js";
 export * from "./runtime/task-graph.js";
+export * from "./runtime/background-queue.js";
+export * from "./runtime/background-task-manager.js";
 export { AgentRuntime } from "./runtime/agent-runtime.js";

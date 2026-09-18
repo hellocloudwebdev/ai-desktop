@@ -3,6 +3,14 @@
 // TasksSurface consumes the PR29 task projection (status + nodes) without a
 // second state machine. ActivitySurface renders canonical events as a bounded
 // view. FilesSurface is read-only context; edits stay behind PR30 tools.
+//
+// PR43: renderer — TasksSurface is extended into the Task Center. The
+// existing foreground list (agent + coding tasks) renders first, unchanged;
+// the BackgroundTaskCenter renders below it over background projections
+// (Active: Running / Waiting for approval / Waiting for input / Queued /
+// Paused; Completed: Completed / Failed / Cancelled) with a Task Detail
+// view. Foreground props stay required and backward compatible; background
+// wiring is optional and self-sufficient when absent.
 
 import React from "react";
 import type {
@@ -10,6 +18,7 @@ import type {
   FilesSurfaceProps,
   TasksSurfaceProps,
 } from "./surface-props.js";
+import { BackgroundTaskCenter } from "./BackgroundTaskCenter.js";
 import { isTaskRunning, TaskNodeChecklist } from "./CodingSurface.js";
 
 const MAX_ACTIVITY_ITEMS = 200;
@@ -25,11 +34,19 @@ export function TasksSurface({
   onCancelCoding,
   onAgentGoalChange,
   onStartAgent,
+  background,
 }: TasksSurfaceProps): React.ReactElement {
   const all = [
     ...agentTasks.map((t) => ({ ...t, kind: "agent" as const })),
     ...codingTasks.map((t) => ({ ...t, kind: "coding" as const })),
   ];
+  // PR43: background center falls back to a self-sufficient instance bound
+  // to the workspace selection when App has not wired it explicitly.
+  const backgroundProps = {
+    selectedTaskId: activeTaskId,
+    onSelectTask,
+    ...background,
+  };
   return (
     <div className="flex h-full flex-col overflow-y-auto">
       <div className="flex items-center space-x-2 px-6 pt-4">
@@ -105,6 +122,10 @@ export function TasksSurface({
           ))}
         </ul>
       )}
+      {/* PR43: Background Task Center (Active + Completed + Detail). */}
+      <div className="border-t border-slate-800 mt-2">
+        <BackgroundTaskCenter {...backgroundProps} />
+      </div>
     </div>
   );
 }

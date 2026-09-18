@@ -127,6 +127,13 @@ import {
   GitStageCommandSchema,
   GitUnstageCommandSchema,
   GitCommitCommandSchema,
+  BackgroundTasksListCommandSchema,
+  BackgroundTasksGetCommandSchema,
+  BackgroundTasksStartCommandSchema,
+  BackgroundTasksPauseCommandSchema,
+  BackgroundTasksResumeCommandSchema,
+  BackgroundTasksCancelCommandSchema,
+  BackgroundTasksRespondCommandSchema,
   createToolCallId,
   type ChatCancelCommand,
   type ChatSendCommand,
@@ -249,6 +256,11 @@ import {
   unstageGitPaths,
   type GitIpcDependencies,
 } from "../git/git-ipc.js";
+import {
+  registerBackgroundTaskHandlers,
+  type BackgroundTasksIpcDependencies,
+} from "../agent/background-tasks-ipc.js";
+import type { DesktopBackgroundTaskService } from "../agent/background-task-service.js";
 
 export type CommandHandler<TInput, TOutput> = (
   input: TInput,
@@ -348,6 +360,8 @@ export interface RegisterIpcOptions {
   realtimeService?: RealtimeService;
   workspaceDeps?: WorkspaceIpcDependencies;
   gitDeps?: GitIpcDependencies;
+  backgroundTaskService?: DesktopBackgroundTaskService;
+  backgroundTasks?: BackgroundTasksIpcDependencies;
 }
 
 export class IpcRegistry {
@@ -605,6 +619,14 @@ export function registerIpcHandlers(
     options && "workspaceDeps" in options ? options.workspaceDeps : undefined;
   const gitDeps: GitIpcDependencies | undefined =
     options && "gitDeps" in options ? options.gitDeps : undefined;
+  const backgroundTaskService: DesktopBackgroundTaskService | undefined =
+    options && "backgroundTaskService" in options ? options.backgroundTaskService : undefined;
+  const backgroundTasks: BackgroundTasksIpcDependencies | undefined =
+    options && "backgroundTasks" in options
+      ? options.backgroundTasks
+      : backgroundTaskService
+        ? { backgroundTaskService }
+        : undefined;
   if (batcher) {
     registry.attachBatcher(batcher);
   }
@@ -2395,4 +2417,56 @@ export function registerIpcHandlers(
     }
     return commitGitStaged(gitDeps, input);
   });
+
+  // 109-115. Background task commands (PR43): project-scoped list/get/start/
+  // pause/resume/cancel/respond over DesktopBackgroundTaskService. Mirrors the
+  // git:* pattern above: no permission call in IPC (agent tools enforce via
+  // the existing executors), missing deps fail closed. There is intentionally
+  // NO background-tasks:execute channel — execution flows through the agent
+  // tool router, never through IPC.
+  const backgroundDeps: BackgroundTasksIpcDependencies | undefined = backgroundTasks;
+  if (backgroundDeps) {
+    registerBackgroundTaskHandlers(registry, backgroundDeps);
+  } else {
+    // Register schema-validated fail-closed stubs so the channels always
+    // exist with typed validation even before the service is composed.
+    const unavailable = async (): Promise<never> => {
+      throw new Error("BackgroundTaskService is not available");
+    };
+    registry.registerCommand(
+      IPC_CHANNELS.BACKGROUND_TASKS_LIST,
+      BackgroundTasksListCommandSchema,
+      unavailable,
+    );
+    registry.registerCommand(
+      IPC_CHANNELS.BACKGROUND_TASKS_GET,
+      BackgroundTasksGetCommandSchema,
+      unavailable,
+    );
+    registry.registerCommand(
+      IPC_CHANNELS.BACKGROUND_TASKS_START,
+      BackgroundTasksStartCommandSchema,
+      unavailable,
+    );
+    registry.registerCommand(
+      IPC_CHANNELS.BACKGROUND_TASKS_PAUSE,
+      BackgroundTasksPauseCommandSchema,
+      unavailable,
+    );
+    registry.registerCommand(
+      IPC_CHANNELS.BACKGROUND_TASKS_RESUME,
+      BackgroundTasksResumeCommandSchema,
+      unavailable,
+    );
+    registry.registerCommand(
+      IPC_CHANNELS.BACKGROUND_TASKS_CANCEL,
+      BackgroundTasksCancelCommandSchema,
+      unavailable,
+    );
+    registry.registerCommand(
+      IPC_CHANNELS.BACKGROUND_TASKS_RESPOND,
+      BackgroundTasksRespondCommandSchema,
+      unavailable,
+    );
+  }
 }

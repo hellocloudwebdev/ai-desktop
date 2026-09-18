@@ -57,6 +57,9 @@ importers:
       '@ai-desktop/execution':
         specifier: workspace:*
         version: link:../../packages/execution
+      '@ai-desktop/mcp':
+        specifier: workspace:*
+        version: link:../../packages/mcp
       '@ai-desktop/memory':
         specifier: workspace:*
         version: link:../../packages/memory

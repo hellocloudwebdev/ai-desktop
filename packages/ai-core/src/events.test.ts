@@ -9,6 +9,7 @@ import {
   type MessageCreatedEvent,
   type MessageDeltaEvent,
   type PermissionRequestedEvent,
+  type TaskBackgroundEvent,
   type TaskCreatedEvent,
   type ToolCallRequestedEvent,
 } from "./events.js";
@@ -129,6 +130,40 @@ describe("ai-core events: AIEvent Discriminated Union and Validation", () => {
     };
     expect(AIEventSchema.safeParse(taskCreated).success).toBe(true);
     expect(isExtensionEvent(taskCreated)).toBe(true);
+  });
+
+  it("validates task.background.* lifecycle events (PR43)", () => {
+    const convId = createConversationId();
+    const taskId = createTaskId();
+    const base = {
+      eventId: createEventId(),
+      conversationId: convId,
+      sequence: 6,
+      schemaVersion: 1,
+      timestamp: now(),
+      category: "extension" as const,
+      taskId,
+      projectId: "proj-1",
+    };
+    const started: TaskBackgroundEvent = {
+      ...base,
+      type: "task.background.started",
+      status: "running",
+    };
+    expect(AIEventSchema.safeParse(started).success).toBe(true);
+    expect(isExtensionEvent(started)).toBe(true);
+    const recovered: TaskBackgroundEvent = {
+      ...base,
+      type: "task.background.recovered",
+      status: "running",
+      detail: "resumable after restart",
+    };
+    expect(AIEventSchema.safeParse(recovered).success).toBe(true);
+    const badType = { ...base, type: "task.background.launch", status: "running" };
+    expect(AIEventSchema.safeParse(badType).success).toBe(false);
+    const missingProject = { ...base, type: "task.background.started", status: "running" };
+    delete (missingProject as Record<string, unknown>).projectId;
+    expect(AIEventSchema.safeParse(missingProject).success).toBe(false);
   });
 
   it("enforces sequence and schemaVersion on all events", () => {

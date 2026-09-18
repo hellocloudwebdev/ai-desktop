@@ -425,6 +425,27 @@ export const TaskReplanEventSchema = z.object({
   updatedDependencies: z.record(z.string(), z.array(TaskNodeIdSchema)).optional(),
 });
 
+export const TaskBackgroundEventSchema = z.object({
+  ...BaseEventFields,
+  type: z.enum([
+    "task.background.queued",
+    "task.background.started",
+    "task.background.waiting_permission",
+    "task.background.waiting_input",
+    "task.background.paused",
+    "task.background.resumed",
+    "task.background.completed",
+    "task.background.failed",
+    "task.background.cancelled",
+    "task.background.recovered",
+  ]),
+  category: z.literal("extension"),
+  taskId: TaskIdSchema,
+  projectId: z.string().trim().min(1).max(256),
+  status: z.string().trim().min(1).max(32),
+  detail: z.string().trim().max(2000).optional(),
+});
+
 export const ExtensionCustomEventSchema = z.object({
   ...BaseEventFields,
   type: z.literal("extension.custom"),
@@ -446,6 +467,7 @@ export const ExtensionEventSchema = z.discriminatedUnion("type", [
   TaskCompletedEventSchema,
   TaskFailedEventSchema,
   TaskCancelledEventSchema,
+  TaskBackgroundEventSchema,
   ExtensionCustomEventSchema,
 ]);
 
@@ -461,6 +483,7 @@ export type TaskNodeFailedEvent = z.infer<typeof TaskNodeFailedEventSchema>;
 export type TaskCompletedEvent = z.infer<typeof TaskCompletedEventSchema>;
 export type TaskFailedEvent = z.infer<typeof TaskFailedEventSchema>;
 export type TaskCancelledEvent = z.infer<typeof TaskCancelledEventSchema>;
+export type TaskBackgroundEvent = z.infer<typeof TaskBackgroundEventSchema>;
 export type ExtensionCustomEvent = z.infer<typeof ExtensionCustomEventSchema>;
 export type ExtensionEvent = z.infer<typeof ExtensionEventSchema>;
 
@@ -509,6 +532,16 @@ export const AIEventTypeSchema = z.enum([
   "task.completed",
   "task.failed",
   "task.cancelled",
+  "task.background.queued",
+  "task.background.started",
+  "task.background.waiting_permission",
+  "task.background.waiting_input",
+  "task.background.paused",
+  "task.background.resumed",
+  "task.background.completed",
+  "task.background.failed",
+  "task.background.cancelled",
+  "task.background.recovered",
   "extension.custom",
 ]);
 
@@ -553,6 +586,7 @@ export const AIEventSchema = z.discriminatedUnion("type", [
   TaskCompletedEventSchema,
   TaskFailedEventSchema,
   TaskCancelledEventSchema,
+  TaskBackgroundEventSchema,
   ExtensionCustomEventSchema,
 ]);
 

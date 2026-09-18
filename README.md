@@ -1,6 +1,6 @@
 # ai-desktop
 
-A desktop AI assistant. This repository is currently at **PR42 — Git Diff & Review Foundation**:
+A desktop AI assistant. This repository is currently at **PR43 — Background & Long-Running Agents**:
 shared primitives, canonical AI domain contracts, projections, in-process EventBus,
 permission checkpoint, SQLite WAL event repository, OS-backed credential store, canonical
 provider contracts, concrete `AnthropicAdapter`, concrete `GeminiAdapter`, Electron 44 desktop
@@ -114,7 +114,22 @@ Git Diff & Review Foundation (canonical Git domain contracts, `GitService` over 
 the universal ToolExecutor lifecycle, eight typed `git:*` IPC commands with preload bridge,
 `GitReviewSurface` with status groups, hunk-level diff viewer, log/branches panels, and
 stage/unstage/commit controls, and traversal/symlink/metachar/secret security tests with
-repository, status, diff, commit, isolation, and review E2E) are
+repository, status, diff, commit, isolation, and review E2E), and the Background &
+Long-Running Agents foundation (durable background task contracts with nine-state
+lifecycle, legal-transition gating, 4-global/2-per-project/16-queue concurrency caps,
+resumable vs requires-approval vs abandoned crash-recovery classification, secret
+guard, and `task.background.*` event names; `BackgroundTaskManager` thin orchestration
+over the existing Agent Runtime with FIFO queueing, idempotent pause/resume/cancel,
+permission/input parking with no auto-approval, immutable project binding, and
+idempotent recovery that never auto-replays non-idempotent tools; SQLite
+`background_tasks` projection persistence with secret refusal; `DesktopBackgroundTaskService`
+with startup recovery and seven typed `background-tasks:*` IPC commands plus narrow
+preload bridge; Task Center renderer layer with Active and Completed sections plus
+Task Detail over background projections with permission approval routed through the
+existing permission UI path, waiting-input response box, EventBus timeline with no
+separate notification bus, bound-project display isolation, truncation with
+secret-assignment redaction, Tasks sidebar counts, and unit/integration/security/E2E
+tests) are
 implemented. Future packages remain empty shells awaiting their respective
 implementation PRs — see [docs/architecture/phase-0.md](docs/architecture/phase-0.md) for the honest list of what is
 and is not implemented.

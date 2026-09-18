@@ -6,6 +6,7 @@
 
 import type { ContentPart, Message, ModelDefinition, PermissionRequest } from "@ai-desktop/ai-core";
 import type { WorkspaceSurface } from "../../../workspace/types.js";
+import type { BackgroundTasksCommands } from "../../../workspace/background-tasks.js";
 
 export interface TaskNodeView {
   readonly id: string;
@@ -135,6 +136,46 @@ export interface TasksSurfaceProps {
   onCancelCoding(taskId: string): void;
   onAgentGoalChange(value: string): void;
   onStartAgent(): void;
+  // PR43: renderer — optional background Task Center wiring. When absent,
+  // the Task Center self-renders over the background bridge (or the local
+  // stub before the sibling IPC lands); App may pass these to bind the
+  // center to workspace state and the existing permission UI path.
+  readonly background?: BackgroundTaskCenterProps;
+}
+
+// PR43: renderer — Background Task Center contract (long-running agents).
+//
+// The center renders `BackgroundTaskProjection`-shaped views only: task
+// name, bound project, status, timing, current node, permission/input
+// state, bounded errors/outputs, and a timeline sliced from the existing
+// EventBus/activity projections (`task.background.*`). Approvals always
+// flow through the existing permission UI path (`pendingPermissions` +
+// `onResolvePermission`, same shape as ChatSurface); the center never
+// auto-approves. `respond` carries free-text answers for `waiting_input`
+// tasks only — never permission decisions.
+export interface BackgroundTaskCenterProps {
+  /** Bound-project scope hint; rows always show each task's own projectId. */
+  readonly activeProjectId?: string;
+  readonly selectedTaskId?: string | null;
+  onSelectTask?(taskId: string | null): void;
+  /** False (default) scopes to `activeProjectId`; true lists all projects. */
+  readonly scopeAllProjects?: boolean;
+  onToggleScope?(all: boolean): void;
+  /** Existing activity projections (`task.background.*` transitions). */
+  readonly taskActivity?: ActivityEventView[];
+  /** Existing pending permission requests for the approval affordance. */
+  readonly pendingPermissions?: PermissionRequest[];
+  onResolvePermission?(
+    requestId: string,
+    decision: "granted" | "denied",
+    mode: "allow_once" | "allow_session" | "allow_project" | "deny",
+  ): Promise<void> | void;
+  readonly pollIntervalMs?: number;
+  /**
+   * Injectable bridge (tests/embeddings). Defaults to the
+   * `window.api.backgroundTasks` probe with a local-stub fallback.
+   */
+  readonly commands?: BackgroundTasksCommands | null;
 }
 
 export interface ActivityEventView {
@@ -434,6 +475,8 @@ export interface SidebarProps {
   readonly conversationId: string;
   readonly agentActiveCount: number;
   readonly codingActiveCount: number;
+  /** PR43: active background tasks (Task Center); defaults to 0. */
+  readonly backgroundActiveCount?: number;
   readonly leftVisible: boolean;
   readonly rightVisible: boolean;
   onSelectSurface(surface: WorkspaceSurface): void;

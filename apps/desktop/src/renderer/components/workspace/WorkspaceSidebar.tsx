@@ -27,6 +27,7 @@ export function WorkspaceSidebar({
   conversationId,
   agentActiveCount,
   codingActiveCount,
+  backgroundActiveCount = 0,
   leftVisible,
   rightVisible,
   onSelectSurface,
@@ -71,11 +72,14 @@ export function WorkspaceSidebar({
         <ul className="space-y-1" role="list">
           {SURFACE_TABS.map((tab) => {
             const active = activeSurface === tab.id;
+            // PR43: the Tasks entry counts foreground (agent + coding) and
+            // background active tasks; the Task Center lives on "tasks".
+            const tasksTotal = agentActiveCount + codingActiveCount + backgroundActiveCount;
             const badge =
               tab.id === "coding" && codingActiveCount > 0
                 ? ` (${codingActiveCount})`
-                : tab.id === "tasks" && agentActiveCount + codingActiveCount > 0
-                  ? ` (${agentActiveCount + codingActiveCount})`
+                : tab.id === "tasks" && tasksTotal > 0
+                  ? ` (${tasksTotal})`
                   : tab.id === "extensions" && extensionsSummary.active > 0
                     ? ` (${extensionsSummary.active})`
                     : "";

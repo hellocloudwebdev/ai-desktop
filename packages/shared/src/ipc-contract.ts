@@ -211,6 +211,18 @@ export const IPC_CHANNELS = {
   GIT_STAGE: "git:stage",
   GIT_UNSTAGE: "git:unstage",
   GIT_COMMIT: "git:commit",
+
+  // Background task operations (PR43). NOTE: there is intentionally NO
+  // background:execute / background-tasks:execute channel — execution flows
+  // through the agent tool router (existing AgentService path with
+  // PermissionManager mediation), never through arbitrary IPC.
+  BACKGROUND_TASKS_LIST: "background-tasks:list",
+  BACKGROUND_TASKS_GET: "background-tasks:get",
+  BACKGROUND_TASKS_START: "background-tasks:start",
+  BACKGROUND_TASKS_PAUSE: "background-tasks:pause",
+  BACKGROUND_TASKS_RESUME: "background-tasks:resume",
+  BACKGROUND_TASKS_CANCEL: "background-tasks:cancel",
+  BACKGROUND_TASKS_RESPOND: "background-tasks:respond",
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];
@@ -1396,6 +1408,74 @@ export const GitCommitCommandSchema = z.object({
 });
 
 export type GitCommitCommand = z.infer<typeof GitCommitCommandSchema>;
+
+// ---------------------------------------------------------------------------
+// Background Task Commands (PR43)
+// Long-running background agents over the main-process
+// DesktopBackgroundTaskService. Project-scoped, renderer-safe projections
+// only (taskId/projectId/title/status/mode/timestamps/attempt/lastError/
+// resultSummary/nodeCount/currentNode). Bounded: project ids 1..256,
+// titles 1..120, goals 1..4000, input replies 1..2000, cancel reasons
+// 1..500. There is intentionally NO background-tasks:execute schema —
+// execution is never exposed on IPC.
+// ---------------------------------------------------------------------------
+
+export const BackgroundTasksProjectId = z.string().trim().min(1).max(256);
+
+export const BackgroundTasksListCommandSchema = z.object({
+  projectId: BackgroundTasksProjectId,
+});
+
+export type BackgroundTasksListCommand = z.infer<typeof BackgroundTasksListCommandSchema>;
+
+export const BackgroundTasksGetCommandSchema = z.object({
+  taskId: TaskIdSchema,
+  projectId: BackgroundTasksProjectId,
+});
+
+export type BackgroundTasksGetCommand = z.infer<typeof BackgroundTasksGetCommandSchema>;
+
+export const BackgroundTasksStartCommandSchema = z.object({
+  projectId: BackgroundTasksProjectId,
+  goal: z.string().trim().min(1).max(4000),
+  title: z.string().trim().min(1).max(120).optional(),
+  conversationId: ConversationIdSchema.optional(),
+  modelId: z.string().trim().min(1).max(128).optional(),
+  systemPrompt: z.string().trim().min(1).max(8000).optional(),
+  maxNodeIterations: z.number().int().min(1).max(50).optional(),
+});
+
+export type BackgroundTasksStartCommand = z.infer<typeof BackgroundTasksStartCommandSchema>;
+
+export const BackgroundTasksPauseCommandSchema = z.object({
+  taskId: TaskIdSchema,
+  projectId: BackgroundTasksProjectId,
+});
+
+export type BackgroundTasksPauseCommand = z.infer<typeof BackgroundTasksPauseCommandSchema>;
+
+export const BackgroundTasksResumeCommandSchema = z.object({
+  taskId: TaskIdSchema,
+  projectId: BackgroundTasksProjectId,
+});
+
+export type BackgroundTasksResumeCommand = z.infer<typeof BackgroundTasksResumeCommandSchema>;
+
+export const BackgroundTasksCancelCommandSchema = z.object({
+  taskId: TaskIdSchema,
+  projectId: BackgroundTasksProjectId,
+  reason: z.string().trim().min(1).max(500).optional(),
+});
+
+export type BackgroundTasksCancelCommand = z.infer<typeof BackgroundTasksCancelCommandSchema>;
+
+export const BackgroundTasksRespondCommandSchema = z.object({
+  taskId: TaskIdSchema,
+  projectId: BackgroundTasksProjectId,
+  input: z.string().trim().min(1).max(2000),
+});
+
+export type BackgroundTasksRespondCommand = z.infer<typeof BackgroundTasksRespondCommandSchema>;
 
 // ---------------------------------------------------------------------------
 // Extension Payloads (PR32)

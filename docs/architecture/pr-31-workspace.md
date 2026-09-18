@@ -105,3 +105,25 @@ Plugins, MCP Apps, browser automation, collaboration, cloud sync,
 accounts, mobile, IDE replacement, background agents, new model/provider/
 runtime/permission architectures, `packages/workspace`, HTTP backend,
 new event store, renderer filesystem access.
+
+## PR43 addendum — Background Task Center
+
+PR43 extends `TasksSurface` into the Task Center without replacing it: the
+foreground agent/coding list renders first, unchanged, and
+`BackgroundTaskCenter` renders below it (Active: Running / Waiting for
+approval / Waiting for input / Queued / Paused; Completed:
+Completed / Failed / Cancelled; plus a Task Detail view over background
+projections). No new surface kind (`TASK_CENTER_SURFACE = "tasks"`), no
+store or persistence change (selection reuses `activeTaskId`; project
+switching still clears it), no new IPC owned by this layer (narrow
+`window.api.backgroundTasks` client with local-stub fallback, re-exported
+through `renderer/workspace/surfaces.ts`), no new backend/domain.
+`BackgroundTaskCenterProps` carries the optional App bindings
+(project scope, selection, `taskActivity` slice, `pendingPermissions` +
+`onResolvePermission`); unwired, the center is self-sufficient. The Tasks
+sidebar entry counts agent + coding + background active tasks. Polling is
+bridge re-query (2 s default) — the renderer keeps no source of truth.
+Security posture inherits this document's rules plus PR43 render hygiene
+(title ≤120, error ≤2000, result ≤8000, secret-assignment redaction,
+bounded rows/timeline, no privileged imports). Decision record:
+`docs/decisions/ADR-015-background-tasks-renderer.md`.

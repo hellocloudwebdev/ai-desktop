@@ -251,3 +251,28 @@ model AttachmentRecord {
   @@index([projectId])
   @@map("attachments")
 }
+
+// PR43: Durable background-task persistence (repository only, no execution logic).
+// No secret columns; only references and summaries persist here.
+model BackgroundTaskRecord {
+  taskId         String  @id // ULID TaskId
+  conversationId String
+  projectId      String
+  title          String
+  goal           String
+  mode           String  @default("background")
+  status         String
+  createdAt      BigInt // epoch milliseconds
+  updatedAt      BigInt // epoch milliseconds
+  startedAt      BigInt?
+  completedAt    BigInt?
+  attempt        Int     @default(0)
+  lastError      String?
+  resultSummary  String?
+  nodeCount      Int     @default(0)
+  schemaVersion  Int     @default(1)
+
+  @@index([projectId])
+  @@index([status])
+  @@map("background_tasks")
+}

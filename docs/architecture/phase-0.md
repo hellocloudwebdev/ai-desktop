@@ -1,11 +1,11 @@
 # Phase 0 — What Exists and What Does Not
 
 This document prevents the repository (and its documentation) from claiming functionality
-that does not exist. It reflects the state after **PR42 (Git Diff &
-Review Foundation)** and
+that does not exist. It reflects the state after **PR43 (Background &
+Long-Running Agents)** and
 is updated as each PR lands.
 
-## Implemented (as of PR42)
+## Implemented (as of PR43)
 
 - Repository foundation: pnpm workspace + Turborepo task graph (`build`, `dev`,
   `typecheck`, `lint`, `test`).
@@ -837,6 +837,55 @@ node.completed/node.failed/blocked/replan/completed/failed/cancelled` plus the
     argument rejection — plus repository/status/diff/commit/isolation/
     review E2E over temporary isolated repositories. Full design in
     `docs/architecture/pr-42-git-diff-review.md`.
+- Background & Long-Running Agents renderer + docs layer (`apps/desktop`
+  renderer only, PR43):
+  - Narrow background bridge client
+    (`apps/desktop/src/renderer/workspace/background-tasks.ts`):
+    `window.api.backgroundTasks` list/get/start/pause/resume/cancel/respond
+    probed with optional chaining, local in-memory stub fallback (IPC-shaped
+    envelopes, legal-transition enforcement) so the surface renders and
+    tests pass before the sibling runtime/IPC lands. Re-exported through
+    `renderer/workspace/surfaces.ts`.
+  - Pure projection helpers: normalize/unwrap (IPC envelope or raw),
+    Active (Running, Waiting for approval, Waiting for input, Queued,
+    Paused, Cancelling) vs Completed grouping with status-priority order,
+    display-only project filter that never rewrites the bound `projectId`,
+    title ≤120 / error ≤2000 / result ≤8000 truncation, `key=value`
+    secret-assignment redaction, safe duration/timestamp formatting,
+    `task.background.*` transition names from the existing EventBus
+    vocabulary (no separate notification bus), 50-row section and
+    100-item timeline render caps.
+  - `BackgroundTaskCenter` Task Center + Task Detail
+    (`components/workspace/surfaces/BackgroundTaskCenter.tsx`):
+    self-contained over the bridge (re-queries on mount/scope change plus
+    a bounded 2 s poll, so remounts and disconnects recover by
+    re-fetching); rows show task name, bound project, status badge, start
+    time, duration, current node, node counts, permission state, error
+    snippet, and result ref. Detail shows Task/Project/Status/plan-graph
+    summary/current step/tool activity/permissions/outputs/errors/timeline.
+    `waiting_permission` renders a "Background task requires approval"
+    banner resolved only through the existing permission UI path
+    (`pendingPermissions` + `onResolvePermission`) — never auto-approved.
+    `waiting_input` renders a response box through `respond` (task data,
+    never a permission decision). Pause/Resume (re-queue)/Cancel honor
+    terminal states. No Node/Electron APIs, no spawned processes, no
+    Prisma, no raw runtime internals.
+  - `TasksSurface` extended (foreground agent/coding list unchanged, Task
+    Center appended), `BackgroundTaskCenterProps` in `surface-props.ts`,
+    `TASK_CENTER_SURFACE = "tasks"` in `workspace/types.ts` (no new
+    surface kind, no store/persistence change — selection reuses
+    `activeTaskId`), Tasks sidebar entry counts agent + coding + background
+    active tasks.
+  - 27 renderer tests (`background-task-center.test.ts`): vocabulary,
+    normalization, grouping, isolation, disconnect-requery via the stub,
+    truncation/redaction/duration hygiene, and component-contract source
+    assertions. 124 renderer tests passing; desktop typecheck/lint clean
+    for the renderer scope.
+  - Renderer + docs own no runtime behavior: the `BackgroundTaskManager`
+    lifecycle/persistence/recovery, the `backgroundTasks.*` IPC + preload,
+    and the shared channels remain the sibling subagents' deliverables;
+    this layer activates against them with no renderer change. Decision
+    record in `docs/decisions/ADR-015-background-tasks-renderer.md`.
 - All remaining canonical packages stay **empty shells** (`package.json`, `tsconfig.json`,
   `src/index.ts` placeholder) — deliberately no premature domain functionality inside them.
 - Toolchain: TypeScript 5.9.3, ESLint 10.10.0, Vitest 4.1.10, Vite 8.1.0, Prettier 3.9.6,
@@ -848,6 +897,11 @@ node.completed/node.failed/blocked/replan/completed/failed/cancelled` plus the
 - Plugin marketplace, remote registry, auto-update, extension sandbox
   process, full MCP Apps runtime, GitHub App integration, cloud plugin sync,
   accounts/billing (future ecosystem).
+- Background agent runtime behavior (sibling PR43 workstreams, not the
+  renderer + docs layer): `BackgroundTaskManager` lifecycle/persistence/
+  recovery, `backgroundTasks.*` IPC + preload, shared channels. Likewise
+  non-goals for this PR: cloud workers, cron/scheduler, multi-user
+  collaboration, push notifications (PR44+ territory).
 
 ## Verification
 

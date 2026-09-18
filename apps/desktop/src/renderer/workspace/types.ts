@@ -8,7 +8,7 @@
 //   3. Only serializable presentation state persists (localStorage, versioned).
 //      Transient interaction state (hover, drag, streaming flags) never persists.
 
-/** Surfaces the workspace renders (PR31 set + PR32 additive "extensions" + PR34.5 "browser" + PR35 "research" + PR38 "mcp" + PR40 "voice" + PR42 "git"). */
+/** Surfaces the workspace renders (PR31 set + PR32 additive "extensions" + PR34.5 "browser" + PR35 "research" + PR38 "mcp" + PR40 "voice" + PR42 "git" + PR43 Task Center on "tasks"). */
 export const WORKSPACE_SURFACES = [
   "chat",
   "coding",
@@ -27,6 +27,15 @@ export type WorkspaceSurface = (typeof WORKSPACE_SURFACES)[number];
 export function isWorkspaceSurface(value: unknown): value is WorkspaceSurface {
   return typeof value === "string" && (WORKSPACE_SURFACES as readonly string[]).includes(value);
 }
+
+/**
+ * PR43: the Task Center (foreground agent/coding lists + background Active
+ * / Completed sections + Task Detail) lives on the existing "tasks"
+ * surface. No new surface kind, no store change: background selection reuses
+ * `activeTaskId` (presentation-only; project switching still clears it, so
+ * a task selected under one project never lingers under another).
+ */
+export const TASK_CENTER_SURFACE: WorkspaceSurface = "tasks";
 
 export interface WorkspacePanelState {
   readonly visible: boolean;

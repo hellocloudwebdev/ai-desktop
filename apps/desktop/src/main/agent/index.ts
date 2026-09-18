@@ -30,3 +30,18 @@ export type {
   StartCodingTaskInput,
   CodingTaskOutcome,
 } from "./coding-agent-service.js";
+export {
+  DesktopBackgroundTaskService,
+  BackgroundTaskServiceError,
+} from "./background-task-service.js";
+export type {
+  BackgroundAgentDelegate,
+  BackgroundEventTransport,
+  BackgroundTaskProjection,
+  BackgroundTaskRecoverySummary,
+  BackgroundTaskStore,
+  DesktopBackgroundTaskServiceDeps,
+  StartBackgroundTaskInput,
+} from "./background-task-service.js";
+export { registerBackgroundTaskHandlers } from "./background-tasks-ipc.js";
+export type { BackgroundTasksIpcDependencies } from "./background-tasks-ipc.js";

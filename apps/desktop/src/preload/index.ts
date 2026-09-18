@@ -120,6 +120,13 @@ import {
   type GitStageCommand,
   type GitUnstageCommand,
   type GitCommitCommand,
+  type BackgroundTasksListCommand,
+  type BackgroundTasksGetCommand,
+  type BackgroundTasksStartCommand,
+  type BackgroundTasksPauseCommand,
+  type BackgroundTasksResumeCommand,
+  type BackgroundTasksCancelCommand,
+  type BackgroundTasksRespondCommand,
 } from "@ai-desktop/shared";
 import type {
   AIEvent,
@@ -462,6 +469,31 @@ export interface DesktopApplicationApi {
     stageGitPaths(command: GitStageCommand): Promise<IpcResponseEnvelope<{ result: unknown }>>;
     unstageGitPaths(command: GitUnstageCommand): Promise<IpcResponseEnvelope<{ result: unknown }>>;
     commitGitStaged(command: GitCommitCommand): Promise<IpcResponseEnvelope<{ result: unknown }>>;
+
+    // PR43: background task commands (project-scoped list/get/start/pause/
+    // resume/cancel/respond returning normalized projections; no execute
+    // channel — execution stays agent-side).
+    listBackgroundTasks(
+      command: BackgroundTasksListCommand,
+    ): Promise<IpcResponseEnvelope<{ tasks: unknown[] }>>;
+    getBackgroundTask(
+      command: BackgroundTasksGetCommand,
+    ): Promise<IpcResponseEnvelope<{ task: unknown }>>;
+    startBackgroundTask(
+      command: BackgroundTasksStartCommand,
+    ): Promise<IpcResponseEnvelope<{ task: unknown }>>;
+    pauseBackgroundTask(
+      command: BackgroundTasksPauseCommand,
+    ): Promise<IpcResponseEnvelope<{ task: unknown }>>;
+    resumeBackgroundTask(
+      command: BackgroundTasksResumeCommand,
+    ): Promise<IpcResponseEnvelope<{ task: unknown }>>;
+    cancelBackgroundTask(
+      command: BackgroundTasksCancelCommand,
+    ): Promise<IpcResponseEnvelope<{ task: unknown; cancelled: boolean }>>;
+    respondBackgroundTask(
+      command: BackgroundTasksRespondCommand,
+    ): Promise<IpcResponseEnvelope<{ task: unknown }>>;
   };
 
   /**
@@ -830,6 +862,27 @@ export function createDesktopApi(): DesktopApplicationApi {
       },
       async commitGitStaged(command: GitCommitCommand) {
         return ipcRenderer.invoke(IPC_CHANNELS.GIT_COMMIT, command);
+      },
+      async listBackgroundTasks(command: BackgroundTasksListCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.BACKGROUND_TASKS_LIST, command);
+      },
+      async getBackgroundTask(command: BackgroundTasksGetCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.BACKGROUND_TASKS_GET, command);
+      },
+      async startBackgroundTask(command: BackgroundTasksStartCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.BACKGROUND_TASKS_START, command);
+      },
+      async pauseBackgroundTask(command: BackgroundTasksPauseCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.BACKGROUND_TASKS_PAUSE, command);
+      },
+      async resumeBackgroundTask(command: BackgroundTasksResumeCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.BACKGROUND_TASKS_RESUME, command);
+      },
+      async cancelBackgroundTask(command: BackgroundTasksCancelCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.BACKGROUND_TASKS_CANCEL, command);
+      },
+      async respondBackgroundTask(command: BackgroundTasksRespondCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.BACKGROUND_TASKS_RESPOND, command);
       },
     },
 

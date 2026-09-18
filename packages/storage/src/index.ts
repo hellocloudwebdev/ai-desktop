@@ -89,3 +89,14 @@ export type {
   CreateAttachmentData,
 } from "./attachments/attachment-repository.js";
 export { PrismaAttachmentRepository } from "./attachments/prisma-attachment-repository.js";
+
+// PR43: Durable background-task persistence (repository only, no execution logic)
+export type {
+  BackgroundTaskRow,
+  BackgroundTaskStatusPatch,
+} from "./background/background-task-repository.js";
+export {
+  PrismaBackgroundTaskRepository,
+  BackgroundTaskValidationError,
+  BackgroundTaskSecretError,
+} from "./background/background-task-repository.js";
