@@ -1,11 +1,11 @@
 # Phase 0 — What Exists and What Does Not
 
 This document prevents the repository (and its documentation) from claiming functionality
-that does not exist. It reflects the state after **PR41 (Advanced Coding
-Workspace)** and
+that does not exist. It reflects the state after **PR42 (Git Diff &
+Review Foundation)** and
 is updated as each PR lands.
 
-## Implemented (as of PR41)
+## Implemented (as of PR42)
 
 - Repository foundation: pnpm workspace + Turborepo task graph (`build`, `dev`,
   `typecheck`, `lint`, `test`).
@@ -813,6 +813,30 @@ node.completed/node.failed/blocked/replan/completed/failed/cancelled` plus the
     forged IPC, cross-project isolation — plus file/conflict/search/
     diagnostics/isolation/terminal E2E. Full design in
     `docs/architecture/pr-41-advanced-coding-workspace.md`.
+- Git Diff & Review Foundation (`@ai-desktop/ai-core`, `apps/desktop`,
+  `packages/shared`, PR42):
+  - Canonical Git domain contracts (`GitRepository`, `GitStatus`,
+    `GitFileStatus`, `GitDiff`, `GitDiffHunk`, `GitCommit`, `GitBranch`,
+    `GitRemote`, `GitOperationResult`, typed errors, bounded
+    request/result contracts) in `ai-core` with no CLI leakage; seven
+    canonical tools (`builtin:git.status/diff/log/branches/stage/unstage/commit`).
+  - `GitService` (detect/status/diff/log/branches/stage/unstage/commit +
+    destructive service-only discard) over argv-only `GitCliClient`
+    (no shell, non-interactive allowlisted env, bounded buffers, timeouts,
+    cancellation), reusing the PR30 path policy and the PR24
+    PermissionManager with the single ToolExecutor lifecycle. No
+    `git:execute` channel, no second agent loop or permission system.
+  - Eight typed `git:*` IPC commands + preload (no execute channel), and
+    the `GitReviewSurface` (repository header with branch/ahead-behind,
+    Staged/Changes/Untracked/Conflicts groups, hunk-level diff viewer,
+    commit controls, non-repo graceful state) wired into the PR41
+    Advanced Coding Workspace.
+  - Security regression coverage: traversal/absolute-path/symlink
+    containment, nested-repository isolation, metachar-as-argv,
+    env-secret non-inheritance, oversized output/diff bounds, arbitrary
+    argument rejection — plus repository/status/diff/commit/isolation/
+    review E2E over temporary isolated repositories. Full design in
+    `docs/architecture/pr-42-git-diff-review.md`.
 - All remaining canonical packages stay **empty shells** (`package.json`, `tsconfig.json`,
   `src/index.ts` placeholder) — deliberately no premature domain functionality inside them.
 - Toolchain: TypeScript 5.9.3, ESLint 10.10.0, Vitest 4.1.10, Vite 8.1.0, Prettier 3.9.6,

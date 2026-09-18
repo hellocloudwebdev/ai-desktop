@@ -1,6 +1,6 @@
 # ai-desktop
 
-A desktop AI assistant. This repository is currently at **PR41 — Advanced Coding Workspace**:
+A desktop AI assistant. This repository is currently at **PR42 — Git Diff & Review Foundation**:
 shared primitives, canonical AI domain contracts, projections, in-process EventBus,
 permission checkpoint, SQLite WAL event repository, OS-backed credential store, canonical
 provider contracts, concrete `AnthropicAdapter`, concrete `GeminiAdapter`, Electron 44 desktop
@@ -108,7 +108,13 @@ store, pure bounded LCS diff, sandboxed terminal sessions with output ceiling an
 fail-closed stdin, sixteen typed `workspace:*`/`terminal:*` IPC commands with preload
 bridge, dependency-free explorer/editor/tabs/search/terminal/diff UI with dirty and
 conflict UX, and traversal/symlink/metachar/secret security tests with file, conflict,
-search, diagnostics, isolation, and terminal E2E) are
+search, diagnostics, isolation, and terminal E2E), and the
+Git Diff & Review Foundation (canonical Git domain contracts, `GitService` over argv-only
+`GitCliClient` with project-scoped path policy, seven canonical `builtin:git.*` tools through
+the universal ToolExecutor lifecycle, eight typed `git:*` IPC commands with preload bridge,
+`GitReviewSurface` with status groups, hunk-level diff viewer, log/branches panels, and
+stage/unstage/commit controls, and traversal/symlink/metachar/secret security tests with
+repository, status, diff, commit, isolation, and review E2E) are
 implemented. Future packages remain empty shells awaiting their respective
 implementation PRs — see [docs/architecture/phase-0.md](docs/architecture/phase-0.md) for the honest list of what is
 and is not implemented.
