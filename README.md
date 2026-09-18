@@ -1,6 +1,6 @@
 # ai-desktop
 
-A desktop AI assistant. This repository is currently at **PR43 — Background & Long-Running Agents**:
+A desktop AI assistant. This repository is currently at **PR44 — Scheduling & Autonomous Tasks**:
 shared primitives, canonical AI domain contracts, projections, in-process EventBus,
 permission checkpoint, SQLite WAL event repository, OS-backed credential store, canonical
 provider contracts, concrete `AnthropicAdapter`, concrete `GeminiAdapter`, Electron 44 desktop
@@ -129,7 +129,32 @@ Task Detail over background projections with permission approval routed through 
 existing permission UI path, waiting-input response box, EventBus timeline with no
 separate notification bus, bound-project display isolation, truncation with
 secret-assignment redaction, Tasks sidebar counts, and unit/integration/security/E2E
-tests) are
+tests), and the Scheduling & Autonomous Tasks foundation (durable
+schedule/run contracts with once/delay/interval/daily/weekly kinds and no
+cron, IANA timezone handling via built-in Intl, skip/run_once missed-run
+policy, skip/queue_one overlap policy, 32-total/8-per-project/60s-minimum/
+50-history/1-catch-up caps, pending/running/completed/failed/skipped/
+cancelled run statuses, scheduled/manual/recovery triggers, and
+`schedule.*` event names; `BackgroundScheduler` core plus
+`DesktopSchedulerService` thin orchestration over the PR43
+BackgroundTaskManager with a single timer, pending-record-before-launch,
+idempotent startup recovery, bounded run history, and delete≠cancel with
+post-delete history; SQLite `scheduled_tasks`/`scheduled_runs`
+projection persistence with secret refusal; nine typed `schedules:*` IPC
+commands plus narrow preload bridge with no execute channel; Schedule
+Center renderer layer with narrow `window.api.schedules` bridge client,
+Enabled vs Disabled grouping, project-locked schedules, next-run
+countdown/duration formatting, Scheduled/Manual/Recovered trigger labels,
+name ≤120 / prompt ≤4000 truncation with `key=value` secret-assignment
+redaction, full client-side create/edit validation (once/delay/interval/
+daily/weekly) with nothing executing from a partial form, 50-row render
+caps, schedule list/detail/create-edit form, Run now (labeled Manual) +
+Enable/Disable + Delete with an explicit "does not cancel running task"
+note, run-history panel with downstream approval resolved only through the
+existing permission path (schedule≠grant, never auto-approved), single
+bounded 2 s poll with re-query on mount/scope change and no
+renderer-local truth, Tasks surface extension plus `schedulesEnabledCount`
+sidebar badge, and unit/integration/security/persistence/E2E tests) are
 implemented. Future packages remain empty shells awaiting their respective
 implementation PRs — see [docs/architecture/phase-0.md](docs/architecture/phase-0.md) for the honest list of what is
 and is not implemented.

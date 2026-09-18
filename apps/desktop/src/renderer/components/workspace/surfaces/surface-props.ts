@@ -7,6 +7,7 @@
 import type { ContentPart, Message, ModelDefinition, PermissionRequest } from "@ai-desktop/ai-core";
 import type { WorkspaceSurface } from "../../../workspace/types.js";
 import type { BackgroundTasksCommands } from "../../../workspace/background-tasks.js";
+import type { ScheduleCommands } from "../../../workspace/schedules.js";
 
 export interface TaskNodeView {
   readonly id: string;
@@ -141,6 +142,11 @@ export interface TasksSurfaceProps {
   // stub before the sibling IPC lands); App may pass these to bind the
   // center to workspace state and the existing permission UI path.
   readonly background?: BackgroundTaskCenterProps;
+  // PR44: renderer — optional Schedule Center wiring. When absent, the
+  // Schedule Center self-renders over the schedules bridge (or the local
+  // stub before the sibling IPC lands); App may pass these to bind the
+  // center to workspace state and the existing permission UI path.
+  readonly schedules?: ScheduleCenterProps;
 }
 
 // PR43: renderer — Background Task Center contract (long-running agents).
@@ -176,6 +182,46 @@ export interface BackgroundTaskCenterProps {
    * `window.api.backgroundTasks` probe with a local-stub fallback.
    */
   readonly commands?: BackgroundTasksCommands | null;
+}
+
+// PR44: renderer — Schedule Center contract (autonomous tasks).
+//
+// The center renders `ScheduleView`-shaped projections only: schedule name,
+// bound project, enabled state, schedule description, timezone, next/previous
+// runs, overlap/missed policies, and run history (run/project/status/
+// started/finished/trigger with Scheduled/Manual/Recovered labels). Manual
+// runs are always labeled Manual. Runs that park on `waiting_permission`
+// render a "Schedule run requires approval" banner resolved only through the
+// existing permission UI path (`pendingPermissions` + `onResolvePermission`,
+// same shape as ChatSurface); a schedule is never a grant and the center
+// never auto-approves. Deleting a schedule never cancels an already-running
+// task (explicit UI note). The create/edit form validates fully client-side
+// via `validateScheduleForm`; nothing executes from a partial form. The
+// project choice is locked per schedule: filtering and project switching
+// never rewrite the bound `projectId`.
+export interface ScheduleCenterProps {
+  /** Bound-project scope hint; rows always show each schedule's own projectId. */
+  readonly activeProjectId?: string;
+  readonly selectedScheduleId?: string | null;
+  onSelectSchedule?(scheduleId: string | null): void;
+  /** False (default) scopes to `activeProjectId`; true lists all projects. */
+  readonly scopeAllProjects?: boolean;
+  onToggleScope?(all: boolean): void;
+  /** Existing activity projections (schedule transitions, when wired). */
+  readonly taskActivity?: ActivityEventView[];
+  /** Existing pending permission requests for the run-approval affordance. */
+  readonly pendingPermissions?: PermissionRequest[];
+  onResolvePermission?(
+    requestId: string,
+    decision: "granted" | "denied",
+    mode: "allow_once" | "allow_session" | "allow_project" | "deny",
+  ): Promise<void> | void;
+  readonly pollIntervalMs?: number;
+  /**
+   * Injectable bridge (tests/embeddings). Defaults to the
+   * `window.api.schedules` probe with a local-stub fallback.
+   */
+  readonly commands?: ScheduleCommands | null;
 }
 
 export interface ActivityEventView {
@@ -477,6 +523,8 @@ export interface SidebarProps {
   readonly codingActiveCount: number;
   /** PR43: active background tasks (Task Center); defaults to 0. */
   readonly backgroundActiveCount?: number;
+  /** PR44: enabled schedules (Schedule Center); defaults to 0. */
+  readonly schedulesEnabledCount?: number;
   readonly leftVisible: boolean;
   readonly rightVisible: boolean;
   onSelectSurface(surface: WorkspaceSurface): void;

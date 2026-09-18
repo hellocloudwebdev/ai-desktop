@@ -1,11 +1,11 @@
 # Phase 0 — What Exists and What Does Not
 
 This document prevents the repository (and its documentation) from claiming functionality
-that does not exist. It reflects the state after **PR43 (Background &
-Long-Running Agents)** and
+that does not exist. It reflects the state after **PR44 (Scheduling &
+Autonomous Tasks)** and
 is updated as each PR lands.
 
-## Implemented (as of PR43)
+## Implemented (as of PR44)
 
 - Repository foundation: pnpm workspace + Turborepo task graph (`build`, `dev`,
   `typecheck`, `lint`, `test`).
@@ -837,14 +837,34 @@ node.completed/node.failed/blocked/replan/completed/failed/cancelled` plus the
     argument rejection — plus repository/status/diff/commit/isolation/
     review E2E over temporary isolated repositories. Full design in
     `docs/architecture/pr-42-git-diff-review.md`.
-- Background & Long-Running Agents renderer + docs layer (`apps/desktop`
-  renderer only, PR43):
+- Background & Long-Running Agents foundation (PR43, all layers):
+  - Durable background-task contracts
+    (`packages/ai-core/src/background-tasks.ts`): nine-state lifecycle
+    (queued/running/waiting_permission/waiting_input/paused/cancelling/
+    completed/failed/cancelled) with legal-transition gating, 4-global/
+    2-per-project/16-queue concurrency caps, resumable/requires_approval/
+    abandoned crash-recovery classification, secret guard, and
+    `task.background.*` event names. `TaskBackgroundEventSchema` in the
+    Extension/AI event unions.
+  - `BackgroundTaskManager` thin orchestration
+    (`packages/agent-runtime`) over the existing Agent Runtime (same
+    runTask path as foreground): bounded FIFO queueing, idempotent
+    pause/resume/cancel with downward propagation, permission/input
+    parking with no auto-approval, immutable project binding, idempotent
+    recovery that never auto-replays non-idempotent tools, intent≠side
+    effect exactly-once semantics.
+  - Durable projection persistence (`prisma` `BackgroundTaskRecord` +
+    migration, `packages/storage/src/background/` repository): secret
+    refusal + truncation, project-scoped reads, unfinished queries. Events
+    stay authoritative.
+  - `DesktopBackgroundTaskService` + startup recovery and seven typed
+    `background-tasks:*` IPC commands plus narrow preload bridge (no
+    execute channel).
   - Narrow background bridge client
     (`apps/desktop/src/renderer/workspace/background-tasks.ts`):
     `window.api.backgroundTasks` list/get/start/pause/resume/cancel/respond
-    probed with optional chaining, local in-memory stub fallback (IPC-shaped
-    envelopes, legal-transition enforcement) so the surface renders and
-    tests pass before the sibling runtime/IPC lands. Re-exported through
+    with a local in-memory stub fallback (IPC-shaped envelopes,
+    legal-transition enforcement). Re-exported through
     `renderer/workspace/surfaces.ts`.
   - Pure projection helpers: normalize/unwrap (IPC envelope or raw),
     Active (Running, Waiting for approval, Waiting for input, Queued,
@@ -876,16 +896,103 @@ node.completed/node.failed/blocked/replan/completed/failed/cancelled` plus the
     surface kind, no store/persistence change — selection reuses
     `activeTaskId`), Tasks sidebar entry counts agent + coding + background
     active tasks.
-  - 27 renderer tests (`background-task-center.test.ts`): vocabulary,
-    normalization, grouping, isolation, disconnect-requery via the stub,
-    truncation/redaction/duration hygiene, and component-contract source
-    assertions. 124 renderer tests passing; desktop typecheck/lint clean
-    for the renderer scope.
-  - Renderer + docs own no runtime behavior: the `BackgroundTaskManager`
-    lifecycle/persistence/recovery, the `backgroundTasks.*` IPC + preload,
-    and the shared channels remain the sibling subagents' deliverables;
-    this layer activates against them with no renderer change. Decision
-    record in `docs/decisions/ADR-015-background-tasks-renderer.md`.
+  - Lifecycle/queueing/concurrency/cancellation/pause-resume/permission/
+    recovery/identity/project-binding tests plus security, integration,
+    restart-recovery, and E2E suites. Decision record in
+    `docs/decisions/ADR-015-background-tasks-renderer.md`.
+- Scheduling & Autonomous Tasks foundation (PR44, all layers):
+  - Canonical schedule/run contracts (`packages/ai-core/src/schedules.ts`):
+    once/delay/interval/daily/weekly kinds (no cron), IANA timezone
+    validation via built-in Intl, skip/run_once missed policy (skip default
+    for recurring, run_once default for one-shot), skip/queue_one overlap
+    policy (skip default), caps 32-total/8-per-project/60s-minimum/
+    50-history/1-catch-up, pending/running/completed/failed/skipped/
+    cancelled run statuses, scheduled/manual/recovery triggers, secret
+    guard, and `schedule.*` event names with `scheduleEventType()`
+    allowlist builder. `ScheduleEventSchema` (`schedule.created/updated/
+enabled/disabled/deleted/due/run.started/run.completed/run.failed/
+run.skipped/run.recovered`, category extension) in the Extension/AI
+    event unions.
+  - `BackgroundScheduler` core
+    (`packages/agent-runtime/src/runtime/scheduling/`): pure next-run
+    calculator (Intl wall-clock math incl. DST-gap tolerance) plus thin
+    single-timer orchestration over a structural launcher port (the PR43
+    BackgroundTaskManager shape) — pending-record-before-launch, overlap
+    skip/queue_one, missed skip/run_once with 1-catch-up cap,
+    crash-adoption without relaunch, idempotent recover(), zero tool/shell/
+    fs/network access, no auto-approval.
+  - Durable persistence (`prisma` `ScheduledTask`/`ScheduledRun` models +
+    migration, `packages/storage/src/scheduling/` repositories over the
+    `StorageDatabase` abstraction): secret scan + truncation, P2025→
+    null/false, listByProject/listAll/listEnabled, canonical unfinished
+    (pending/running) queries, deterministic retention pruning,
+    remove-preserves-runs. Events stay authoritative; rows are projections.
+  - `DesktopSchedulerService`
+    (`apps/desktop/src/main/agent/scheduler-service.ts`): thin orchestration
+    over the background delegate + repos + EventBus/storage — validated
+    create/update/delete/enable/disable, single-timer tick with due +
+    run.started/run.failed/run.skipped canonical events, manual runNow
+    (trigger manual, cadence untouched), disable-never-kills,
+    delete-preserves-queryable-history, idempotent startup recovery that
+    closes stale runs failed (never relaunches) with at most one catch-up
+    per schedule, immutable per-schedule projectId on every op. No second
+    agent loop/tool executor/permission system; schedule≠grant.
+  - Nine typed `schedules:*` IPC commands + narrow preload bridge (no
+    execute channel), Zod-validated in main with fail-closed stubs.
+  - Narrow schedules bridge client
+    (`apps/desktop/src/renderer/workspace/schedules.ts`):
+    `window.api.schedules` list/get/create/update/enable/disable/delete/
+    runNow/runs with projectId on every call and nested
+    `schedule:{kind,…}` specs, local in-memory stub fallback
+    (IPC-shaped envelopes, canonical behavior, validation,
+    delete-keeps-queryable-history so delete≠cancel holds).
+    Re-exported through `renderer/workspace/surfaces.ts`.
+  - Pure projection helpers: normalize/unwrap (IPC envelope or raw, with
+    legacy spelling tolerance), Enabled (next-run ordered) vs Disabled
+    (recency ordered) grouping, display-only project filter that never
+    rewrites the bound `projectId` with the project choice locked per
+    schedule, next-run countdown (`in …` / `overdue by …`) and run-duration
+    formatting, Scheduled/Manual/Recovered trigger labels with manual runs
+    always labeled, name ≤120 / prompt ≤4000 truncation, `key=value`
+    secret-assignment redaction, full client-side create/edit validation
+    (`validateScheduleForm`; nothing executes from a partial form),
+    IANA timezone checks, and 50-row section plus 50-run history render
+    caps.
+  - `ScheduleCenter` Schedule Center + Schedule Detail
+    (`components/workspace/surfaces/ScheduleCenter.tsx`):
+    self-contained over the bridge (re-queries on mount/scope change plus a
+    single bounded 2 s poll, so remounts and disconnects recover by
+    re-fetching); rows show schedule name, Enabled/Disabled badge, next run,
+    last run, and status with the bound project. Detail shows
+    name/prompt/project/schedule description/timezone/next run/previous
+    run/overlap policy/missed-run policy/enabled state. The create/edit form
+    covers name/project/prompt/once-delay-interval-daily-weekly
+    kind+config/timezone/missed+overlap policies/enabled with inline errors
+    and a disabled submit until valid. Run now launches a Manual run;
+    Enable/Disable toggles ticks; Delete carries the explicit "does not
+    cancel running task" note (runs already launched keep their own
+    background-task lifecycle; history stays queryable). The run-history
+    panel shows run/project/status/started/finished/trigger, and an active
+    run with pending downstream approvals renders a "Schedule run requires
+    approval" banner resolved only through the existing permission UI path
+    (`pendingPermissions` + `onResolvePermission`) — a schedule is never a
+    grant and the surface never auto-approves. No Node/Electron APIs, no
+    spawned processes, no Prisma, no raw runtime internals, no cron.
+  - `TasksSurface` extended (foreground list and Background Task Center
+    unchanged, Schedule Center appended), `ScheduleCenterProps` in
+    `surface-props.ts`, `SCHEDULE_CENTER_SURFACE = "tasks"` in
+    `workspace/types.ts` (no new surface kind, no store/persistence change),
+    Tasks sidebar entry counts agent + coding + background active plus
+    enabled schedules via optional `schedulesEnabledCount`.
+  - Tests: ai-core schedule contracts/events, calculator + scheduler core,
+    storage repositories against real SQLite, service (lifecycle, overlap,
+    missed, catch-up cap, prune, recovery idempotency, cross-project
+    denial, post-delete history), IPC delegation, renderer
+    (vocabulary, normalization, grouping, validation, isolation,
+    disconnect-requery via the stub, truncation/redaction/countdown
+    hygiene, trigger labels, no-execute-on-partial-form gating, and
+    component-contract source assertions). Decision record in
+    `docs/decisions/ADR-016-scheduling.md`.
 - All remaining canonical packages stay **empty shells** (`package.json`, `tsconfig.json`,
   `src/index.ts` placeholder) — deliberately no premature domain functionality inside them.
 - Toolchain: TypeScript 5.9.3, ESLint 10.10.0, Vitest 4.1.10, Vite 8.1.0, Prettier 3.9.6,
@@ -897,11 +1004,10 @@ node.completed/node.failed/blocked/replan/completed/failed/cancelled` plus the
 - Plugin marketplace, remote registry, auto-update, extension sandbox
   process, full MCP Apps runtime, GitHub App integration, cloud plugin sync,
   accounts/billing (future ecosystem).
-- Background agent runtime behavior (sibling PR43 workstreams, not the
-  renderer + docs layer): `BackgroundTaskManager` lifecycle/persistence/
-  recovery, `backgroundTasks.*` IPC + preload, shared channels. Likewise
-  non-goals for this PR: cloud workers, cron/scheduler, multi-user
-  collaboration, push notifications (PR44+ territory).
+- PR44 non-goals (explicitly out of scope): cron expressions, cloud
+  workers/schedulers, push notifications, multi-user collaboration,
+  marketplace/auto-update/auto-push, and any automatic permission grant
+  from a schedule (schedule≠grant).
 
 ## Verification
 

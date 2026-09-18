@@ -276,3 +276,54 @@ model BackgroundTaskRecord {
   @@index([status])
   @@map("background_tasks")
 }
+
+// PR44: Scheduled-task persistence (autonomous schedules + run history).
+// No secret columns; prompts and errors are secret-scanned before every
+// write in the storage repository and the desktop scheduler service.
+model ScheduledTask {
+  scheduleId   String  @id // ULID ScheduleId
+  projectId    String
+  name         String
+  description  String?
+  prompt       String
+  kind         String // "once" | "delay" | "interval" | "daily" | "weekly"
+  configJson   String // JSON-serialized schedule config (intervalMs/runAt/dailyTime/...)
+  timezone     String  @default("UTC")
+  enabled      Boolean @default(true)
+  missedPolicy String  @default("skip") // "skip" | "run_once"
+  overlapPolicy String @default("skip") // "skip" | "queue_one"
+  createdAt    BigInt // epoch milliseconds
+  updatedAt    BigInt // epoch milliseconds
+  nextRunAt    BigInt? // epoch milliseconds, null when one-shot is spent
+  lastRunAt    BigInt? // epoch milliseconds
+  lastRunStatus String?
+  runCount     Int     @default(0)
+  missedCount  Int     @default(0)
+  schemaVersion Int    @default(1)
+
+  @@index([projectId])
+  @@index([enabled])
+  @@index([enabled, nextRunAt])
+  @@map("scheduled_tasks")
+}
+
+// PR44: Per-schedule run history (retention-pruned, never deleted with the
+// schedule except by the retention bound).
+model ScheduledRun {
+  runId            String  @id // ULID RunId
+  scheduleId       String
+  projectId        String
+  backgroundTaskId String?
+  trigger          String // "scheduled" | "manual" | "recovered"
+  status           String // "queued" | "running" | "completed" | "failed" | "cancelled"
+  scheduledFor     BigInt // epoch milliseconds
+  startedAt        BigInt?
+  finishedAt       BigInt?
+  error            String?
+
+  @@index([scheduleId])
+  @@index([projectId])
+  @@index([status])
+  @@index([scheduleId, scheduledFor])
+  @@map("scheduled_runs")
+}

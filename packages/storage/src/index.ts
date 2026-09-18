@@ -100,3 +100,21 @@ export {
   BackgroundTaskValidationError,
   BackgroundTaskSecretError,
 } from "./background/background-task-repository.js";
+
+// PR44: Durable scheduled-task persistence (repository only, no execution logic)
+export type {
+  ScheduledTaskRow,
+  ScheduledRunRow,
+  ScheduledRunPatch,
+} from "./scheduling/scheduled-task-repository.js";
+export {
+  PrismaScheduledTaskRepository,
+  PrismaScheduledRunRepository,
+  ScheduledTaskValidationError,
+  ScheduledTaskSecretError,
+  MAX_SCHEDULE_NAME_LENGTH,
+  MAX_SCHEDULE_PROMPT_LENGTH,
+  MAX_SCHEDULE_DESCRIPTION_LENGTH,
+  MAX_SCHEDULE_CONFIG_LENGTH,
+  MAX_SCHEDULE_ERROR_LENGTH,
+} from "./scheduling/scheduled-task-repository.js";

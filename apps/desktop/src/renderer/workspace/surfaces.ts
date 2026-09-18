@@ -10,8 +10,86 @@
 // `./background-tasks.js` (window.api.backgroundTasks list/get/start/
 // pause/resume/cancel/respond with a local-stub fallback) and is
 // re-exported here so the Task Center has one workspace import surface.
+//
+// PR44: renderer — the schedules bridge lives in `./schedules.js`
+// (window.api.schedules list/get/create/update/enable/disable/delete/
+// runNow/runs with a local-stub fallback) and is re-exported here so the
+// Schedule Center has one workspace import surface.
 
 export * from "./background-tasks.js";
+// PR44: explicit schedule re-exports (no `export *`: `truncateText` and
+// `redactSecretAssignments` already come from `./background-tasks.js` with
+// identical semantics; the schedule-specific truncation helpers below mirror
+// them without re-exporting the colliding generics).
+export {
+  MAX_CONCURRENT_SCHEDULE_RUNS,
+  MAX_SCHEDULES_TOTAL,
+  MAX_SCHEDULE_CATCH_UP,
+  MAX_SCHEDULE_DISPLAY_NAME,
+  MAX_SCHEDULE_DISPLAY_PROMPT,
+  MAX_SCHEDULE_ROWS_PER_SECTION,
+  MAX_SCHEDULE_RUNS_SHOWN,
+  MIN_SCHEDULE_INTERVAL_MS,
+  MISSED_POLICIES,
+  OVERLAP_POLICIES,
+  SCHEDULE_KINDS,
+  SCHEDULE_RUN_STATUSES,
+  SCHEDULE_RUN_TRIGGERS,
+  countEnabledSchedules,
+  createLocalScheduleStub,
+  createSchedule,
+  deleteSchedule,
+  describeSchedule,
+  disableSchedule,
+  enableSchedule,
+  fetchSchedule,
+  fetchScheduleList,
+  fetchScheduleRuns,
+  filterSchedulesByProject,
+  formatNextRunCountdown,
+  formatScheduleRunDuration,
+  formatScheduleTimestamp,
+  getScheduleCommands,
+  groupSchedules,
+  isMissedPolicy,
+  isOverlapPolicy,
+  isScheduleFormValid,
+  isScheduleKind,
+  isScheduleRunStatus,
+  isScheduleRunTrigger,
+  isValidTimezone,
+  normalizeScheduleRunView,
+  normalizeScheduleRunViews,
+  normalizeScheduleView,
+  normalizeScheduleViews,
+  runScheduleNow,
+  scheduleRunStatusBadgeClass,
+  scheduleRunStatusLabel,
+  scheduleTriggerLabel,
+  truncateScheduleName,
+  truncateSchedulePrompt,
+  unwrapSchedule,
+  unwrapScheduleList,
+  unwrapScheduleRuns,
+  updateSchedule,
+  validateScheduleForm,
+} from "./schedules.js";
+export type {
+  GroupedSchedules,
+  LocalScheduleSeed,
+  MissedPolicy,
+  OverlapPolicy,
+  ScheduleCommandResult,
+  ScheduleCommands,
+  ScheduleConfig,
+  ScheduleFormErrors,
+  ScheduleFormInput,
+  ScheduleKind,
+  ScheduleRunStatus,
+  ScheduleRunTrigger,
+  ScheduleRunView,
+  ScheduleView,
+} from "./schedules.js";
 
 import type { SurfaceView } from "../components/workspace/surfaces/surface-props.js";
 

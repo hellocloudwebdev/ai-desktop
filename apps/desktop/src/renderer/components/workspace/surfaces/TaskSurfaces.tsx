@@ -19,6 +19,7 @@ import type {
   TasksSurfaceProps,
 } from "./surface-props.js";
 import { BackgroundTaskCenter } from "./BackgroundTaskCenter.js";
+import { ScheduleCenter } from "./ScheduleCenter.js";
 import { isTaskRunning, TaskNodeChecklist } from "./CodingSurface.js";
 
 const MAX_ACTIVITY_ITEMS = 200;
@@ -35,6 +36,7 @@ export function TasksSurface({
   onAgentGoalChange,
   onStartAgent,
   background,
+  schedules,
 }: TasksSurfaceProps): React.ReactElement {
   const all = [
     ...agentTasks.map((t) => ({ ...t, kind: "agent" as const })),
@@ -125,6 +127,10 @@ export function TasksSurface({
       {/* PR43: Background Task Center (Active + Completed + Detail). */}
       <div className="border-t border-slate-800 mt-2">
         <BackgroundTaskCenter {...backgroundProps} />
+      </div>
+      {/* PR44: Schedule Center (Enabled + Disabled + Detail + run history). */}
+      <div className="border-t border-slate-800 mt-2">
+        <ScheduleCenter {...schedules} />
       </div>
     </div>
   );

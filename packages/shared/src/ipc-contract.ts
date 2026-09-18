@@ -223,6 +223,20 @@ export const IPC_CHANNELS = {
   BACKGROUND_TASKS_RESUME: "background-tasks:resume",
   BACKGROUND_TASKS_CANCEL: "background-tasks:cancel",
   BACKGROUND_TASKS_RESPOND: "background-tasks:respond",
+
+  // Scheduled task operations (PR44). NOTE: there is intentionally NO
+  // schedules:execute channel — execution flows through the agent tool
+  // router (DesktopBackgroundTaskService path with PermissionManager
+  // mediation), never through arbitrary IPC.
+  SCHEDULES_LIST: "schedules:list",
+  SCHEDULES_GET: "schedules:get",
+  SCHEDULES_CREATE: "schedules:create",
+  SCHEDULES_UPDATE: "schedules:update",
+  SCHEDULES_ENABLE: "schedules:enable",
+  SCHEDULES_DISABLE: "schedules:disable",
+  SCHEDULES_DELETE: "schedules:delete",
+  SCHEDULES_RUN_NOW: "schedules:run-now",
+  SCHEDULES_RUNS: "schedules:runs",
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];
@@ -1476,6 +1490,146 @@ export const BackgroundTasksRespondCommandSchema = z.object({
 });
 
 export type BackgroundTasksRespondCommand = z.infer<typeof BackgroundTasksRespondCommandSchema>;
+
+// ---------------------------------------------------------------------------
+// Scheduled Task Commands (PR44)
+// Autonomous schedules over the main-process DesktopSchedulerService.
+// Project-scoped, renderer-safe projections only (scheduleId/projectId/name/
+// description/prompt/schedule/timezone/policies/timestamps/counters; run
+// rows carry trigger/status/timestamps/error only). Bounded: project ids
+// 1..256, names 1..120, prompts 1..4000, descriptions <=2000, timezones
+// 1..64, intervals >= 60s (sub-minute rejected), run history queries 1..100.
+// There is intentionally NO schedules:execute schema — execution is never
+// exposed on IPC.
+// ---------------------------------------------------------------------------
+
+export const SchedulesProjectId = z.string().trim().min(1).max(256);
+
+export const ScheduleIdSchema = UlidStringSchema.transform((val) => val.toUpperCase());
+
+export const ScheduleOnceSpecSchema = z.object({
+  kind: z.literal("once"),
+  runAt: z.string().trim().min(1).max(64),
+  at: z.union([z.number().int().positive(), z.string().trim().min(1).max(64)]).optional(),
+});
+
+export const ScheduleDelaySpecSchema = z.object({
+  kind: z.literal("delay"),
+  delayMs: z.number().int().min(1000).max(31_536_000_000),
+});
+
+export const ScheduleIntervalSpecSchema = z.object({
+  kind: z.literal("interval"),
+  intervalMs: z.number().int().min(60_000).max(31_536_000_000),
+});
+
+export const ScheduleDailySpecSchema = z.object({
+  kind: z.literal("daily"),
+  dailyTime: z
+    .string()
+    .trim()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/, { message: "dailyTime must be HH:MM (00:00-23:59)" }),
+});
+
+export const ScheduleWeeklySpecSchema = z.object({
+  kind: z.literal("weekly"),
+  weekday: z.number().int().min(0).max(6),
+  hour: z.number().int().min(0).max(23),
+  minute: z.number().int().min(0).max(59),
+});
+
+export const ScheduleSpecSchema = z.discriminatedUnion("kind", [
+  ScheduleOnceSpecSchema,
+  ScheduleDelaySpecSchema,
+  ScheduleIntervalSpecSchema,
+  ScheduleDailySpecSchema,
+  ScheduleWeeklySpecSchema,
+]);
+
+export type ScheduleSpecCommand = z.infer<typeof ScheduleSpecSchema>;
+
+export const SchedulesMissedPolicySchema = z.enum(["skip", "run_once"]);
+
+export const SchedulesOverlapPolicySchema = z
+  .enum(["skip", "queue", "queue_one"])
+  .transform((val) => (val === "queue" ? "queue_one" : val));
+
+export const SchedulesListCommandSchema = z.object({
+  projectId: SchedulesProjectId,
+});
+
+export type SchedulesListCommand = z.infer<typeof SchedulesListCommandSchema>;
+
+export const SchedulesGetCommandSchema = z.object({
+  scheduleId: ScheduleIdSchema,
+  projectId: SchedulesProjectId,
+});
+
+export type SchedulesGetCommand = z.infer<typeof SchedulesGetCommandSchema>;
+
+export const SchedulesCreateCommandSchema = z.object({
+  projectId: SchedulesProjectId,
+  name: z.string().trim().min(1).max(120),
+  prompt: z.string().trim().min(1).max(4000),
+  schedule: ScheduleSpecSchema,
+  timezone: z.string().trim().min(1).max(64).optional(),
+  description: z.string().trim().max(2000).optional(),
+  missedPolicy: SchedulesMissedPolicySchema.optional(),
+  overlapPolicy: SchedulesOverlapPolicySchema.optional(),
+  enabled: z.boolean().optional(),
+});
+
+export type SchedulesCreateCommand = z.infer<typeof SchedulesCreateCommandSchema>;
+
+export const SchedulesUpdateCommandSchema = z.object({
+  scheduleId: ScheduleIdSchema,
+  projectId: SchedulesProjectId,
+  name: z.string().trim().min(1).max(120).optional(),
+  description: z.string().trim().max(2000).nullable().optional(),
+  prompt: z.string().trim().min(1).max(4000).optional(),
+  schedule: ScheduleSpecSchema.optional(),
+  timezone: z.string().trim().min(1).max(64).optional(),
+  missedPolicy: SchedulesMissedPolicySchema.optional(),
+  overlapPolicy: SchedulesOverlapPolicySchema.optional(),
+});
+
+export type SchedulesUpdateCommand = z.infer<typeof SchedulesUpdateCommandSchema>;
+
+export const SchedulesEnableCommandSchema = z.object({
+  scheduleId: ScheduleIdSchema,
+  projectId: SchedulesProjectId,
+});
+
+export type SchedulesEnableCommand = z.infer<typeof SchedulesEnableCommandSchema>;
+
+export const SchedulesDisableCommandSchema = z.object({
+  scheduleId: ScheduleIdSchema,
+  projectId: SchedulesProjectId,
+});
+
+export type SchedulesDisableCommand = z.infer<typeof SchedulesDisableCommandSchema>;
+
+export const SchedulesDeleteCommandSchema = z.object({
+  scheduleId: ScheduleIdSchema,
+  projectId: SchedulesProjectId,
+});
+
+export type SchedulesDeleteCommand = z.infer<typeof SchedulesDeleteCommandSchema>;
+
+export const SchedulesRunNowCommandSchema = z.object({
+  scheduleId: ScheduleIdSchema,
+  projectId: SchedulesProjectId,
+});
+
+export type SchedulesRunNowCommand = z.infer<typeof SchedulesRunNowCommandSchema>;
+
+export const SchedulesRunsCommandSchema = z.object({
+  scheduleId: ScheduleIdSchema,
+  projectId: SchedulesProjectId,
+  limit: z.number().int().min(1).max(100).optional(),
+});
+
+export type SchedulesRunsCommand = z.infer<typeof SchedulesRunsCommandSchema>;
 
 // ---------------------------------------------------------------------------
 // Extension Payloads (PR32)

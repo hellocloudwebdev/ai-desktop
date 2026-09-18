@@ -37,6 +37,15 @@ export function isWorkspaceSurface(value: unknown): value is WorkspaceSurface {
  */
 export const TASK_CENTER_SURFACE: WorkspaceSurface = "tasks";
 
+/**
+ * PR44: the Schedule Center (Enabled / Disabled sections + Schedule Detail
+ * + create/edit form + run history) lives on the existing "tasks" surface
+ * alongside the Task Center. No new surface kind, no store change:
+ * schedule selection is presentation-only and project switching never
+ * re-scopes a schedule (rows always render the bound projectId).
+ */
+export const SCHEDULE_CENTER_SURFACE: WorkspaceSurface = "tasks";
+
 export interface WorkspacePanelState {
   readonly visible: boolean;
   /** Width in pixels, clamped to panel min/max by the store. */

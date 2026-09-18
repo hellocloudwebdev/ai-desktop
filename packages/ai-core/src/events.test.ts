@@ -9,6 +9,7 @@ import {
   type MessageCreatedEvent,
   type MessageDeltaEvent,
   type PermissionRequestedEvent,
+  type ScheduleEvent,
   type TaskBackgroundEvent,
   type TaskCreatedEvent,
   type ToolCallRequestedEvent,
@@ -22,6 +23,7 @@ import {
   now,
 } from "@ai-desktop/shared";
 import { createEventId, createTaskNodeId } from "./identifiers.js";
+import { createScheduleId, createScheduledRunId } from "./schedules.js";
 import { textPart } from "./content.js";
 
 describe("ai-core events: AIEvent Discriminated Union and Validation", () => {
@@ -164,6 +166,57 @@ describe("ai-core events: AIEvent Discriminated Union and Validation", () => {
     const missingProject = { ...base, type: "task.background.started", status: "running" };
     delete (missingProject as Record<string, unknown>).projectId;
     expect(AIEventSchema.safeParse(missingProject).success).toBe(false);
+  });
+
+  it("validates schedule.* lifecycle events (PR44)", () => {
+    const convId = createConversationId();
+    const base = {
+      eventId: createEventId(),
+      conversationId: convId,
+      sequence: 7,
+      schemaVersion: 1,
+      timestamp: now(),
+      category: "extension" as const,
+      scheduleId: createScheduleId(),
+      projectId: "proj-1",
+    };
+    const created: ScheduleEvent = {
+      ...base,
+      type: "schedule.created",
+    };
+    expect(AIEventSchema.safeParse(created).success).toBe(true);
+    expect(isExtensionEvent(created)).toBe(true);
+    const runStarted: ScheduleEvent = {
+      ...base,
+      type: "schedule.run.started",
+      runId: createScheduledRunId(),
+      status: "running",
+      detail: "launched via tick",
+    };
+    expect(AIEventSchema.safeParse(runStarted).success).toBe(true);
+    const runSkipped: ScheduleEvent = {
+      ...base,
+      type: "schedule.run.skipped",
+      runId: createScheduledRunId(),
+      status: "skipped",
+    };
+    expect(AIEventSchema.safeParse(runSkipped).success).toBe(true);
+    const badType = { ...base, type: "schedule.launch", status: "running" };
+    expect(AIEventSchema.safeParse(badType).success).toBe(false);
+    const backgroundStyle = { ...base, type: "task.background.started", status: "running" };
+    expect(AIEventSchema.safeParse(backgroundStyle).success).toBe(false);
+    const missingProject = { ...base, type: "schedule.created" };
+    delete (missingProject as Record<string, unknown>).projectId;
+    expect(AIEventSchema.safeParse(missingProject).success).toBe(false);
+    const missingSchedule = { ...base, type: "schedule.created" };
+    delete (missingSchedule as Record<string, unknown>).scheduleId;
+    expect(AIEventSchema.safeParse(missingSchedule).success).toBe(false);
+    const overlongDetail = {
+      ...base,
+      type: "schedule.run.failed",
+      detail: "d".repeat(2001),
+    };
+    expect(AIEventSchema.safeParse(overlongDetail).success).toBe(false);
   });
 
   it("enforces sequence and schemaVersion on all events", () => {

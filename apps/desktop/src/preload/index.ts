@@ -127,6 +127,15 @@ import {
   type BackgroundTasksResumeCommand,
   type BackgroundTasksCancelCommand,
   type BackgroundTasksRespondCommand,
+  type SchedulesListCommand,
+  type SchedulesGetCommand,
+  type SchedulesCreateCommand,
+  type SchedulesUpdateCommand,
+  type SchedulesEnableCommand,
+  type SchedulesDisableCommand,
+  type SchedulesDeleteCommand,
+  type SchedulesRunNowCommand,
+  type SchedulesRunsCommand,
 } from "@ai-desktop/shared";
 import type {
   AIEvent,
@@ -494,6 +503,26 @@ export interface DesktopApplicationApi {
     respondBackgroundTask(
       command: BackgroundTasksRespondCommand,
     ): Promise<IpcResponseEnvelope<{ task: unknown }>>;
+  };
+
+  /**
+   * PR44: narrow schedules bridge (no execute channel — execution stays
+   * agent-side behind the background-task path with permission mediation).
+   */
+  schedules: {
+    list(command: SchedulesListCommand): Promise<IpcResponseEnvelope<{ schedules: unknown[] }>>;
+    get(command: SchedulesGetCommand): Promise<IpcResponseEnvelope<{ schedule: unknown }>>;
+    create(command: SchedulesCreateCommand): Promise<IpcResponseEnvelope<{ schedule: unknown }>>;
+    update(command: SchedulesUpdateCommand): Promise<IpcResponseEnvelope<{ schedule: unknown }>>;
+    enable(command: SchedulesEnableCommand): Promise<IpcResponseEnvelope<{ schedule: unknown }>>;
+    disable(command: SchedulesDisableCommand): Promise<IpcResponseEnvelope<{ schedule: unknown }>>;
+    delete(
+      command: SchedulesDeleteCommand,
+    ): Promise<IpcResponseEnvelope<{ deleted: boolean; scheduleId: string }>>;
+    runNow(
+      command: SchedulesRunNowCommand,
+    ): Promise<IpcResponseEnvelope<{ schedule: unknown; run: unknown }>>;
+    runs(command: SchedulesRunsCommand): Promise<IpcResponseEnvelope<{ runs: unknown[] }>>;
   };
 
   /**
@@ -883,6 +912,36 @@ export function createDesktopApi(): DesktopApplicationApi {
       },
       async respondBackgroundTask(command: BackgroundTasksRespondCommand) {
         return ipcRenderer.invoke(IPC_CHANNELS.BACKGROUND_TASKS_RESPOND, command);
+      },
+    },
+
+    schedules: {
+      async list(command: SchedulesListCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.SCHEDULES_LIST, command);
+      },
+      async get(command: SchedulesGetCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.SCHEDULES_GET, command);
+      },
+      async create(command: SchedulesCreateCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.SCHEDULES_CREATE, command);
+      },
+      async update(command: SchedulesUpdateCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.SCHEDULES_UPDATE, command);
+      },
+      async enable(command: SchedulesEnableCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.SCHEDULES_ENABLE, command);
+      },
+      async disable(command: SchedulesDisableCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.SCHEDULES_DISABLE, command);
+      },
+      async delete(command: SchedulesDeleteCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.SCHEDULES_DELETE, command);
+      },
+      async runNow(command: SchedulesRunNowCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.SCHEDULES_RUN_NOW, command);
+      },
+      async runs(command: SchedulesRunsCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.SCHEDULES_RUNS, command);
       },
     },
 

@@ -20,6 +20,7 @@ import {
   ToolCallIdSchema,
 } from "@ai-desktop/shared";
 import { EventIdSchema, ExecutionIdSchema, TaskNodeIdSchema } from "./identifiers.js";
+import { ScheduledRunIdSchema, ScheduleIdSchema } from "./schedules.js";
 import { ContentPartSchema } from "./content.js";
 import { ToolRuntimeSchema, ToolSourceSchema } from "./tools.js";
 import { PermissionScopeSchema, RiskLevelSchema } from "./permissions.js";
@@ -446,6 +447,29 @@ export const TaskBackgroundEventSchema = z.object({
   detail: z.string().trim().max(2000).optional(),
 });
 
+export const ScheduleEventSchema = z.object({
+  ...BaseEventFields,
+  type: z.enum([
+    "schedule.created",
+    "schedule.updated",
+    "schedule.enabled",
+    "schedule.disabled",
+    "schedule.deleted",
+    "schedule.due",
+    "schedule.run.started",
+    "schedule.run.completed",
+    "schedule.run.failed",
+    "schedule.run.skipped",
+    "schedule.run.recovered",
+  ]),
+  category: z.literal("extension"),
+  scheduleId: ScheduleIdSchema,
+  projectId: z.string().trim().min(1).max(256),
+  runId: ScheduledRunIdSchema.optional(),
+  status: z.string().trim().min(1).max(32).optional(),
+  detail: z.string().trim().max(2000).optional(),
+});
+
 export const ExtensionCustomEventSchema = z.object({
   ...BaseEventFields,
   type: z.literal("extension.custom"),
@@ -468,6 +492,7 @@ export const ExtensionEventSchema = z.discriminatedUnion("type", [
   TaskFailedEventSchema,
   TaskCancelledEventSchema,
   TaskBackgroundEventSchema,
+  ScheduleEventSchema,
   ExtensionCustomEventSchema,
 ]);
 
@@ -484,6 +509,7 @@ export type TaskCompletedEvent = z.infer<typeof TaskCompletedEventSchema>;
 export type TaskFailedEvent = z.infer<typeof TaskFailedEventSchema>;
 export type TaskCancelledEvent = z.infer<typeof TaskCancelledEventSchema>;
 export type TaskBackgroundEvent = z.infer<typeof TaskBackgroundEventSchema>;
+export type ScheduleEvent = z.infer<typeof ScheduleEventSchema>;
 export type ExtensionCustomEvent = z.infer<typeof ExtensionCustomEventSchema>;
 export type ExtensionEvent = z.infer<typeof ExtensionEventSchema>;
 
@@ -542,6 +568,17 @@ export const AIEventTypeSchema = z.enum([
   "task.background.failed",
   "task.background.cancelled",
   "task.background.recovered",
+  "schedule.created",
+  "schedule.updated",
+  "schedule.enabled",
+  "schedule.disabled",
+  "schedule.deleted",
+  "schedule.due",
+  "schedule.run.started",
+  "schedule.run.completed",
+  "schedule.run.failed",
+  "schedule.run.skipped",
+  "schedule.run.recovered",
   "extension.custom",
 ]);
 
@@ -587,6 +624,7 @@ export const AIEventSchema = z.discriminatedUnion("type", [
   TaskFailedEventSchema,
   TaskCancelledEventSchema,
   TaskBackgroundEventSchema,
+  ScheduleEventSchema,
   ExtensionCustomEventSchema,
 ]);
 

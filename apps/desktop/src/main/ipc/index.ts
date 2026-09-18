@@ -134,6 +134,15 @@ import {
   BackgroundTasksResumeCommandSchema,
   BackgroundTasksCancelCommandSchema,
   BackgroundTasksRespondCommandSchema,
+  SchedulesListCommandSchema,
+  SchedulesGetCommandSchema,
+  SchedulesCreateCommandSchema,
+  SchedulesUpdateCommandSchema,
+  SchedulesEnableCommandSchema,
+  SchedulesDisableCommandSchema,
+  SchedulesDeleteCommandSchema,
+  SchedulesRunNowCommandSchema,
+  SchedulesRunsCommandSchema,
   createToolCallId,
   type ChatCancelCommand,
   type ChatSendCommand,
@@ -260,7 +269,9 @@ import {
   registerBackgroundTaskHandlers,
   type BackgroundTasksIpcDependencies,
 } from "../agent/background-tasks-ipc.js";
+import { registerScheduleHandlers, type SchedulesIpcDependencies } from "../agent/schedules-ipc.js";
 import type { DesktopBackgroundTaskService } from "../agent/background-task-service.js";
+import type { DesktopSchedulerService } from "../agent/scheduler-service.js";
 
 export type CommandHandler<TInput, TOutput> = (
   input: TInput,
@@ -362,6 +373,8 @@ export interface RegisterIpcOptions {
   gitDeps?: GitIpcDependencies;
   backgroundTaskService?: DesktopBackgroundTaskService;
   backgroundTasks?: BackgroundTasksIpcDependencies;
+  schedulerService?: DesktopSchedulerService;
+  schedules?: SchedulesIpcDependencies;
 }
 
 export class IpcRegistry {
@@ -626,6 +639,14 @@ export function registerIpcHandlers(
       ? options.backgroundTasks
       : backgroundTaskService
         ? { backgroundTaskService }
+        : undefined;
+  const schedulerService: DesktopSchedulerService | undefined =
+    options && "schedulerService" in options ? options.schedulerService : undefined;
+  const schedules: SchedulesIpcDependencies | undefined =
+    options && "schedules" in options
+      ? options.schedules
+      : schedulerService
+        ? { schedulerService }
         : undefined;
   if (batcher) {
     registry.attachBatcher(batcher);
@@ -2468,5 +2489,55 @@ export function registerIpcHandlers(
       BackgroundTasksRespondCommandSchema,
       unavailable,
     );
+  }
+
+  // 116-124. Schedule commands (PR44): project-scoped list/get/create/update/
+  // enable/disable/delete/run-now/runs over DesktopSchedulerService. Mirrors
+  // the background-tasks pattern above: no permission call in IPC (agent
+  // tools enforce via the existing executors), missing deps fail closed.
+  // There is intentionally NO schedules:execute channel — execution flows
+  // through the agent tool router, never through IPC.
+  const scheduleDeps: SchedulesIpcDependencies | undefined = schedules;
+  if (scheduleDeps) {
+    registerScheduleHandlers(registry, scheduleDeps);
+  } else {
+    // Register schema-validated fail-closed stubs so the channels always
+    // exist with typed validation even before the service is composed.
+    const unavailable = async (): Promise<never> => {
+      throw new Error("SchedulerService is not available");
+    };
+    registry.registerCommand(IPC_CHANNELS.SCHEDULES_LIST, SchedulesListCommandSchema, unavailable);
+    registry.registerCommand(IPC_CHANNELS.SCHEDULES_GET, SchedulesGetCommandSchema, unavailable);
+    registry.registerCommand(
+      IPC_CHANNELS.SCHEDULES_CREATE,
+      SchedulesCreateCommandSchema,
+      unavailable,
+    );
+    registry.registerCommand(
+      IPC_CHANNELS.SCHEDULES_UPDATE,
+      SchedulesUpdateCommandSchema,
+      unavailable,
+    );
+    registry.registerCommand(
+      IPC_CHANNELS.SCHEDULES_ENABLE,
+      SchedulesEnableCommandSchema,
+      unavailable,
+    );
+    registry.registerCommand(
+      IPC_CHANNELS.SCHEDULES_DISABLE,
+      SchedulesDisableCommandSchema,
+      unavailable,
+    );
+    registry.registerCommand(
+      IPC_CHANNELS.SCHEDULES_DELETE,
+      SchedulesDeleteCommandSchema,
+      unavailable,
+    );
+    registry.registerCommand(
+      IPC_CHANNELS.SCHEDULES_RUN_NOW,
+      SchedulesRunNowCommandSchema,
+      unavailable,
+    );
+    registry.registerCommand(IPC_CHANNELS.SCHEDULES_RUNS, SchedulesRunsCommandSchema, unavailable);
   }
 }

@@ -28,6 +28,7 @@ export function WorkspaceSidebar({
   agentActiveCount,
   codingActiveCount,
   backgroundActiveCount = 0,
+  schedulesEnabledCount = 0,
   leftVisible,
   rightVisible,
   onSelectSurface,
@@ -74,7 +75,10 @@ export function WorkspaceSidebar({
             const active = activeSurface === tab.id;
             // PR43: the Tasks entry counts foreground (agent + coding) and
             // background active tasks; the Task Center lives on "tasks".
-            const tasksTotal = agentActiveCount + codingActiveCount + backgroundActiveCount;
+            // PR44: enabled schedules add to the same Tasks badge; the
+            // Schedule Center lives on "tasks" alongside the Task Center.
+            const tasksTotal =
+              agentActiveCount + codingActiveCount + backgroundActiveCount + schedulesEnabledCount;
             const badge =
               tab.id === "coding" && codingActiveCount > 0
                 ? ` (${codingActiveCount})`
