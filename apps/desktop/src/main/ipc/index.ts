@@ -143,6 +143,16 @@ import {
   SchedulesDeleteCommandSchema,
   SchedulesRunNowCommandSchema,
   SchedulesRunsCommandSchema,
+  AccountGetCommandSchema,
+  AccountSignInCommandSchema,
+  AccountSignOutCommandSchema,
+  AccountRefreshCommandSchema,
+  AccountDeviceCommandSchema,
+  SyncStatusCommandSchema,
+  SyncStartCommandSchema,
+  SyncPauseCommandSchema,
+  SyncConflictsCommandSchema,
+  SyncResolveCommandSchema,
   createToolCallId,
   type ChatCancelCommand,
   type ChatSendCommand,
@@ -270,6 +280,8 @@ import {
   type BackgroundTasksIpcDependencies,
 } from "../agent/background-tasks-ipc.js";
 import { registerScheduleHandlers, type SchedulesIpcDependencies } from "../agent/schedules-ipc.js";
+import { registerAccountHandlers, type AccountIpcDependencies } from "../account/account-ipc.js";
+import { registerSyncHandlers, type SyncIpcDependencies } from "../sync/sync-ipc.js";
 import type { DesktopBackgroundTaskService } from "../agent/background-task-service.js";
 import type { DesktopSchedulerService } from "../agent/scheduler-service.js";
 
@@ -375,6 +387,10 @@ export interface RegisterIpcOptions {
   backgroundTasks?: BackgroundTasksIpcDependencies;
   schedulerService?: DesktopSchedulerService;
   schedules?: SchedulesIpcDependencies;
+  accountService?: AccountIpcDependencies["accountService"];
+  account?: AccountIpcDependencies;
+  syncService?: SyncIpcDependencies["syncService"];
+  sync?: SyncIpcDependencies;
 }
 
 export class IpcRegistry {
@@ -648,6 +664,18 @@ export function registerIpcHandlers(
       : schedulerService
         ? { schedulerService }
         : undefined;
+  const accountService: AccountIpcDependencies["accountService"] | undefined =
+    options && "accountService" in options ? options.accountService : undefined;
+  const account: AccountIpcDependencies | undefined =
+    options && "account" in options
+      ? options.account
+      : accountService
+        ? { accountService }
+        : undefined;
+  const syncService: SyncIpcDependencies["syncService"] | undefined =
+    options && "syncService" in options ? options.syncService : undefined;
+  const sync: SyncIpcDependencies | undefined =
+    options && "sync" in options ? options.sync : syncService ? { syncService } : undefined;
   if (batcher) {
     registry.attachBatcher(batcher);
   }
@@ -2539,5 +2567,53 @@ export function registerIpcHandlers(
       unavailable,
     );
     registry.registerCommand(IPC_CHANNELS.SCHEDULES_RUNS, SchedulesRunsCommandSchema, unavailable);
+  }
+
+  // 125-129. Account commands (PR45): get/sign-in/sign-out/refresh/device
+  // over AccountService. Mirrors the schedules pattern above: missing deps
+  // fail closed. There is intentionally NO account:execute channel —
+  // credentials (refresh tokens, nonces) never cross IPC.
+  const accountDeps: AccountIpcDependencies | undefined = account;
+  if (accountDeps) {
+    registerAccountHandlers(registry, accountDeps);
+  } else {
+    // Register schema-validated fail-closed stubs so the channels always
+    // exist with typed validation even before the service is composed.
+    const unavailable = async (): Promise<never> => {
+      throw new Error("AccountService is not available");
+    };
+    registry.registerCommand(IPC_CHANNELS.ACCOUNT_GET, AccountGetCommandSchema, unavailable);
+    registry.registerCommand(IPC_CHANNELS.ACCOUNT_SIGN_IN, AccountSignInCommandSchema, unavailable);
+    registry.registerCommand(
+      IPC_CHANNELS.ACCOUNT_SIGN_OUT,
+      AccountSignOutCommandSchema,
+      unavailable,
+    );
+    registry.registerCommand(
+      IPC_CHANNELS.ACCOUNT_REFRESH,
+      AccountRefreshCommandSchema,
+      unavailable,
+    );
+    registry.registerCommand(IPC_CHANNELS.ACCOUNT_DEVICE, AccountDeviceCommandSchema, unavailable);
+  }
+
+  // 130-134. Sync commands (PR45): status/start/pause/conflicts/resolve over
+  // the SyncService. Mirrors the account pattern above: missing deps fail
+  // closed. There is intentionally NO sync:execute channel — sync execution
+  // stays main-side behind the transport port with bounded validation.
+  const syncDeps: SyncIpcDependencies | undefined = sync;
+  if (syncDeps) {
+    registerSyncHandlers(registry, syncDeps);
+  } else {
+    // Register schema-validated fail-closed stubs so the channels always
+    // exist with typed validation even before the service is composed.
+    const unavailable = async (): Promise<never> => {
+      throw new Error("SyncService is not available");
+    };
+    registry.registerCommand(IPC_CHANNELS.SYNC_STATUS, SyncStatusCommandSchema, unavailable);
+    registry.registerCommand(IPC_CHANNELS.SYNC_START, SyncStartCommandSchema, unavailable);
+    registry.registerCommand(IPC_CHANNELS.SYNC_PAUSE, SyncPauseCommandSchema, unavailable);
+    registry.registerCommand(IPC_CHANNELS.SYNC_CONFLICTS, SyncConflictsCommandSchema, unavailable);
+    registry.registerCommand(IPC_CHANNELS.SYNC_RESOLVE, SyncResolveCommandSchema, unavailable);
   }
 }

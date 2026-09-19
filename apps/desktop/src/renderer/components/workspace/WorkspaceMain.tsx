@@ -16,7 +16,9 @@ import { BrowserSurface } from "./surfaces/BrowserSurface.js";
 import { ResearchSurface } from "./surfaces/ResearchSurface.js";
 import { RichSurfaceHost } from "./surfaces/RichSurfaceHost.js";
 import { ActivitySurface, FilesSurface, TasksSurface } from "./surfaces/TaskSurfaces.js";
+import { AccountSurface } from "./surfaces/AccountSurface.js";
 import type {
+  AccountSurfaceProps,
   ActivityEventView,
   AttachmentFileView,
   BrowserSurfaceProps,
@@ -62,6 +64,10 @@ interface WorkspaceMainProps {
   readonly research: ResearchSurfaceProps;
   readonly mcp?: McpServersSurfaceProps;
   readonly voice?: VoiceSurfaceProps;
+  // PR45: renderer — optional Account & Sync surface wiring (additive).
+  // When absent, the surface self-renders over the account/sync bridges
+  // (or the local stub before the sibling IPC lands).
+  readonly account?: AccountSurfaceProps;
   // PR33.8: renderer — optional rich-surface branch (additive).
   readonly surfaceHost?: SurfaceHostProps;
 }
@@ -89,6 +95,7 @@ export function WorkspaceMain({
   research,
   mcp,
   voice,
+  account,
   surfaceHost,
 }: WorkspaceMainProps): React.ReactElement {
   const surface = store.state.activeSurface;
@@ -171,6 +178,10 @@ export function WorkspaceMain({
   }
   if (surface === "git") {
     return <GitReviewSurface projectId={store.state.activeProjectId} />;
+  }
+  // PR45: renderer — Account & Sync surface (self-sufficient when unwired).
+  if (surface === "account") {
+    return <AccountSurface {...account} />;
   }
   return <ChatSurface {...chat} />;
 }

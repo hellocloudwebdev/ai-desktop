@@ -1,15 +1,19 @@
 import { describe, expect, it } from "vitest";
 import {
+  AccountEventSchema,
   AIEventSchema,
+  SyncEventSchema,
   isCapabilityEvent,
   isCoreEvent,
   isExtensionEvent,
+  type AccountEvent,
   type AIEvent,
   type ConversationCreatedEvent,
   type MessageCreatedEvent,
   type MessageDeltaEvent,
   type PermissionRequestedEvent,
   type ScheduleEvent,
+  type SyncEvent,
   type TaskBackgroundEvent,
   type TaskCreatedEvent,
   type ToolCallRequestedEvent,
@@ -24,6 +28,7 @@ import {
 } from "@ai-desktop/shared";
 import { createEventId, createTaskNodeId } from "./identifiers.js";
 import { createScheduleId, createScheduledRunId } from "./schedules.js";
+import { createAccountId, createDeviceId } from "./accounts.js";
 import { textPart } from "./content.js";
 
 describe("ai-core events: AIEvent Discriminated Union and Validation", () => {
@@ -217,6 +222,164 @@ describe("ai-core events: AIEvent Discriminated Union and Validation", () => {
       detail: "d".repeat(2001),
     };
     expect(AIEventSchema.safeParse(overlongDetail).success).toBe(false);
+  });
+
+  it("validates account.* / device.* lifecycle events (PR45)", () => {
+    const convId = createConversationId();
+    const base = {
+      eventId: createEventId(),
+      conversationId: convId,
+      sequence: 8,
+      schemaVersion: 1,
+      timestamp: now(),
+      category: "extension" as const,
+      accountId: createAccountId(),
+    };
+    const created: AccountEvent = {
+      ...base,
+      type: "account.created",
+    };
+    expect(AccountEventSchema.safeParse(created).success).toBe(true);
+    expect(AIEventSchema.safeParse(created).success).toBe(true);
+    expect(isExtensionEvent(created)).toBe(true);
+    for (const type of [
+      "account.created",
+      "account.signed_in",
+      "account.signed_out",
+      "account.session.expired",
+      "account.session.refreshed",
+      "device.registered",
+      "device.seen",
+    ] as const) {
+      const evt = {
+        ...base,
+        eventId: createEventId(),
+        type,
+        deviceId: createDeviceId(),
+        status: "authenticated",
+        detail: "ok",
+      };
+      expect(AccountEventSchema.safeParse(evt).success).toBe(true);
+      expect(AIEventSchema.safeParse(evt).success).toBe(true);
+    }
+    const seenWithoutDevice: AccountEvent = {
+      ...base,
+      eventId: createEventId(),
+      type: "device.seen",
+    };
+    expect(AccountEventSchema.safeParse(seenWithoutDevice).success).toBe(true);
+    // Events carry ids + status/detail only, NEVER tokens.
+    const shape = Object.keys(AccountEventSchema.shape);
+    for (const forbidden of ["token", "password", "secret", "refreshToken", "accessToken"]) {
+      expect(shape).not.toContain(forbidden);
+    }
+    expect(shape).toEqual(expect.arrayContaining(["accountId", "type", "category"]));
+    const badType = { ...base, eventId: createEventId(), type: "account.launch" };
+    expect(AccountEventSchema.safeParse(badType).success).toBe(false);
+    expect(AIEventSchema.safeParse(badType).success).toBe(false);
+    const syncStyle = { ...base, eventId: createEventId(), type: "sync.started" };
+    expect(AccountEventSchema.safeParse(syncStyle).success).toBe(false);
+    const missingAccount = { ...base, eventId: createEventId(), type: "account.created" };
+    delete (missingAccount as Record<string, unknown>).accountId;
+    expect(AccountEventSchema.safeParse(missingAccount).success).toBe(false);
+    const badAccountId = {
+      ...base,
+      eventId: createEventId(),
+      type: "account.created",
+      accountId: "bad",
+    };
+    expect(AccountEventSchema.safeParse(badAccountId).success).toBe(false);
+    const overlongDetail = {
+      ...base,
+      eventId: createEventId(),
+      type: "account.signed_in",
+      detail: "d".repeat(2001),
+    };
+    expect(AccountEventSchema.safeParse(overlongDetail).success).toBe(false);
+    const wrongCategory = {
+      ...base,
+      eventId: createEventId(),
+      type: "account.created",
+      category: "core",
+    };
+    expect(AccountEventSchema.safeParse(wrongCategory).success).toBe(false);
+  });
+
+  it("validates sync.* lifecycle events (PR45)", () => {
+    const convId = createConversationId();
+    const base = {
+      eventId: createEventId(),
+      conversationId: convId,
+      sequence: 9,
+      schemaVersion: 1,
+      timestamp: now(),
+      category: "extension" as const,
+    };
+    const started: SyncEvent = {
+      ...base,
+      type: "sync.started",
+      accountId: createAccountId(),
+      deviceId: createDeviceId(),
+    };
+    expect(SyncEventSchema.safeParse(started).success).toBe(true);
+    expect(AIEventSchema.safeParse(started).success).toBe(true);
+    expect(isExtensionEvent(started)).toBe(true);
+    for (const type of [
+      "sync.started",
+      "sync.completed",
+      "sync.failed",
+      "sync.conflict",
+      "sync.queued",
+    ] as const) {
+      const evt = {
+        ...base,
+        eventId: createEventId(),
+        type,
+        accountId: createAccountId(),
+        deviceId: createDeviceId(),
+        status: "syncing",
+        detail: "ok",
+        entityType: "account.preferences",
+        entityId: "theme",
+      };
+      expect(SyncEventSchema.safeParse(evt).success).toBe(true);
+      expect(AIEventSchema.safeParse(evt).success).toBe(true);
+    }
+    // accountId/deviceId/entity context are all optional (offline/queued before login).
+    const bare: SyncEvent = { ...base, eventId: createEventId(), type: "sync.queued" };
+    expect(SyncEventSchema.safeParse(bare).success).toBe(true);
+    // Events carry ids + status/detail only, NEVER tokens or payload bytes.
+    const shape = Object.keys(SyncEventSchema.shape);
+    for (const forbidden of ["token", "password", "secret", "payload"]) {
+      expect(shape).not.toContain(forbidden);
+    }
+    const badType = { ...base, eventId: createEventId(), type: "sync.launch" };
+    expect(SyncEventSchema.safeParse(badType).success).toBe(false);
+    expect(AIEventSchema.safeParse(badType).success).toBe(false);
+    const accountStyle = { ...base, eventId: createEventId(), type: "account.created" };
+    expect(SyncEventSchema.safeParse(accountStyle).success).toBe(false);
+    const badEntity = {
+      ...base,
+      eventId: createEventId(),
+      type: "sync.conflict",
+      entityType: "user.token",
+      entityId: "theme",
+    };
+    expect(SyncEventSchema.safeParse(badEntity).success).toBe(false);
+    const overlongDetail = {
+      ...base,
+      eventId: createEventId(),
+      type: "sync.failed",
+      detail: "d".repeat(2001),
+    };
+    expect(SyncEventSchema.safeParse(overlongDetail).success).toBe(false);
+    const wrongCategory = {
+      ...base,
+      eventId: createEventId(),
+      type: "sync.started",
+      category: "core",
+    };
+    expect(SyncEventSchema.safeParse(wrongCategory).success).toBe(false);
   });
 
   it("enforces sequence and schemaVersion on all events", () => {

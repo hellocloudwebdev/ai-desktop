@@ -1,11 +1,11 @@
 # Phase 0 — What Exists and What Does Not
 
 This document prevents the repository (and its documentation) from claiming functionality
-that does not exist. It reflects the state after **PR44 (Scheduling &
-Autonomous Tasks)** and
+that does not exist. It reflects the state after **PR45 (Accounts &
+Cross-Device Sync)** and
 is updated as each PR lands.
 
-## Implemented (as of PR44)
+## Implemented (as of PR45)
 
 - Repository foundation: pnpm workspace + Turborepo task graph (`build`, `dev`,
   `typecheck`, `lint`, `test`).
@@ -993,6 +993,115 @@ run.skipped/run.recovered`, category extension) in the Extension/AI
     hygiene, trigger labels, no-execute-on-partial-form gating, and
     component-contract source assertions). Decision record in
     `docs/decisions/ADR-016-scheduling.md`.
+- Accounts & Cross-Device Sync foundation (PR45, all layers):
+  - Canonical account contracts (`packages/ai-core/src/accounts.ts`):
+    branded `AccountId`/`DeviceId` ULIDs, `UserAccountRecord`
+    (displayName ≤120, optional email-or-plaintext identifier ≤256),
+    `DeviceRecord` (deviceName ≤120, win32/darwin/linux/unknown platform),
+    `AccountSession` (accountId, deviceId, status, timestamps), session
+    statuses exactly
+    `signed_out`/`authenticating`/`authenticated`/`refreshing`/`expired`/
+    `error` with the `SESSION_TRANSITIONS` legal-transition map, a
+    type-only `AuthProvider` port (no implementation, no vendor SDK in
+    ai-core), secret guards on every record validator, and `account.*`
+    event names (`accountEventType()` allowlist builder) in the
+    Extension/AI event unions. Authentication ≠ authorization: sign-in
+    never implies a grant; every tool execution still flows through the
+    PR24 permission checkpoint.
+  - Canonical sync contracts (`packages/ai-core/src/sync.ts`): closed
+    syncable-entity allowlist (`account.preferences`,
+    `workspace.preferences`, `project.metadata`, `model.profile`,
+    `schedule.definition`, `extension.metadata`, `app.settings`;
+    secrets/tokens/credentials/keys/passwords/cookies, filesystem paths,
+    source code, runs, sessions, memory payloads, and env vars forbidden),
+    versioned `SyncRecord` envelopes (64KB payload cap) with tombstone
+    deletes (500-cap, 30-day retention, 3-retry/60 s-tick defaults),
+    deterministic `(version, updatedAt, deviceId)` ordering with
+    last-writer-wins scalars vs always-explicit
+    `schedule.definition`/`extension.metadata` and delete-vs-update
+    conflicts (`classifySyncConflict`/`buildSyncConflict` preserving both
+    versions), sync states exactly
+    `idle`/`syncing`/`offline`/`error`/`conflict`, syncable
+    `ProjectMetadata` with no filesystem paths, inert synced schedules
+    (forced `enabled=false`, runs/executions stripped, never launch), and
+    `sync.*` event names (`syncEventType()` allowlist builder).
+  - Session core + sync engine (`packages/agent-runtime/src/runtime/`):
+    `AccountSessionManager` strict session machine over structural
+    auth/secret ports (memory-only nonce, refresh token only via the
+    SecretStore port, refresh failure lands `expired`, sign-out from ANY
+    state preserves local rows by construction, injectable clock) plus a
+    `LocalAuthProvider` offline equivalent; `SyncEngine` single-timer
+    push-dirty/cursor/pull/validate/LWW-or-explicit-conflict/apply/status
+    orchestration over structural ports with the wire `SyncTransport`
+    envelope, `SyncQueue` bounded outbox, secret/path refusal both
+    directions, offline/auth/server-error failure mapping with bounded
+    retries, and a tick that never throws for domain failures.
+  - Durable persistence (`prisma` `AccountRecord`/`DeviceRecord`/
+    `SyncRecord`/`SyncCursor`/`SyncConflict` models + migration,
+    `packages/storage/src/accounts/` + `packages/storage/src/sync/`
+    repositories over the `StorageDatabase` abstraction): secret scan +
+    truncation on identity fields, bounded secret-scanned payloads,
+    tombstone retention pruning, cursor watermarks. Events stay
+    authoritative; rows are projections. Refresh tokens NEVER persist
+    here — they live exclusively in the OS SecretStore.
+  - `AccountService` + `DesktopSyncService`
+    (`apps/desktop/src/main/account/` + `apps/desktop/src/main/sync/`):
+    thin orchestration over repos + SecretStore + EventBus/storage
+    (persistence before delivery, per-accountId sequencing) — validated
+    sign-in/refresh/device, idempotent sign-out that preserves local data
+    and parks sync, cursor-advancing ticks, explicit keep-local/keep-remote
+    resolution with no silent choice, pause parks locally, fail-closed
+    `CODE: message` errors with no secret echo. No PermissionManager, no
+    provider router, no Electron APIs.
+  - Five typed `account:*` IPC commands
+    (`account:get/sign-in/sign-out/refresh/device`) + five typed `sync:*`
+    IPC commands (`sync:status/start/pause/conflicts/resolve`) with
+    Zod-validated main handlers projecting renderer-safe fields only plus
+    narrow preload bridges (no execute channels — credentials never cross
+    IPC, sync execution stays main-side).
+  - Narrow account/sync bridge client
+    (`apps/desktop/src/renderer/workspace/account-sync.ts`):
+    `window.api.account` get/signIn/signOut/refresh/device +
+    `window.api.sync` status/start/pause/conflicts/resolve with `{}` threaded
+    on empty commands and `{ conflictId, resolution, projectId? }` on
+    resolve, local in-memory stub fallback (IPC-shaped envelopes,
+    canonical sign-in machine, sign-out preserves local projects).
+    Re-exported through `renderer/workspace/surfaces.ts`.
+  - Pure projection helpers: normalize/unwrap (IPC envelope or raw, with
+    sibling spelling tolerance), canonical session/sync labels and sync
+    indicators (Synced/Syncing…/Offline/Needs attention/Conflict) with the
+    sidebar attention predicate (offline/error/conflict), display name
+    ≤120 / email ≤256 validation with secret-shape rejection (nothing
+    executes from a partial form), pending/conflict counts, `key=value`
+    secret-assignment redaction, relative/absolute timestamps, and
+    50-row render caps.
+  - `AccountSurface` Account & Sync surface
+    (`components/workspace/surfaces/AccountSurface.tsx`): self-contained
+    over the bridges (re-queries on mount plus a single bounded 2 s poll,
+    so remounts and disconnects recover by re-fetching); signed-out
+    sign-in form (display name + optional email, disabled submit until
+    valid); signed-in account/device/sync panels with last-sync,
+    pending/conflict counts, and explicit Keep local / Keep remote
+    conflict buttons (never resolved automatically); sign-out carries the
+    explicit "preserves local projects on this device (delete ≠ wipe)"
+    note and the expired state re-sign-in prompt with local-preservation
+    reassurance. No Node/Electron APIs, no spawned processes, no Prisma,
+    no network auth, no raw runtime internals, no tokens rendered.
+  - New `"account"` surface id (`ACCOUNT_SURFACE` in
+    `workspace/types.ts`, no store/persistence change),
+    `AccountSurfaceProps` in `surface-props.ts`, `"account"` branch in
+    `WorkspaceMain`, Account entry with attention dot in `WorkspaceSidebar`
+    via optional `syncNeedsAttention`.
+  - Tests: ai-core account/sync contracts/events, session-manager machine
+    (transitions, nonce/secret handling, sign-out preservation),
+    sync engine/queue/transport (ordering, LWW vs explicit, tombstones,
+    failure mapping, idempotent recovery), storage repositories against
+    real SQLite, services (lifecycle, resolution, isolation), IPC
+    delegation (including malformed-resolve rejection), renderer
+    (vocabulary, normalization, validation, isolation,
+    disconnect-requery via the stub, wire-shape threading, hygiene, and
+    component-contract source assertions). Decision record in
+    `docs/decisions/ADR-017-accounts-sync.md`.
 - All remaining canonical packages stay **empty shells** (`package.json`, `tsconfig.json`,
   `src/index.ts` placeholder) — deliberately no premature domain functionality inside them.
 - Toolchain: TypeScript 5.9.3, ESLint 10.10.0, Vitest 4.1.10, Vite 8.1.0, Prettier 3.9.6,
@@ -1003,11 +1112,16 @@ run.skipped/run.recovered`, category extension) in the Extension/AI
 
 - Plugin marketplace, remote registry, auto-update, extension sandbox
   process, full MCP Apps runtime, GitHub App integration, cloud plugin sync,
-  accounts/billing (future ecosystem).
+  billing and entitlements (future ecosystem).
 - PR44 non-goals (explicitly out of scope): cron expressions, cloud
   workers/schedulers, push notifications, multi-user collaboration,
   marketplace/auto-update/auto-push, and any automatic permission grant
   from a schedule (schedule≠grant).
+- PR45 non-goals (explicitly out of scope): server-side OAuth/token flows,
+  billing and entitlements, multi-user collaboration and sharing, device
+  fleet administration (remote wipe, revocation), push notifications,
+  automatic conflict auto-merge, cloud execution workers, and any automatic
+  permission grant from sync or sign-in (sync≠grant, sign-in≠grant).
 
 ## Verification
 

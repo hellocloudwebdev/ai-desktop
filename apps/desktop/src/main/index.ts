@@ -30,6 +30,9 @@ import {
   StorageDatabase,
   PrismaAttachmentRepository,
   PrismaEventRepository,
+  PrismaAccountRepository,
+  PrismaDeviceRepository,
+  OSKeychainSecretStore,
   PrismaProviderProfileRepository,
   PrismaConversationModelRepository,
   PrismaPermissionRepository,
@@ -90,6 +93,9 @@ import {
   type WorkspaceIpcDependencies,
 } from "./workspace/index.js";
 import { GitService, GitToolExecutor, type GitIpcDependencies } from "./git/index.js";
+import { AccountService } from "./account/account-service.js";
+import type { AccountIpcDependencies } from "./account/account-ipc.js";
+import type { SyncIpcDependencies, SyncServicePort } from "./sync/sync-ipc.js";
 
 export { ActiveStreamRegistry, ChatService, ModelSelectionService } from "./chat/index.js";
 export { IpcBatcher, type ChatStreamBatch } from "./ipc/batcher.js";
@@ -142,6 +148,7 @@ let diagnosticsService: DiagnosticsService | null = null;
 let terminalService: TerminalService | null = null;
 let gitService: GitService | null = null;
 let gitToolExecutor: GitToolExecutor | null = null;
+let accountService: AccountService | null = null;
 
 export function getProviderRegistry(): ProviderRegistry {
   if (!providerRegistry) {
@@ -824,6 +831,73 @@ export function getGitToolExecutor(): GitToolExecutor {
   return gitToolExecutor;
 }
 
+/**
+ * AccountService singleton (PR45): local account identity over durable
+ * Prisma account/device repositories + OS SecretStore + EventBus +
+ * storage. Sign-out pauses sync idempotently via the onSignedOut hook
+ * (fail-closed stub until the SyncService lands — see getSyncService).
+ */
+export function getAccountService(): AccountService {
+  if (!accountService) {
+    const { database: db } = getStorage();
+    const fallbackPlatform =
+      typeof process !== "undefined" && typeof process.platform === "string"
+        ? process.platform
+        : "unknown";
+    accountService = new AccountService({
+      accountRepo: new PrismaAccountRepository(db),
+      deviceRepo: new PrismaDeviceRepository(db),
+      secretStore: new OSKeychainSecretStore({ serviceName: "ai-desktop" }),
+      eventBus: getEventBus(),
+      storage: getStorage().repository,
+      platform: fallbackPlatform,
+      onSignedOut: async () => {
+        try {
+          await getSyncService().pause();
+        } catch {
+          // stop is best-effort; never fail sign-out over sync teardown
+        }
+      },
+    });
+  }
+  return accountService;
+}
+
+/**
+ * Account IPC dependencies (PR45): thin-handler bundle passed into the
+ * IPC handler registration (mirrors the git pattern above).
+ */
+export function getAccountIpcDependencies(): AccountIpcDependencies {
+  return {
+    accountService: getAccountService(),
+  };
+}
+
+/**
+ * SyncService accessor (PR45): fail-closed stub until sync-service.ts
+ * lands in a sibling PR. Throws "SyncService is not available" so the IPC
+ * fail-closed stub block covers all 5 sync channels; onSignedOut above
+ * already tolerates this. Replace the throw with the real
+ * DesktopSyncService singleton (Prisma sync repos + transport + eventBus +
+ * storage) when the service arrives.
+ */
+export function getSyncService(): SyncServicePort {
+  throw new Error("SyncService is not available");
+}
+
+/**
+ * Sync IPC dependencies (PR45): thin-handler bundle resolved lazily by
+ * initIpc via try/catch (absent service -> fail-closed stubs, mirroring
+ * the account pattern above).
+ */
+export function getSyncIpcDependencies(): SyncIpcDependencies | undefined {
+  try {
+    return { syncService: getSyncService() };
+  } catch {
+    return undefined;
+  }
+}
+
 export function getSecureWebPreferences(preloadPath: string): Electron.WebPreferences {
   return {
     preload: preloadPath,
@@ -886,6 +960,8 @@ export function initIpc(options?: {
   attachments?: AttachmentsIpcDependencies;
   workspaceDeps?: WorkspaceIpcDependencies;
   gitDeps?: GitIpcDependencies;
+  account?: AccountIpcDependencies;
+  sync?: SyncIpcDependencies;
 }): IpcRegistry {
   if (!ipcRegistry) {
     ipcRegistry = new IpcRegistry();
@@ -907,6 +983,8 @@ export function initIpc(options?: {
     const attachmentsDeps = options?.attachments ?? getAttachmentsIpcDependencies();
     const workspace = options?.workspaceDeps ?? getWorkspaceIpcDependencies();
     const gitDeps = options?.gitDeps ?? getGitIpcDependencies();
+    const account = options?.account ?? getAccountIpcDependencies();
+    const sync = options?.sync ?? getSyncIpcDependencies();
 
     registerIpcHandlers(ipcRegistry, {
       streamRegistry,
@@ -928,6 +1006,8 @@ export function initIpc(options?: {
       realtimeService: getRealtimeService(),
       workspaceDeps: workspace,
       gitDeps,
+      account,
+      sync,
     });
   }
   return ipcRegistry;

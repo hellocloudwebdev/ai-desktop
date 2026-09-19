@@ -327,3 +327,77 @@ model ScheduledRun {
   @@index([scheduleId, scheduledFor])
   @@map("scheduled_runs")
 }
+
+// PR45: Account identity persistence (local profile only, no credentials).
+// No token/secret columns exist on these tables: refresh tokens live
+// exclusively in the OS SecretStore under app/account/<id>/refresh-token.
+// displayName/email are secret-scanned before every write.
+model AccountRecord {
+  accountId     String  @id // ULID AccountId
+  displayName   String
+  email         String?
+  createdAt     BigInt // epoch milliseconds
+  updatedAt     BigInt // epoch milliseconds
+  schemaVersion Int     @default(1)
+
+  @@map("accounts")
+}
+
+// PR45: Device binding persistence (stable per-device identity).
+// No secret columns; device rows carry naming/platform metadata only.
+model DeviceRecord {
+  deviceId    String @id // stable device ULID persisted per installation
+  accountId   String
+  deviceName  String
+  platform    String
+  createdAt   BigInt // epoch milliseconds
+  lastSeenAt  BigInt // epoch milliseconds
+
+  @@index([accountId])
+  @@map("devices")
+}
+
+// PR45: Sync record persistence (versioned entity envelopes + tombstones).
+// No secret columns; payloadJson is bounded (64KB) and fully validated on
+// ingest. deletedAt marks tombstones (delete propagation), never hard delete.
+model SyncRecord {
+  recordId    String  @id
+  entityType  String
+  entityId    String
+  accountId   String
+  deviceId    String
+  version     Int
+  payloadJson String
+  updatedAt   BigInt  // epoch milliseconds
+  deletedAt   BigInt? // epoch milliseconds, tombstone marker
+
+  @@index([entityType])
+  @@index([accountId])
+  @@index([entityType, entityId])
+  @@map("sync_records")
+}
+
+// PR45: Sync cursor persistence (pull/push watermarks keyed per account).
+model SyncCursor {
+  key   String @id // e.g. pull cursor per account
+  value BigInt // epoch milliseconds / version watermark
+
+  @@map("sync_cursors")
+}
+
+// PR45: Sync conflict persistence (explicit records requiring resolution).
+// No secret columns; changedFieldsJson lists field names only, never values
+// containing secrets.
+model SyncConflict {
+  conflictId        String @id
+  entityType        String
+  entityId          String
+  accountId         String
+  localVersion      Int
+  remoteVersion     Int
+  changedFieldsJson String
+  createdAt         BigInt // epoch milliseconds
+
+  @@index([accountId])
+  @@map("sync_conflicts")
+}

@@ -26,7 +26,8 @@
     "@ai-desktop/storage": "workspace:*",
     "puppeteer-core": "25.10.0",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.3.3",

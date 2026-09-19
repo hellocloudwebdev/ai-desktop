@@ -136,6 +136,16 @@ import {
   type SchedulesDeleteCommand,
   type SchedulesRunNowCommand,
   type SchedulesRunsCommand,
+  type AccountGetCommand,
+  type AccountSignInCommand,
+  type AccountSignOutCommand,
+  type AccountRefreshCommand,
+  type AccountDeviceCommand,
+  type SyncStatusCommand,
+  type SyncStartCommand,
+  type SyncPauseCommand,
+  type SyncConflictsCommand,
+  type SyncResolveCommand,
 } from "@ai-desktop/shared";
 import type {
   AIEvent,
@@ -523,6 +533,37 @@ export interface DesktopApplicationApi {
       command: SchedulesRunNowCommand,
     ): Promise<IpcResponseEnvelope<{ schedule: unknown; run: unknown }>>;
     runs(command: SchedulesRunsCommand): Promise<IpcResponseEnvelope<{ runs: unknown[] }>>;
+  };
+
+  /**
+   * PR45: narrow account bridge (no execute channel — credentials never
+   * cross IPC; refresh tokens live exclusively in the OS SecretStore
+   * main-side). Renderer receives renderer-safe session/device projections.
+   */
+  account: {
+    get(command: AccountGetCommand): Promise<IpcResponseEnvelope<{ session: unknown }>>;
+    signIn(command: AccountSignInCommand): Promise<IpcResponseEnvelope<{ session: unknown }>>;
+    signOut(
+      command: AccountSignOutCommand,
+    ): Promise<IpcResponseEnvelope<{ ok: boolean; accountId: string | null }>>;
+    refresh(command: AccountRefreshCommand): Promise<IpcResponseEnvelope<{ session: unknown }>>;
+    device(command: AccountDeviceCommand): Promise<IpcResponseEnvelope<{ device: unknown }>>;
+  };
+
+  /**
+   * PR45: narrow sync bridge (no execute channel — sync execution stays
+   * main-side behind the SyncService transport port with bounded
+   * validation). Renderer receives renderer-safe status/conflict
+   * projections.
+   */
+  sync: {
+    status(command: SyncStatusCommand): Promise<IpcResponseEnvelope<{ sync: unknown }>>;
+    start(command: SyncStartCommand): Promise<IpcResponseEnvelope<{ sync: unknown }>>;
+    pause(command: SyncPauseCommand): Promise<IpcResponseEnvelope<{ sync: unknown }>>;
+    conflicts(
+      command: SyncConflictsCommand,
+    ): Promise<IpcResponseEnvelope<{ conflicts: unknown[] }>>;
+    resolve(command: SyncResolveCommand): Promise<IpcResponseEnvelope<{ sync: unknown }>>;
   };
 
   /**
@@ -942,6 +983,42 @@ export function createDesktopApi(): DesktopApplicationApi {
       },
       async runs(command: SchedulesRunsCommand) {
         return ipcRenderer.invoke(IPC_CHANNELS.SCHEDULES_RUNS, command);
+      },
+    },
+
+    account: {
+      async get(command: AccountGetCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.ACCOUNT_GET, command);
+      },
+      async signIn(command: AccountSignInCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.ACCOUNT_SIGN_IN, command);
+      },
+      async signOut(command: AccountSignOutCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.ACCOUNT_SIGN_OUT, command);
+      },
+      async refresh(command: AccountRefreshCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.ACCOUNT_REFRESH, command);
+      },
+      async device(command: AccountDeviceCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.ACCOUNT_DEVICE, command);
+      },
+    },
+
+    sync: {
+      async status(command: SyncStatusCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.SYNC_STATUS, command);
+      },
+      async start(command: SyncStartCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.SYNC_START, command);
+      },
+      async pause(command: SyncPauseCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.SYNC_PAUSE, command);
+      },
+      async conflicts(command: SyncConflictsCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.SYNC_CONFLICTS, command);
+      },
+      async resolve(command: SyncResolveCommand) {
+        return ipcRenderer.invoke(IPC_CHANNELS.SYNC_RESOLVE, command);
       },
     },
 

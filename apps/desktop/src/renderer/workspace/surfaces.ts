@@ -15,6 +15,11 @@
 // (window.api.schedules list/get/create/update/enable/disable/delete/
 // runNow/runs with a local-stub fallback) and is re-exported here so the
 // Schedule Center has one workspace import surface.
+//
+// PR45: renderer — the account/sync bridges live in `./account-sync.js`
+// (window.api.account get/signIn/signOut/refresh/device + window.api.sync
+// status/start/pause/conflicts/resolve with a local-stub fallback) and are
+// re-exported here so the Account surface has one workspace import surface.
 
 export * from "./background-tasks.js";
 // PR44: explicit schedule re-exports (no `export *`: `truncateText` and
@@ -90,6 +95,73 @@ export type {
   ScheduleRunView,
   ScheduleView,
 } from "./schedules.js";
+// PR45: explicit account/sync re-exports (no `export *`: `truncateText`
+// already comes from `./background-tasks.js` with identical semantics, and
+// `redactSecretAssignments` is shared hygiene — the account-specific
+// truncation helper below mirrors it without re-exporting the colliding
+// generics).
+export {
+  CONFLICT_RESOLUTIONS,
+  MAX_ACCOUNT_DISPLAY_NAME,
+  MAX_ACCOUNT_SYNC_ROWS,
+  MAX_CONFLICTS_SHOWN,
+  SESSION_STATUSES,
+  SYNC_STATUSES,
+  conflictCount,
+  createLocalAccountSyncStub,
+  fetchAccountSession,
+  fetchDevice,
+  fetchSyncConflicts,
+  fetchSyncStatus,
+  formatAccountTimestamp,
+  formatRelativeTime,
+  getAccountCommands,
+  getSyncCommands,
+  isConflictResolution,
+  isSessionStatus,
+  isSignInFormValid,
+  isSyncStatus,
+  looksSecretShaped,
+  normalizeAccountSession,
+  normalizeDeviceView,
+  normalizeSyncConflict,
+  normalizeSyncConflicts,
+  normalizeSyncStatus,
+  pauseSync,
+  pendingSyncCount,
+  refreshSession,
+  resolveConflict,
+  sessionStatusLabel,
+  signInAccount,
+  signOutAccount,
+  startSync,
+  syncNeedsAttention,
+  syncStatusBadgeClass,
+  syncStatusIndicator,
+  syncStatusLabel,
+  truncateDisplayName,
+  unwrapAccountSession,
+  unwrapDevice,
+  unwrapSyncConflicts,
+  unwrapSyncStatus,
+  validateSignInForm,
+} from "./account-sync.js";
+export type {
+  AccountCommands,
+  AccountSessionView,
+  AccountSyncCommandResult,
+  ConflictResolution,
+  DeviceView,
+  LocalAccountSyncStub,
+  LocalConflictSeed,
+  SessionStatus,
+  SignInFormErrors,
+  SignInFormInput,
+  SyncCommands,
+  SyncConflictView,
+  SyncStatus,
+  SyncStatusView,
+} from "./account-sync.js";
 
 import type { SurfaceView } from "../components/workspace/surfaces/surface-props.js";
 

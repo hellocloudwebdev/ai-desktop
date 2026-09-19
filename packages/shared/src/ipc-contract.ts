@@ -237,6 +237,25 @@ export const IPC_CHANNELS = {
   SCHEDULES_DELETE: "schedules:delete",
   SCHEDULES_RUN_NOW: "schedules:run-now",
   SCHEDULES_RUNS: "schedules:runs",
+
+  // Account operations (PR45). NOTE: there is intentionally NO
+  // account:execute channel — authentication never crosses IPC with
+  // credentials; sign-in carries displayName/email identity only, refresh
+  // tokens live exclusively in the OS SecretStore main-side.
+  ACCOUNT_GET: "account:get",
+  ACCOUNT_SIGN_IN: "account:sign-in",
+  ACCOUNT_SIGN_OUT: "account:sign-out",
+  ACCOUNT_REFRESH: "account:refresh",
+  ACCOUNT_DEVICE: "account:device",
+
+  // Cross-device sync operations (PR45). NOTE: there is intentionally NO
+  // sync:execute channel — sync flows through the main-process SyncService
+  // with bounded validation, never arbitrary IPC execution.
+  SYNC_STATUS: "sync:status",
+  SYNC_START: "sync:start",
+  SYNC_PAUSE: "sync:pause",
+  SYNC_CONFLICTS: "sync:conflicts",
+  SYNC_RESOLVE: "sync:resolve",
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];
@@ -1630,6 +1649,76 @@ export const SchedulesRunsCommandSchema = z.object({
 });
 
 export type SchedulesRunsCommand = z.infer<typeof SchedulesRunsCommandSchema>;
+
+// ---------------------------------------------------------------------------
+// Account Commands (PR45)
+// Local account identity over the main-process AccountService. Renderer-safe
+// projections only (accountId/displayName/email/session/device — never
+// refresh tokens, nonces, or SecretRefs). Bounded: displayName 1..120,
+// email 1..256 when present. There is intentionally NO account:execute
+// schema — credentials never cross IPC.
+// ---------------------------------------------------------------------------
+
+export const AccountGetCommandSchema = z.object({});
+
+export type AccountGetCommand = z.infer<typeof AccountGetCommandSchema>;
+
+export const AccountSignInCommandSchema = z.object({
+  displayName: z.string().trim().min(1).max(120),
+  email: z.string().trim().min(1).max(256).optional(),
+});
+
+export type AccountSignInCommand = z.infer<typeof AccountSignInCommandSchema>;
+
+export const AccountSignOutCommandSchema = z.object({});
+
+export type AccountSignOutCommand = z.infer<typeof AccountSignOutCommandSchema>;
+
+export const AccountRefreshCommandSchema = z.object({});
+
+export type AccountRefreshCommand = z.infer<typeof AccountRefreshCommandSchema>;
+
+export const AccountDeviceCommandSchema = z.object({});
+
+export type AccountDeviceCommand = z.infer<typeof AccountDeviceCommandSchema>;
+
+// ---------------------------------------------------------------------------
+// Sync Commands (PR45)
+// Cross-device sync over the main-process SyncService. Renderer-safe
+// projections only (status/cursors/conflicts — never record payload secrets
+// beyond validated entity data). Bounded: conflict listing 1..100,
+// conflictId 1..128, projectId 1..256. There is intentionally NO
+// sync:execute schema — sync execution stays main-side behind the
+// transport port with bounded validation.
+// ---------------------------------------------------------------------------
+
+export const SyncStatusCommandSchema = z.object({});
+
+export type SyncStatusCommand = z.infer<typeof SyncStatusCommandSchema>;
+
+export const SyncStartCommandSchema = z.object({});
+
+export type SyncStartCommand = z.infer<typeof SyncStartCommandSchema>;
+
+export const SyncPauseCommandSchema = z.object({});
+
+export type SyncPauseCommand = z.infer<typeof SyncPauseCommandSchema>;
+
+export const SyncConflictsCommandSchema = z.object({
+  limit: z.number().int().min(1).max(100).optional(),
+});
+
+export type SyncConflictsCommand = z.infer<typeof SyncConflictsCommandSchema>;
+
+export const SyncResolveCommandSchema = z.object({
+  conflictId: z.string().trim().min(1).max(128),
+  resolution: z.enum(["keep-local", "keep-remote"]),
+  // Optional: conflicts are globally keyed by conflictId; the renderer
+  // resolve call sends only conflictId + resolution choice.
+  projectId: z.string().trim().min(1).max(256).optional(),
+});
+
+export type SyncResolveCommand = z.infer<typeof SyncResolveCommandSchema>;
 
 // ---------------------------------------------------------------------------
 // Extension Payloads (PR32)

@@ -118,3 +118,38 @@ export {
   MAX_SCHEDULE_CONFIG_LENGTH,
   MAX_SCHEDULE_ERROR_LENGTH,
 } from "./scheduling/scheduled-task-repository.js";
+
+// PR45: Account/device identity persistence (no credentials; SecretStore only)
+export type { AccountRow, DeviceRow } from "./accounts/account-repository.js";
+export {
+  PrismaAccountRepository,
+  PrismaDeviceRepository,
+  AccountValidationError,
+  AccountSecretError,
+  DeviceValidationError,
+  MAX_ACCOUNT_DISPLAY_NAME_LENGTH,
+  MAX_ACCOUNT_EMAIL_LENGTH,
+  MAX_DEVICE_NAME_LENGTH,
+  MAX_DEVICE_PLATFORM_LENGTH,
+  ACCOUNT_SCHEMA_VERSION,
+} from "./accounts/account-repository.js";
+
+// PR45: Sync envelope/cursor/conflict persistence (no secrets; bounded payloads)
+export type {
+  SyncRecordRow,
+  SyncCursorRow,
+  SyncConflictRow,
+  SyncEntityType,
+} from "./sync/sync-repository.js";
+export {
+  PrismaSyncRecordRepository,
+  PrismaSyncCursorRepository,
+  PrismaSyncConflictRepository,
+  SyncValidationError,
+  SyncSecretError,
+  MAX_SYNC_PAYLOAD_BYTES,
+  MAX_SYNC_ENTITY_TYPE_LENGTH,
+  MAX_SYNC_ENTITY_ID_LENGTH,
+  MAX_SYNC_CHANGED_FIELDS_LENGTH,
+  SYNC_ENTITY_TYPES,
+} from "./sync/sync-repository.js";

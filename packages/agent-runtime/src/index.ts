@@ -10,4 +10,6 @@ export * from "./runtime/task-graph.js";
 export * from "./runtime/background-queue.js";
 export * from "./runtime/background-task-manager.js";
 export * from "./runtime/scheduling/index.js";
+export * from "./runtime/sync/index.js";
+export * from "./runtime/account/index.js";
 export { AgentRuntime } from "./runtime/agent-runtime.js";

@@ -21,6 +21,8 @@ import {
 } from "@ai-desktop/shared";
 import { EventIdSchema, ExecutionIdSchema, TaskNodeIdSchema } from "./identifiers.js";
 import { ScheduledRunIdSchema, ScheduleIdSchema } from "./schedules.js";
+import { AccountIdSchema, DeviceIdSchema } from "./accounts.js";
+import { SyncEntityTypeSchema } from "./sync.js";
 import { ContentPartSchema } from "./content.js";
 import { ToolRuntimeSchema, ToolSourceSchema } from "./tools.js";
 import { PermissionScopeSchema, RiskLevelSchema } from "./permissions.js";
@@ -478,6 +480,42 @@ export const ExtensionCustomEventSchema = z.object({
   payload: z.unknown(),
 });
 
+// PR45: account + sync lifecycle events. Follow the ScheduleEventSchema
+// pattern: category "extension", ids + status/detail only, NEVER tokens.
+// Account events: account.created/signed_in/signed_out,
+// account.session.expired/refreshed, device.registered/seen.
+// Sync events: sync.started/completed/failed/conflict/queued.
+
+export const AccountEventSchema = z.object({
+  ...BaseEventFields,
+  type: z.enum([
+    "account.created",
+    "account.signed_in",
+    "account.signed_out",
+    "account.session.expired",
+    "account.session.refreshed",
+    "device.registered",
+    "device.seen",
+  ]),
+  category: z.literal("extension"),
+  accountId: AccountIdSchema,
+  deviceId: DeviceIdSchema.optional(),
+  status: z.string().trim().min(1).max(32).optional(),
+  detail: z.string().trim().max(2000).optional(),
+});
+
+export const SyncEventSchema = z.object({
+  ...BaseEventFields,
+  type: z.enum(["sync.started", "sync.completed", "sync.failed", "sync.conflict", "sync.queued"]),
+  category: z.literal("extension"),
+  accountId: AccountIdSchema.optional(),
+  deviceId: DeviceIdSchema.optional(),
+  status: z.string().trim().min(1).max(32).optional(),
+  detail: z.string().trim().max(2000).optional(),
+  entityType: SyncEntityTypeSchema.optional(),
+  entityId: z.string().trim().min(1).max(256).optional(),
+});
+
 export const ExtensionEventSchema = z.discriminatedUnion("type", [
   TaskCreatedEventSchema,
   TaskStartedEventSchema,
@@ -493,6 +531,8 @@ export const ExtensionEventSchema = z.discriminatedUnion("type", [
   TaskCancelledEventSchema,
   TaskBackgroundEventSchema,
   ScheduleEventSchema,
+  AccountEventSchema,
+  SyncEventSchema,
   ExtensionCustomEventSchema,
 ]);
 
@@ -510,6 +550,8 @@ export type TaskFailedEvent = z.infer<typeof TaskFailedEventSchema>;
 export type TaskCancelledEvent = z.infer<typeof TaskCancelledEventSchema>;
 export type TaskBackgroundEvent = z.infer<typeof TaskBackgroundEventSchema>;
 export type ScheduleEvent = z.infer<typeof ScheduleEventSchema>;
+export type AccountEvent = z.infer<typeof AccountEventSchema>;
+export type SyncEvent = z.infer<typeof SyncEventSchema>;
 export type ExtensionCustomEvent = z.infer<typeof ExtensionCustomEventSchema>;
 export type ExtensionEvent = z.infer<typeof ExtensionEventSchema>;
 
@@ -579,6 +621,18 @@ export const AIEventTypeSchema = z.enum([
   "schedule.run.failed",
   "schedule.run.skipped",
   "schedule.run.recovered",
+  "account.created",
+  "account.signed_in",
+  "account.signed_out",
+  "account.session.expired",
+  "account.session.refreshed",
+  "device.registered",
+  "device.seen",
+  "sync.started",
+  "sync.completed",
+  "sync.failed",
+  "sync.conflict",
+  "sync.queued",
   "extension.custom",
 ]);
 
@@ -625,9 +679,10 @@ export const AIEventSchema = z.discriminatedUnion("type", [
   TaskCancelledEventSchema,
   TaskBackgroundEventSchema,
   ScheduleEventSchema,
+  AccountEventSchema,
+  SyncEventSchema,
   ExtensionCustomEventSchema,
 ]);
-
 // ---------------------------------------------------------------------------
 // Type Guards
 // ---------------------------------------------------------------------------

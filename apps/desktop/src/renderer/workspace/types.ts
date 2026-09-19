@@ -8,7 +8,7 @@
 //   3. Only serializable presentation state persists (localStorage, versioned).
 //      Transient interaction state (hover, drag, streaming flags) never persists.
 
-/** Surfaces the workspace renders (PR31 set + PR32 additive "extensions" + PR34.5 "browser" + PR35 "research" + PR38 "mcp" + PR40 "voice" + PR42 "git" + PR43 Task Center on "tasks"). */
+/** Surfaces the workspace renders (PR31 set + PR32 additive "extensions" + PR34.5 "browser" + PR35 "research" + PR38 "mcp" + PR40 "voice" + PR42 "git" + PR43 Task Center on "tasks" + PR45 "account"). */
 export const WORKSPACE_SURFACES = [
   "chat",
   "coding",
@@ -21,6 +21,7 @@ export const WORKSPACE_SURFACES = [
   "mcp",
   "voice",
   "git",
+  "account",
 ] as const;
 export type WorkspaceSurface = (typeof WORKSPACE_SURFACES)[number];
 
@@ -45,6 +46,17 @@ export const TASK_CENTER_SURFACE: WorkspaceSurface = "tasks";
  * re-scopes a schedule (rows always render the bound projectId).
  */
 export const SCHEDULE_CENTER_SURFACE: WorkspaceSurface = "tasks";
+
+/**
+ * PR45: the Account & Sync surface (signed-out sign-in form / signed-in
+ * account + device + sync status + sync detail with explicit conflict
+ * resolution) lives on a new "account" surface id. Unlike PR43/PR44 — which
+ * reused "tasks" because operators triage runs in one place — account
+ * identity is orthogonal to task triage, so it gets its own entry. No store
+ * persistence change: the versioned localStorage schema already accepts any
+ * `WORKSPACE_SURFACES` member, and selection stays presentation-only.
+ */
+export const ACCOUNT_SURFACE: WorkspaceSurface = "account";
 
 export interface WorkspacePanelState {
   readonly visible: boolean;

@@ -19,6 +19,7 @@ const SURFACE_TABS: Array<{ id: WorkspaceSurface; label: string }> = [
   { id: "mcp", label: "MCP" },
   { id: "voice", label: "Voice" },
   { id: "git", label: "Source Control" },
+  { id: "account", label: "Account" },
 ];
 
 export function WorkspaceSidebar({
@@ -29,6 +30,7 @@ export function WorkspaceSidebar({
   codingActiveCount,
   backgroundActiveCount = 0,
   schedulesEnabledCount = 0,
+  syncNeedsAttention = false,
   leftVisible,
   rightVisible,
   onSelectSurface,
@@ -79,6 +81,8 @@ export function WorkspaceSidebar({
             // Schedule Center lives on "tasks" alongside the Task Center.
             const tasksTotal =
               agentActiveCount + codingActiveCount + backgroundActiveCount + schedulesEnabledCount;
+            // PR45: the Account entry shows a dot when sync needs attention
+            // (offline/error/conflict); the Account surface lives on "account".
             const badge =
               tab.id === "coding" && codingActiveCount > 0
                 ? ` (${codingActiveCount})`
@@ -86,7 +90,9 @@ export function WorkspaceSidebar({
                   ? ` (${tasksTotal})`
                   : tab.id === "extensions" && extensionsSummary.active > 0
                     ? ` (${extensionsSummary.active})`
-                    : "";
+                    : tab.id === "account" && syncNeedsAttention
+                      ? " ●"
+                      : "";
             return (
               <li key={tab.id}>
                 <button

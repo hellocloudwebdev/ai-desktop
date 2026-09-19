@@ -8,6 +8,7 @@ import type { ContentPart, Message, ModelDefinition, PermissionRequest } from "@
 import type { WorkspaceSurface } from "../../../workspace/types.js";
 import type { BackgroundTasksCommands } from "../../../workspace/background-tasks.js";
 import type { ScheduleCommands } from "../../../workspace/schedules.js";
+import type { AccountCommands, SyncCommands } from "../../../workspace/account-sync.js";
 
 export interface TaskNodeView {
   readonly id: string;
@@ -222,6 +223,34 @@ export interface ScheduleCenterProps {
    * `window.api.schedules` probe with a local-stub fallback.
    */
   readonly commands?: ScheduleCommands | null;
+}
+
+// PR45: renderer — Account & Sync surface contract.
+//
+// The surface renders `AccountSessionView` / `DeviceView` /
+// `SyncStatusView` / `SyncConflictView` projections only: session status,
+// display name, identifier, device name/platform/last-seen, sync status
+// indicator (Synced/Syncing…/Offline/Needs attention/Conflict), last sync,
+// pending/conflict counts, and the conflict list (entity, local vs remote
+// versions, changed fields). Sign-in carries a display name plus an optional
+// identifier and validates fully client-side via `validateSignInForm`;
+// nothing executes from a partial form. Sign-out clears the session only —
+// local projects are preserved (delete ≠ wipe, stated in the UI). Conflicts
+// resolve only through explicit Keep local / Keep remote buttons; the
+// surface never resolves silently. No tokens, secrets, credentials, or URLs
+// ever enter renderer state or reach the screen.
+export interface AccountSurfaceProps {
+  /**
+   * Injectable account bridge (tests/embeddings). Defaults to the
+   * `window.api.account` probe with a local-stub fallback.
+   */
+  readonly account?: AccountCommands | null;
+  /**
+   * Injectable sync bridge (tests/embeddings). Defaults to the
+   * `window.api.sync` probe with a local-stub fallback.
+   */
+  readonly sync?: SyncCommands | null;
+  readonly pollIntervalMs?: number;
 }
 
 export interface ActivityEventView {
@@ -525,6 +554,8 @@ export interface SidebarProps {
   readonly backgroundActiveCount?: number;
   /** PR44: enabled schedules (Schedule Center); defaults to 0. */
   readonly schedulesEnabledCount?: number;
+  /** PR45: sync needs attention (offline/error/conflict dot on Account); defaults to false. */
+  readonly syncNeedsAttention?: boolean;
   readonly leftVisible: boolean;
   readonly rightVisible: boolean;
   onSelectSurface(surface: WorkspaceSurface): void;

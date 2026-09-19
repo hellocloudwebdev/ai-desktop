@@ -1,6 +1,6 @@
 # ai-desktop
 
-A desktop AI assistant. This repository is currently at **PR44 — Scheduling & Autonomous Tasks**:
+A desktop AI assistant. This repository is currently at **PR45 — Accounts & Cross-Device Sync**:
 shared primitives, canonical AI domain contracts, projections, in-process EventBus,
 permission checkpoint, SQLite WAL event repository, OS-backed credential store, canonical
 provider contracts, concrete `AnthropicAdapter`, concrete `GeminiAdapter`, Electron 44 desktop
@@ -154,7 +154,40 @@ note, run-history panel with downstream approval resolved only through the
 existing permission path (schedule≠grant, never auto-approved), single
 bounded 2 s poll with re-query on mount/scope change and no
 renderer-local truth, Tasks surface extension plus `schedulesEnabledCount`
-sidebar badge, and unit/integration/security/persistence/E2E tests) are
+sidebar badge, and unit/integration/security/persistence/E2E tests), and the
+Accounts & Cross-Device Sync foundation (full scope across all layers:
+canonical ai-core account contracts — branded `AccountId`/`DeviceId`,
+`UserAccountRecord`/`DeviceRecord`/`AccountSession`, session lifecycle
+`signed_out`/`authenticating`/`authenticated`/`refreshing`/`expired`/`error`
+with legal transitions, type-only `AuthProvider` port, `account.*` events —
+plus canonical sync contracts — closed syncable-entity allowlist, versioned
+`SyncRecord` envelopes with tombstone deletes, 64KB payload caps,
+deterministic `(version, updatedAt, deviceId)` ordering with
+last-writer-wins scalars vs always-explicit
+`schedule.definition`/`extension.metadata` and delete-vs-update conflicts,
+sync states `idle`/`syncing`/`offline`/`error`/`conflict`, path-looking and
+secret guards, inert-synced-schedule rule, `sync.*` events; agent-runtime
+`AccountSessionManager` session core over structural auth/secret ports with
+memory-only nonces plus `SyncEngine`/`SyncQueue`/wire `SyncTransport`
+orchestration over structural ports with bounded retries and offline/auth
+failure mapping; storage `PrismaAccountRepository`/`PrismaDeviceRepository`
+and `SyncRecord`/`SyncCursor`/`SyncConflict` repositories over new
+`AccountRecord`/`DeviceRecord`/`SyncRecord`/`SyncCursor`/`SyncConflict`
+models plus migration with secret-scan/truncation guards and refresh tokens
+living exclusively in the OS SecretStore; desktop `AccountService` (sign-out
+preserves local data, session machine, `account.*` events) and
+`DesktopSyncService` (cursor watermarks, explicit keep-local/keep-remote
+resolution, pause parks locally, `sync.*` events) with five typed
+`account:*` plus five typed `sync:*` IPC commands and narrow preload
+bridges with no execute channels; renderer narrow `window.api.account` /
+`window.api.sync` bridge client with pure normalize/unwrap/label/validate/
+truncate/redact helpers, local-stub fallback, self-contained `AccountSurface`
+(sign-in form with nothing executing from a partial form, session/device/sync
+panels, explicit Keep local / Keep remote conflict buttons, sign-out
+preserves-local-data note with delete≠wipe), new `"account"` surface with
+sidebar attention dot, single bounded 2 s poll with re-query on mount and no
+renderer-local truth, and unit/integration/security/persistence/E2E tests
+with decision record `docs/decisions/ADR-017-accounts-sync.md`) are
 implemented. Future packages remain empty shells awaiting their respective
 implementation PRs — see [docs/architecture/phase-0.md](docs/architecture/phase-0.md) for the honest list of what is
 and is not implemented.
