@@ -284,6 +284,28 @@ import { registerAccountHandlers, type AccountIpcDependencies } from "../account
 import { registerSyncHandlers, type SyncIpcDependencies } from "../sync/sync-ipc.js";
 import type { DesktopBackgroundTaskService } from "../agent/background-task-service.js";
 import type { DesktopSchedulerService } from "../agent/scheduler-service.js";
+import {
+  checkProjectIsolation,
+  estimatePayloadBytes,
+  extractRequestId,
+  isForbiddenIpcChannel,
+  maxPayloadBytesForChannel,
+  sanitizeErrorMessage,
+  scrubSecurityReason,
+  validateIpcSender,
+  IpcRequestTracker,
+} from "./security.js";
+
+/** Sink notified on every main-side IPC rejection (validation, sender,
+ *  oversized, duplicate/stale, isolation, unknown-channel). The production
+ *  wiring (main/index.ts) forwards these to canonical security.ipc.rejected
+ *  events via storage.append + bus.publish. Never throws. */
+export type IpcSecuritySink = (report: {
+  readonly channel: string;
+  readonly code: string;
+  readonly reason: string;
+  readonly rawInput?: unknown;
+}) => void;
 
 export type CommandHandler<TInput, TOutput> = (
   input: TInput,
@@ -401,6 +423,34 @@ export class IpcRegistry {
   >();
   private readonly _subscriptions = new Map<string, Set<WebContents>>();
   private _batcher: IpcBatcher | null = null;
+  private _securitySink: IpcSecuritySink | null = null;
+  private readonly _requestTracker = new IpcRequestTracker();
+
+  /**
+   * Attaches the security-audit sink (PR46). Every main-side rejection is
+   * reported here; the production sink emits a canonical
+   * security.ipc.rejected event via storage.append + bus.publish. Optional —
+   * registries without a sink still fail closed, they just do not audit.
+   */
+  setSecuritySink(sink: IpcSecuritySink | null): void {
+    this._securitySink = sink;
+  }
+
+  get securitySink(): IpcSecuritySink | null {
+    return this._securitySink;
+  }
+
+  private _notifySecurity(channel: string, code: string, reason: string, rawInput?: unknown): void {
+    const sink = this._securitySink;
+    if (!sink) {
+      return;
+    }
+    try {
+      sink({ channel, code, reason, rawInput });
+    } catch {
+      // Audit reporting never breaks the dispatch path.
+    }
+  }
 
   /**
    * Attaches the IPC event batcher (PR15). Once attached, `publishEvent`
@@ -426,6 +476,23 @@ export class IpcRegistry {
   /**
    * Registers a typed command with Zod schema validation.
    * If input is invalid, returns an error envelope without executing the handler.
+   *
+   * PR46 hardening (fail-closed layers, in order):
+   *   0. Forbidden-channel guard: execute/eval/spawn segments can never be
+   *      registered (prevents a future generic-execute channel at the seam).
+   *   1. Sender validation: missing/destroyed WebContents senders are rejected
+   *      before any parsing (spoofed or dying renderers never reach handlers).
+   *   2. Oversized-payload guard: serialized envelope beyond the per-channel
+   *      ceiling is rejected before Zod (extends field maxima; binary channels
+   *      carry higher caps — see ./security.ts).
+   *   3. Stale/duplicate guard: caller-supplied requestId gives idempotency
+   *      (replay within the window is rejected without re-executing);
+   *      caller-supplied timestamp beyond the freshness window is stale.
+   *      Inputs without requestId/timestamp pass through untouched.
+   *   4. Zod validation (unchanged semantics).
+   *   5. Project/entity isolation spot-check (null-byte/control rejection).
+   *   6. Safe error serialization (sanitized handler messages only).
+   * Every rejection is reported to the security sink (security.ipc.rejected).
    */
   registerCommand<TInput, TOutput>(
     channel: string,
@@ -438,6 +505,11 @@ export class IpcRegistry {
     },
     handler: CommandHandler<TInput, TOutput>,
   ): void {
+    if (isForbiddenIpcChannel(channel)) {
+      throw new Error(
+        `Forbidden IPC channel "${channel}": execute/eval/spawn channels are never allowed`,
+      );
+    }
     if (this._registeredChannels.has(channel)) {
       throw new Error(`Channel collision: IPC command channel "${channel}" is already registered`);
     }
@@ -448,28 +520,74 @@ export class IpcRegistry {
       rawInput: unknown,
       event: IpcMainInvokeEvent,
     ): Promise<IpcResponseEnvelope<TOutput>> => {
-      const requestId =
-        rawInput && typeof rawInput === "object" && "requestId" in rawInput
-          ? String((rawInput as { requestId: unknown }).requestId)
-          : "unknown";
+      const requestId = extractRequestId(rawInput) ?? "unknown";
 
-      // 1. Zod runtime validation in main process
+      // 1. Sender/WebContents validation (fail closed before parsing).
+      const senderCheck = validateIpcSender(event);
+      if (!senderCheck.ok) {
+        const reason = `sender rejected: ${senderCheck.reason}`;
+        this._notifySecurity(channel, "SENDER_REJECTED", reason, rawInput);
+        return {
+          requestId,
+          ok: false,
+          error: { code: "SENDER_REJECTED", message: scrubSecurityReason(reason) },
+        };
+      }
+
+      // 2. Oversized-payload guard (serialized envelope ceiling).
+      const payloadBytes = estimatePayloadBytes(rawInput);
+      const payloadCap = maxPayloadBytesForChannel(channel);
+      if (payloadBytes > payloadCap) {
+        const reason = `oversized payload: ${payloadBytes} bytes exceeds ${payloadCap} byte cap`;
+        this._notifySecurity(channel, "OVERSIZED_PAYLOAD", reason, undefined);
+        return {
+          requestId,
+          ok: false,
+          error: { code: "OVERSIZED_PAYLOAD", message: scrubSecurityReason(reason) },
+        };
+      }
+
+      // 3. Stale/duplicate-unsafe request handling (opt-in fields only).
+      const freshness = this._requestTracker.check(channel, rawInput);
+      if (!freshness.ok) {
+        this._notifySecurity(channel, freshness.code, freshness.reason, rawInput);
+        return {
+          requestId,
+          ok: false,
+          error: { code: freshness.code, message: scrubSecurityReason(freshness.reason) },
+        };
+      }
+
+      // 4. Zod runtime validation in main process
       const parseResult = schema.safeParse(rawInput);
       if (!parseResult.success) {
         const issues = parseResult.error?.issues ?? [];
         const message = issues.map((i) => `${i.path.join(".") || "root"}: ${i.message}`).join("; ");
 
+        const reason = `Invalid command payload: ${message}`;
+        this._notifySecurity(channel, "VALIDATION_ERROR", reason, rawInput);
         return {
           requestId,
           ok: false,
           error: {
             code: "VALIDATION_ERROR",
-            message: `Invalid command payload: ${message}`,
+            message: scrubSecurityReason(reason),
           },
         };
       }
 
-      // 2. Execute privileged handler safely
+      // 5. Project/entity isolation spot-check (fail closed on smuggling markers).
+      const isolation = checkProjectIsolation(parseResult.data);
+      if (!isolation.ok) {
+        this._notifySecurity(channel, "PROJECT_ISOLATION", isolation.reason, rawInput);
+        return {
+          requestId,
+          ok: false,
+          error: { code: "PROJECT_ISOLATION", message: scrubSecurityReason(isolation.reason) },
+        };
+      }
+
+      // 6. Execute privileged handler safely (sanitized errors only).
       try {
         const output = await handler(parseResult.data as TInput, event);
         return {
@@ -483,7 +601,7 @@ export class IpcRegistry {
           ok: false,
           error: {
             code: "HANDLER_ERROR",
-            message: err instanceof Error ? err.message : String(err),
+            message: sanitizeErrorMessage(err),
           },
         };
       }
@@ -500,6 +618,16 @@ export class IpcRegistry {
 
   /**
    * Invokes a registered command in-process (useful for direct dispatch and unit testing).
+   * Unknown channels fail closed (throw) and are reported to the security sink
+   * as security.ipc.rejected unknown-channel proofs.
+   *
+   * NOTE (PR46): the Electron invoke path always supplies event.sender; the
+   * in-process path historically omits it. To avoid breaking every existing
+   * in-process caller, a missing sender here is treated as trusted main-side
+   * dispatch and filled with a non-destroyed stub. An explicitly destroyed or
+   * null sender is still rejected by the dispatcher. Renderer traffic can
+   * never take this path — it always arrives via ipcMain.handle with a real
+   * WebContents sender that the dispatcher validates.
    */
   async invokeCommand<TOutput = unknown>(
     channel: string,
@@ -508,12 +636,15 @@ export class IpcRegistry {
   ): Promise<IpcResponseEnvelope<TOutput>> {
     const handler = this._handlers.get(channel);
     if (!handler) {
+      this._notifySecurity(channel, "UNKNOWN_CHANNEL", `unknown channel "${channel}"`, rawInput);
       throw new Error(`No handler registered for channel "${channel}"`);
     }
-    return (await handler(
-      rawInput,
-      (event ?? {}) as IpcMainInvokeEvent,
-    )) as IpcResponseEnvelope<TOutput>;
+    const hasExplicitSender =
+      event !== undefined && event !== null && "sender" in event && event.sender != null;
+    const effectiveEvent = (
+      hasExplicitSender ? event : { ...event, sender: { isDestroyed: () => false } }
+    ) as IpcMainInvokeEvent;
+    return (await handler(rawInput, effectiveEvent)) as IpcResponseEnvelope<TOutput>;
   }
 
   /**

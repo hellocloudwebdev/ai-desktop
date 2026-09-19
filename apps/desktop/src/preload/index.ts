@@ -8,6 +8,14 @@
 //   5. Pure application-owned interface.
 //   6. Stream events cross the IPC boundary in ~32 ms batches (terminal events
 //      flush immediately) and are unpacked here before reaching the renderer.
+//
+// PR46 audit verdict (no behavior change):
+//   - Verified: the ONLY Electron import is contextBridge + ipcRenderer (the
+//     bridge itself); neither object is exposed to the renderer — only the
+//     narrow DesktopApplicationApi below crosses contextBridge.
+//   - Verified: zero privileged surface beyond the typed bridge (no shell,
+//     process, filesystem, subprocess, dynamic-code, or raw-bridge
+//     exposure), zero generic execute channel. Regression tests pin this.
 
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
 import {

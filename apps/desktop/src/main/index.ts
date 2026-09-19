@@ -9,7 +9,7 @@
 //   6. Zero typed IPC or chat services implemented in PR12 (deferred to PR13/16).
 
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { app, BrowserWindow } from "electron";
 import { EventBus } from "@ai-desktop/agent-runtime";
 import type { AIEvent } from "@ai-desktop/ai-core";
@@ -85,6 +85,12 @@ import {
 import { DocumentService, DocumentsToolExecutor } from "./documents/index.js";
 import { IpcBatcher } from "./ipc/batcher.js";
 import { IpcRegistry, registerIpcHandlers } from "./ipc/index.js";
+import {
+  emitSecurityEvent,
+  emitSecurityIpcRejected,
+  extractSecurityContext,
+  type SecurityIpcRejectedInfo,
+} from "./ipc/security.js";
 import {
   DiagnosticsService,
   TerminalService,
@@ -909,6 +915,270 @@ export function getSecureWebPreferences(preloadPath: string): Electron.WebPrefer
   };
 }
 
+// ---------------------------------------------------------------------------
+// PR46: Window + navigation hardening (surgical, verified compatible)
+// ---------------------------------------------------------------------------
+//
+// Audit verdict (Electron 44.0.0, verified against apps/desktop/package.json):
+//   - contextIsolation/nodeIntegration/sandbox/webSecurity were already
+//     correct; they are NOT flipped here — regression tests pin them.
+//   - Zero setWindowOpenHandler / will-navigate / shell.openExternal /
+//     protocol-registration call sites existed before PR46 (repo-wide grep).
+//     The handlers below therefore close real holes with no behavior break:
+//     the app is single-window and the renderer is local-first (Vite dev
+//     server in dev, file:// bundle in prod).
+//
+// Choices (each documented; each deny-by-default):
+//   1. window-open ALWAYS denied: single-window app, no popups. External
+//      links require an explicit future allowlisted shell.openExternal call
+//      (none exists today) — never an automatic new window.
+//   2. Top-level navigation allowlisted to {about:blank, exact prod bundle
+//      file URL, dev-server origin}. Remote http(s) navigation is denied:
+//      research/browser features render inside controlled views/services,
+//      never via top-level renderer navigation. file: is allowlisted ONLY
+//      for the exact bundle URL passed as allowedFileUrls (main-initiated
+//      loadFile is not a will-navigate event; renderer-initiated file:
+//      navigation such as file:///etc/passwd stays denied — this blocks
+//      local-file exfiltration via crafted links). Compatible: dev loads
+//      VITE_DEV_SERVER_URL, prod loads the local dist/index.html bundle —
+//      both stay allowed.
+//   3. Webviews denied (will-attach-webview preventDefault + app-level
+//      web-contents-created guard): no webview feature exists; attaching one
+//      would punch a second renderer boundary outside the preload bridge.
+//   4. External-URL policy helper (https-only, no credentials) is exported
+//      for the future explicit-open path and pinned by tests; main never
+//      auto-opens external URLs today.
+//   5. Every block is reported through onViolation so production can audit
+//      canonical security.browser.blocked events (storage.append + bus).
+
+/** Kinds of window-boundary blocks reported to onViolation. */
+export type WindowSecurityViolationKind = "window-open" | "navigation" | "webview";
+
+export interface WindowSecurityViolation {
+  readonly kind: WindowSecurityViolationKind;
+  readonly url: string;
+}
+
+export interface WindowSecurityOptions {
+  readonly devServerUrl?: string;
+  readonly allowedFileUrls?: readonly string[];
+  readonly onViolation?: (violation: WindowSecurityViolation) => void;
+}
+
+/**
+ * Navigation allowlist: about:blank (initial), the exact prod bundle file
+ * URL(s) when provided, and the dev-server origin prefix when provided.
+ * Everything else — remote http(s), data:, javascript:, blob:, unlisted
+ * file:, custom protocols — is denied.
+ */
+export function isAllowedNavigationUrl(
+  url: string,
+  devServerUrl?: string,
+  allowedFileUrls?: readonly string[],
+): boolean {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return false;
+  }
+  if (parsed.protocol === "about:" && (url === "about:blank" || parsed.href === "about:blank")) {
+    return true;
+  }
+  if (parsed.protocol === "file:") {
+    return allowedFileUrls?.includes(url) ?? false;
+  }
+  if (devServerUrl && url.startsWith(devServerUrl)) {
+    try {
+      const dev = new URL(devServerUrl);
+      if (parsed.protocol === dev.protocol && parsed.host === dev.host) {
+        return true;
+      }
+    } catch {
+      return false;
+    }
+  }
+  return false;
+}
+
+/**
+ * External-URL policy for any future explicit open (e.g. "open in browser"):
+ * https-only, hostname required, no embedded credentials. Main never
+ * auto-opens external URLs; this helper gates only explicit user actions.
+ */
+export function isAllowedExternalUrl(url: string): boolean {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return false;
+  }
+  if (parsed.protocol !== "https:") {
+    return false;
+  }
+  if (!parsed.hostname) {
+    return false;
+  }
+  if (parsed.username || parsed.password) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Attaches deny-by-default window controls to a BrowserWindow. Returns a
+ * cleanup that removes the will-navigate/webview listeners (the window-open
+ * handler itself has no remover in Electron — it stays deny, which is safe).
+ */
+export function configureWindowSecurity(
+  window: BrowserWindow,
+  options: WindowSecurityOptions = {},
+): () => void {
+  const { devServerUrl, allowedFileUrls, onViolation } = options;
+  const cleanups: Array<() => void> = [];
+
+  window.webContents.setWindowOpenHandler(({ url }) => {
+    try {
+      onViolation?.({ kind: "window-open", url });
+    } catch {
+      // Violation reporting never breaks the deny.
+    }
+    return { action: "deny" };
+  });
+
+  const willNavigate = (event: { preventDefault: () => void }, url: string): void => {
+    if (!isAllowedNavigationUrl(url, devServerUrl, allowedFileUrls)) {
+      try {
+        event.preventDefault();
+      } catch {
+        // preventDefault is best-effort on dying contents.
+      }
+      try {
+        onViolation?.({ kind: "navigation", url });
+      } catch {
+        // Violation reporting never breaks the deny.
+      }
+    }
+  };
+  window.webContents.on("will-navigate", willNavigate as never);
+  cleanups.push(() => {
+    try {
+      window.webContents.removeListener("will-navigate", willNavigate as never);
+    } catch {
+      // Cleanup is best-effort.
+    }
+  });
+
+  const webContentsAny = window.webContents as unknown as {
+    on?: (event: string, listener: (...args: never[]) => void) => void;
+    removeListener?: (event: string, listener: (...args: never[]) => void) => void;
+  };
+  if (typeof webContentsAny.on === "function") {
+    const willAttachWebview = (event: { preventDefault: () => void }, ...rest: never[]): void => {
+      void rest;
+      try {
+        event.preventDefault();
+      } catch {
+        // Best-effort on dying contents.
+      }
+      try {
+        onViolation?.({ kind: "webview", url: "webview-attach" });
+      } catch {
+        // Violation reporting never breaks the deny.
+      }
+    };
+    webContentsAny.on("will-attach-webview", willAttachWebview);
+    cleanups.push(() => {
+      try {
+        webContentsAny.removeListener?.("will-attach-webview", willAttachWebview);
+      } catch {
+        // Cleanup is best-effort.
+      }
+    });
+  }
+
+  return () => {
+    for (const cleanup of cleanups) {
+      try {
+        cleanup();
+      } catch {
+        // Cleanup is best-effort.
+      }
+    }
+  };
+}
+
+let appWindowSecurityWired = false;
+
+/**
+ * App-level guard: every future WebContents (including any secondary window
+ * or webview host) gets a deny-by-default window-open handler. Idempotent —
+ * safe to call on every ready/activate. Seeded windows keep their own
+ * configureWindowSecurity listeners for navigation auditing.
+ */
+export function ensureAppWindowSecurity(electronApp?: {
+  on?: (event: string, listener: (...args: never[]) => void) => void;
+}): void {
+  if (appWindowSecurityWired) {
+    return;
+  }
+  const target = electronApp ?? app;
+  if (!target || typeof target.on !== "function") {
+    return;
+  }
+  appWindowSecurityWired = true;
+  target.on("web-contents-created", ((_event: unknown, contents: unknown) => {
+    try {
+      const webContents = contents as {
+        setWindowOpenHandler?: (handler: () => { action: "deny" }) => void;
+      };
+      webContents.setWindowOpenHandler?.(() => ({ action: "deny" }));
+    } catch {
+      // Guard is best-effort; per-window handlers still deny.
+    }
+  }) as never);
+}
+
+/** Best-effort audit for window-boundary blocks (never throws). */
+function reportWindowSecurityViolation(violation: WindowSecurityViolation): void {
+  try {
+    const ports = { storage: getStorage().repository, bus: getEventBus() };
+    const info: SecurityIpcRejectedInfo = {
+      channel: "window:navigation",
+      reason: `${violation.kind} blocked: ${violation.url}`.slice(0, 500),
+    };
+    void emitSecurityEvent(ports, "security.browser.blocked", info).catch(() => undefined);
+  } catch {
+    // Audit emission never breaks window creation.
+  }
+}
+
+/**
+ * Production security-audit sink for IPC rejections: forwards to canonical
+ * security.ipc.rejected events via storage.append THEN bus.publish (the
+ * AccountService ordering — persistence before delivery). Best-effort and
+ * never throws into the dispatch path. Reuses the single desktop EventBus;
+ * no second bus is created.
+ */
+export function wireIpcSecurityAudit(registry: IpcRegistry): void {
+  registry.setSecuritySink((report) => {
+    try {
+      const context = extractSecurityContext(report.rawInput);
+      const ports = { storage: getStorage().repository, bus: getEventBus() };
+      void emitSecurityIpcRejected(ports, {
+        channel: report.channel,
+        reason: `${report.code}: ${report.reason}`.slice(0, 500),
+        ...(context.conversationId ? { conversationId: context.conversationId } : {}),
+        ...(context.projectId ? { projectId: context.projectId } : {}),
+        ...(context.entityType ? { entityType: context.entityType } : {}),
+        ...(context.entityId ? { entityId: context.entityId } : {}),
+      }).catch(() => undefined);
+    } catch {
+      // Audit emission never breaks dispatch.
+    }
+  });
+}
+
 export async function createMainWindow(): Promise<BrowserWindow> {
   const preloadPath = path.join(__dirname, "../dist-electron/preload.js");
 
@@ -921,13 +1191,30 @@ export async function createMainWindow(): Promise<BrowserWindow> {
     webPreferences: getSecureWebPreferences(preloadPath),
   });
 
-  // Development vs. Production renderer loading
+  // PR46: deny-by-default window controls (see rationale above). The dev
+  // server origin is allowed only when explicitly configured via env; the
+  // exact prod bundle file URL is allowlisted so a main-initiated reload of
+  // the same document is not mistaken for hostile navigation.
   const devServerUrl = process.env.VITE_DEV_SERVER_URL;
+  const bundleIndexPath = path.join(__dirname, "../dist/index.html");
+  let bundleFileUrl: string | undefined;
+  try {
+    bundleFileUrl = pathToFileURL(bundleIndexPath).href;
+  } catch {
+    bundleFileUrl = undefined;
+  }
+  configureWindowSecurity(mainWindow, {
+    ...(devServerUrl ? { devServerUrl } : {}),
+    ...(bundleFileUrl ? { allowedFileUrls: [bundleFileUrl] } : {}),
+    onViolation: reportWindowSecurityViolation,
+  });
+  ensureAppWindowSecurity();
+
+  // Development vs. Production renderer loading
   if (devServerUrl) {
     await mainWindow.loadURL(devServerUrl);
   } else {
-    const indexPath = path.join(__dirname, "../dist/index.html");
-    await mainWindow.loadFile(indexPath);
+    await mainWindow.loadFile(bundleIndexPath);
   }
 
   mainWindow.on("closed", () => {
@@ -965,6 +1252,9 @@ export function initIpc(options?: {
 }): IpcRegistry {
   if (!ipcRegistry) {
     ipcRegistry = new IpcRegistry();
+    // PR46: audit every main-side IPC rejection as canonical
+    // security.ipc.rejected (storage.append + bus.publish, best-effort).
+    wireIpcSecurityAudit(ipcRegistry);
     const streamRegistry = options?.activeStreamRegistry ?? getActiveStreamRegistry();
     const batcher = options?.batcher ?? getIpcBatcher();
     const chat = options?.chatService ?? getChatService({ streamRegistry });

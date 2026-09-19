@@ -31,6 +31,9 @@ jobs:
       - name: Architecture check
         run: pnpm architecture:check
 
+      - name: Security check
+        run: pnpm security:check
+
       - name: Test
         run: pnpm test
 

@@ -1102,6 +1102,13 @@ run.skipped/run.recovered`, category extension) in the Extension/AI
     disconnect-requery via the stub, wire-shape threading, hygiene, and
     component-contract source assertions). Decision record in
     `docs/decisions/ADR-017-accounts-sync.md`.
+- Production Security & Hardening inventory (PR46, docs + types only — no
+  enforcement code, no producers): 30-threat model + 7 posture docs under
+  `docs/security/` (verified mitigations, honest residual risks, explicit
+  no-cryptographic-tamper-resistance stance) and the bounded `security.*`
+  audit taxonomy (`SecurityEventSchema`, 11 types, category `extension`)
+  in `ai-core` events + `security.test.ts`. README stays at PR45: PR46 is
+  hardening, not a product milestone.
 - All remaining canonical packages stay **empty shells** (`package.json`, `tsconfig.json`,
   `src/index.ts` placeholder) — deliberately no premature domain functionality inside them.
 - Toolchain: TypeScript 5.9.3, ESLint 10.10.0, Vitest 4.1.10, Vite 8.1.0, Prettier 3.9.6,

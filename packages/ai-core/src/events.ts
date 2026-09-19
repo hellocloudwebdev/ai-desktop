@@ -480,6 +480,35 @@ export const ExtensionCustomEventSchema = z.object({
   payload: z.unknown(),
 });
 
+// PR46: bounded security audit taxonomy (TYPES only — producers live in
+// sibling layers: apps/desktop main services, executors, and guards).
+// Follow the ScheduleEventSchema pattern exactly: category "extension",
+// envelope ids + status/detail-style bounded fields only, NEVER secrets.
+// Producers MUST scrub secret material from `reason` before emitting;
+// the schema enforces shape/bounds, not secret detection.
+
+export const SecurityEventSchema = z.object({
+  ...BaseEventFields,
+  type: z.enum([
+    "security.ipc.rejected",
+    "security.permission.denied",
+    "security.secret.redacted",
+    "security.path.rejected",
+    "security.network.blocked",
+    "security.browser.blocked",
+    "security.plugin.rejected",
+    "security.mcp.rejected",
+    "security.document.rejected",
+    "security.sync.rejected",
+    "security.integrity.failure",
+  ]),
+  category: z.literal("extension"),
+  reason: z.string().trim().min(1).max(500),
+  entityType: z.string().trim().min(1).max(128).optional(),
+  entityId: z.string().trim().min(1).max(256).optional(),
+  projectId: z.string().trim().min(1).max(256).optional(),
+});
+
 // PR45: account + sync lifecycle events. Follow the ScheduleEventSchema
 // pattern: category "extension", ids + status/detail only, NEVER tokens.
 // Account events: account.created/signed_in/signed_out,
@@ -533,6 +562,7 @@ export const ExtensionEventSchema = z.discriminatedUnion("type", [
   ScheduleEventSchema,
   AccountEventSchema,
   SyncEventSchema,
+  SecurityEventSchema,
   ExtensionCustomEventSchema,
 ]);
 
@@ -552,6 +582,7 @@ export type TaskBackgroundEvent = z.infer<typeof TaskBackgroundEventSchema>;
 export type ScheduleEvent = z.infer<typeof ScheduleEventSchema>;
 export type AccountEvent = z.infer<typeof AccountEventSchema>;
 export type SyncEvent = z.infer<typeof SyncEventSchema>;
+export type SecurityEvent = z.infer<typeof SecurityEventSchema>;
 export type ExtensionCustomEvent = z.infer<typeof ExtensionCustomEventSchema>;
 export type ExtensionEvent = z.infer<typeof ExtensionEventSchema>;
 
@@ -633,6 +664,17 @@ export const AIEventTypeSchema = z.enum([
   "sync.failed",
   "sync.conflict",
   "sync.queued",
+  "security.ipc.rejected",
+  "security.permission.denied",
+  "security.secret.redacted",
+  "security.path.rejected",
+  "security.network.blocked",
+  "security.browser.blocked",
+  "security.plugin.rejected",
+  "security.mcp.rejected",
+  "security.document.rejected",
+  "security.sync.rejected",
+  "security.integrity.failure",
   "extension.custom",
 ]);
 
@@ -681,6 +723,7 @@ export const AIEventSchema = z.discriminatedUnion("type", [
   ScheduleEventSchema,
   AccountEventSchema,
   SyncEventSchema,
+  SecurityEventSchema,
   ExtensionCustomEventSchema,
 ]);
 // ---------------------------------------------------------------------------
