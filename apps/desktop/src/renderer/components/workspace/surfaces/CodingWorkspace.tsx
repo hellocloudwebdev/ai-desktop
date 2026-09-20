@@ -226,26 +226,32 @@ export function CodingWorkspace({
 
       {/* Editor + tabs */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-slate-800 px-2 py-1">
-          {tabs.length === 0 && <span className="text-[11px] text-slate-600">No open files.</span>}
+        <div className="flex h-9 shrink-0 items-center gap-1 overflow-x-auto border-b border-slate-800/80 bg-slate-900/60 px-2">
+          {tabs.length === 0 && (
+            <span className="text-xs text-slate-500 italic px-2">No open files.</span>
+          )}
           {tabs.map((tab) => (
             <span
               key={tab.path}
-              className={`flex shrink-0 items-center gap-1 rounded px-2 py-0.5 text-[11px] ${
+              className={`flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1 text-xs transition-colors border ${
                 tab.path === activeTabPath
-                  ? "bg-slate-800 text-white"
-                  : "text-slate-400 hover:bg-slate-800/60"
+                  ? "bg-slate-800/90 text-white font-medium border-slate-700/80 shadow-sm"
+                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 border-transparent"
               }`}
             >
-              <button type="button" onClick={() => onSelectTab(tab.path)} className="truncate">
+              <button
+                type="button"
+                onClick={() => onSelectTab(tab.path)}
+                className="truncate max-w-[150px]"
+              >
                 {tab.path.split("/").pop()}
-                {tab.dirty && <span className="ml-0.5 text-amber-400">●</span>}
+                {tab.dirty && <span className="ml-1 text-amber-400 font-bold">●</span>}
               </button>
               <button
                 type="button"
                 onClick={() => onCloseTab(tab.path)}
                 aria-label={`Close ${tab.path}`}
-                className="text-slate-500 hover:text-slate-200"
+                className="text-slate-500 hover:text-slate-200 hover:bg-slate-700/60 rounded px-1 transition-colors"
               >
                 ×
               </button>
@@ -255,7 +261,7 @@ export function CodingWorkspace({
             <button
               type="button"
               onClick={onSaveAllFiles}
-              className="ml-auto shrink-0 rounded bg-slate-800 px-2 py-0.5 text-[11px] text-slate-300 hover:bg-slate-700"
+              className="ml-auto shrink-0 rounded-md bg-indigo-600/90 hover:bg-indigo-500 text-white px-2.5 py-1 text-xs font-medium transition-colors shadow-sm"
             >
               Save all
             </button>

@@ -104,22 +104,27 @@ export function WorkspaceShell({
   const { state } = store;
 
   return (
-    <main className="flex h-screen w-screen flex-col bg-slate-950 text-slate-100 font-sans">
-      <header className="flex h-14 shrink-0 items-center justify-between border-b border-slate-800 bg-slate-900/60 px-6 backdrop-blur-sm">
-        <div className="flex items-center space-x-3">
-          <div className="h-3 w-3 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50" />
-          <h1 className="text-base font-semibold text-white">AI Desktop</h1>
-          <span className="rounded-full bg-slate-800 px-2.5 py-0.5 text-xs text-slate-400 font-mono">
+    <main className="flex h-screen w-screen flex-col bg-slate-950 text-slate-100 font-sans select-none antialiased">
+      <header className="flex h-14 shrink-0 items-center justify-between border-b border-slate-800/80 bg-slate-900/80 px-6 backdrop-blur-md z-10 shadow-sm">
+        <div className="flex items-center space-x-3.5">
+          <div className="relative flex h-3 w-3 items-center justify-center">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-indigo-400 opacity-40" />
+            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-indigo-500 shadow-md shadow-indigo-500/50" />
+          </div>
+          <h1 className="text-sm font-semibold tracking-tight text-white flex items-center gap-2">
+            AI Desktop
+          </h1>
+          <span className="rounded-full bg-slate-800/80 border border-slate-700/60 px-2.5 py-0.5 text-[11px] text-slate-300 font-mono tracking-wide">
             {conversationId.slice(0, 10)}…
           </span>
         </div>
 
-        <div className="flex items-center space-x-3 text-xs text-slate-400 font-mono">
+        <div className="flex items-center space-x-3 text-xs text-slate-300 font-mono">
           <button
             type="button"
             onClick={() => store.togglePanel("left")}
             aria-pressed={state.leftPanel.visible}
-            className="rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 px-2.5 py-1 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-colors"
+            className="rounded-md bg-slate-800/80 hover:bg-slate-700/90 border border-slate-700/80 px-2.5 py-1 text-xs text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 active:scale-[0.98] transition-all"
           >
             {state.leftPanel.visible ? "Hide nav" : "Show nav"}
           </button>
@@ -127,13 +132,15 @@ export function WorkspaceShell({
             type="button"
             onClick={() => store.togglePanel("right")}
             aria-pressed={state.rightPanel.visible}
-            className="rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 px-2.5 py-1 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-colors"
+            className="rounded-md bg-slate-800/80 hover:bg-slate-700/90 border border-slate-700/80 px-2.5 py-1 text-xs text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 active:scale-[0.98] transition-all"
           >
             {state.rightPanel.visible ? "Hide inspector" : "Show inspector"}
           </button>
-          <span>IPC: {healthStatus}</span>
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-slate-800/50 border border-slate-700/50 text-[11px]">
+            IPC: {healthStatus}
+          </span>
           {isStreaming && (
-            <span className="inline-flex items-center text-amber-400 animate-pulse">
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-950/60 border border-amber-800/50 text-amber-400 font-medium animate-pulse text-[11px]">
               ● streaming
             </span>
           )}

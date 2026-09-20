@@ -24,25 +24,30 @@ export function WorkspaceInspector({
   return (
     <aside
       aria-label="Context inspector"
-      className="flex h-full flex-col px-3 py-4 space-y-4 overflow-y-auto text-xs"
+      className="flex h-full flex-col px-3.5 py-4 space-y-4 overflow-y-auto text-xs text-slate-200"
     >
-      <section aria-label="Selected task">
-        <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-1.5">
+      <section
+        aria-label="Selected task"
+        className="rounded-lg bg-slate-900/50 border border-slate-800/80 p-3 shadow-sm"
+      >
+        <p className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold mb-2">
           Task
         </p>
         {!activeTask ? (
-          <p className="text-slate-500">No task selected. Select one in Tasks.</p>
+          <p className="text-slate-500 italic text-[11px]">
+            No task selected. Select one in Tasks.
+          </p>
         ) : (
-          <div className="rounded-lg bg-slate-800/60 p-2">
-            <div className="flex items-center justify-between mb-1">
-              <span className="rounded bg-slate-700 px-1.5 py-0.5 text-[10px] text-slate-300 font-mono">
+          <div className="rounded-md bg-slate-800/60 border border-slate-700/50 p-2.5">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="rounded bg-slate-700/80 px-2 py-0.5 text-[10px] text-slate-200 font-mono">
                 {activeTask.kind} · {activeTask.taskId.slice(0, 8)}… · {activeTask.status}
               </span>
               {isTaskRunning(activeTask.status) && (
                 <button
                   type="button"
                   onClick={() => onCancelTask(activeTask.kind, activeTask.taskId)}
-                  className="rounded px-1.5 py-0.5 text-[10px] font-medium bg-rose-900/60 hover:bg-rose-800 text-rose-200"
+                  className="rounded px-2 py-0.5 text-[10px] font-medium bg-rose-950/80 hover:bg-rose-900 border border-rose-800/50 text-rose-300 transition-colors"
                 >
                   Cancel
                 </button>
@@ -53,62 +58,74 @@ export function WorkspaceInspector({
         )}
       </section>
 
-      <section aria-label="Conversation context">
-        <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-1.5">
+      <section
+        aria-label="Conversation context"
+        className="rounded-lg bg-slate-900/50 border border-slate-800/80 p-3 shadow-sm"
+      >
+        <p className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold mb-2">
           Conversation
         </p>
-        <p className="text-slate-300 font-mono text-[11px] break-all">
+        <p className="text-slate-200 font-mono text-[11px] break-all bg-slate-950/60 p-1.5 rounded border border-slate-800/60">
           {activeConversationId ?? "none"}
         </p>
-        <p className="text-slate-500 mt-1">
-          Project: <span className="font-mono text-slate-300">{activeProjectId}</span>
+        <p className="text-slate-400 mt-2 text-[11px]">
+          Project: <span className="font-mono text-slate-200">{activeProjectId}</span>
         </p>
       </section>
 
-      <section aria-label="Recent activity">
-        <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-1.5">
+      <section
+        aria-label="Recent activity"
+        className="rounded-lg bg-slate-900/50 border border-slate-800/80 p-3 shadow-sm"
+      >
+        <p className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold mb-2">
           Recent activity
         </p>
         {activity.length === 0 ? (
-          <p className="text-slate-500">No activity yet.</p>
+          <p className="text-slate-500 italic text-[11px]">No activity yet.</p>
         ) : (
-          <ul className="space-y-1">
+          <ul className="space-y-1.5">
             {activity.slice(-8).map((e) => (
-              <li key={e.key} className="flex items-baseline space-x-2">
+              <li key={e.key} className="flex items-baseline space-x-2 text-[11px]">
                 <span className="text-slate-500 font-mono text-[10px] shrink-0">{e.time}</span>
-                <span className="text-slate-300">{e.label}</span>
+                <span className="text-slate-300 leading-tight">{e.label}</span>
               </li>
             ))}
           </ul>
         )}
       </section>
 
-      <section aria-label="Touched files">
-        <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-1.5">
+      <section
+        aria-label="Touched files"
+        className="rounded-lg bg-slate-900/50 border border-slate-800/80 p-3 shadow-sm"
+      >
+        <p className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold mb-2">
           Files
         </p>
         {files.length === 0 ? (
-          <p className="text-slate-500">No files touched yet.</p>
+          <p className="text-slate-500 italic text-[11px]">No files touched yet.</p>
         ) : (
           <ul className="space-y-1">
             {files.slice(-8).map((f) => (
-              <li key={f.path} className="font-mono text-slate-300 break-all">
+              <li key={f.path} className="font-mono text-slate-300 text-[11px] break-all">
                 {f.path}
-                {f.detail && <span className="text-slate-500 ml-1">{f.detail}</span>}
+                {f.detail && <span className="text-slate-500 ml-1">({f.detail})</span>}
               </li>
             ))}
           </ul>
         )}
       </section>
 
-      <section aria-label="Surfaces">
-        <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-1.5">
+      <section
+        aria-label="Surfaces"
+        className="rounded-lg bg-slate-900/50 border border-slate-800/80 p-3 shadow-sm"
+      >
+        <p className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold mb-2">
           Surfaces
         </p>
         {surfaceList.length === 0 ? (
-          <p className="text-slate-500">No surfaces available.</p>
+          <p className="text-slate-500 italic text-[11px]">No surfaces available.</p>
         ) : (
-          <ul className="space-y-1">
+          <ul className="space-y-1.5">
             {surfaceList.map((surface) => {
               const active = surface.instanceId === (selectedSurfaceId ?? null);
               return (
@@ -120,17 +137,17 @@ export function WorkspaceInspector({
                       canSelectSurface && onSelectSurface?.(active ? null : surface.instanceId)
                     }
                     aria-pressed={active}
-                    className={`w-full text-left rounded-lg px-2 py-1.5 transition-colors focus:outline-none focus:ring-1 focus:ring-indigo-500 ${
+                    className={`w-full text-left rounded-md px-2.5 py-2 transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
                       active
-                        ? "bg-indigo-700 text-white font-medium"
-                        : "text-slate-300 hover:bg-slate-800"
+                        ? "bg-indigo-700 text-white font-medium shadow-sm shadow-indigo-600/30"
+                        : "text-slate-300 hover:bg-slate-800/80 hover:text-white"
                     }`}
                   >
                     <span className="block font-mono text-[11px] break-all">
                       {surface.instanceId.slice(0, 8)}… · {surface.kind} · {surface.status}
                     </span>
                     {surface.title && (
-                      <span className="block text-[11px] text-slate-400 truncate">
+                      <span className="block text-[11px] text-slate-400 truncate mt-0.5">
                         {surface.title}
                       </span>
                     )}

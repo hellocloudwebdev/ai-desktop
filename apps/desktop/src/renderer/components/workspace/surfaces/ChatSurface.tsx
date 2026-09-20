@@ -41,9 +41,14 @@ export function ChatSurface({
         className="flex-1 overflow-y-auto px-6 py-4 space-y-4"
       >
         {messages.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center text-center text-slate-500">
-            <p className="text-sm">No messages yet in this conversation.</p>
-            <p className="text-xs mt-1">
+          <div className="flex h-full flex-col items-center justify-center text-center text-slate-400 p-8">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-950/60 border border-indigo-700/40 flex items-center justify-center text-indigo-400 mb-3 shadow-inner">
+              <span className="text-xl font-bold tracking-tight">AI</span>
+            </div>
+            <p className="text-sm font-medium text-slate-300">
+              No messages yet in this conversation.
+            </p>
+            <p className="text-xs mt-1.5 text-slate-500 max-w-sm">
               Send a message below to start streaming with Claude 3.5 Sonnet.
             </p>
           </div>
@@ -59,28 +64,32 @@ export function ChatSurface({
             return (
               <div key={msg.id} className={`flex flex-col ${isUser ? "items-end" : "items-start"}`}>
                 <div
-                  className={`max-w-2xl rounded-2xl px-4 py-3 shadow-md ${
+                  className={`max-w-2xl px-4.5 py-3.5 shadow-md transition-all ${
                     isUser
-                      ? "bg-indigo-600 text-white"
-                      : "bg-slate-900 border border-slate-800 text-slate-100"
+                      ? "bg-indigo-600/95 text-white rounded-2xl rounded-tr-xs border border-indigo-500/30 shadow-indigo-950/30"
+                      : "bg-slate-900/85 backdrop-blur-md border border-slate-800/90 rounded-2xl rounded-tl-xs text-slate-100 shadow-black/25"
                   }`}
                 >
                   <div className="flex items-center space-x-2 mb-1.5 text-xs">
-                    <span className="font-semibold uppercase tracking-wider text-slate-300">
+                    <span
+                      className={`font-semibold uppercase tracking-wider text-[10px] px-1.5 py-0.5 rounded ${
+                        isUser ? "bg-indigo-700/80 text-indigo-100" : "bg-slate-800 text-slate-300"
+                      }`}
+                    >
                       {isUser ? "You" : "Assistant"}
                     </span>
                     {msg.status === "streaming" && (
-                      <span className="text-amber-400 text-[10px] animate-pulse">
+                      <span className="text-amber-400 text-[10px] font-medium animate-pulse">
                         [generating…]
                       </span>
                     )}
                     {msg.status === "cancelled" && (
-                      <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] text-amber-300 font-medium">
+                      <span className="rounded bg-amber-500/20 border border-amber-500/30 px-1.5 py-0.5 text-[10px] text-amber-300 font-medium">
                         cancelled
                       </span>
                     )}
                     {msg.status === "failed" && (
-                      <span className="rounded bg-rose-500/20 px-1.5 py-0.5 text-[10px] text-rose-300 font-medium">
+                      <span className="rounded bg-rose-500/20 border border-rose-500/30 px-1.5 py-0.5 text-[10px] text-rose-300 font-medium">
                         failed
                       </span>
                     )}
