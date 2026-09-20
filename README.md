@@ -16,7 +16,7 @@
 
 <p align="center">
   <a href="#-platform-support">Platform Support</a> •
-  <a href="#-installation--running-on-windows">Windows Installation</a> •
+  <a href="#-download--installation-windows">Download & Install</a> •
   <a href="#-features">Features</a> •
   <a href="#-architecture">Architecture</a> •
   <a href="#-verification--quality-gates">Quality Gates</a> •
@@ -53,21 +53,40 @@ All user data, conversation histories, schedules, and memory facts remain local-
 
 ## 💻 Platform Support
 
-| Platform            | Compatibility     | Architecture    | Status                                                      |
-| :------------------ | :---------------- | :-------------- | :---------------------------------------------------------- |
-| **Windows 10 / 11** | ✅ Supported      | `x64` (64-bit)  | Primary development and runtime target                      |
-| **macOS**           | 🚧 In Development | `arm64` / `x64` | Canonical domain contracts ready; desktop packaging pending |
-| **Linux**           | 🚧 In Development | `x64`           | Domain contracts ready; desktop packaging pending           |
-
-> **Release Status Note:** Pre-compiled standalone binary releases (such as `aidesktop-Setup-*.exe`) are not yet published on GitHub Releases. The active and supported method to run, test, and package AI Desktop on Windows is by running or building from source using `pnpm`.
+| Platform            | Compatibility     | Architecture    | Release Status                                                                                        |
+| :------------------ | :---------------- | :-------------- | :---------------------------------------------------------------------------------------------------- |
+| **Windows 10 / 11** | ✅ Supported      | `x64` (64-bit)  | [v0.0.0 NSIS Installer Available](https://github.com/hellocloudwebdev/ai-desktop/releases/tag/v0.0.0) |
+| **macOS**           | 🚧 In Development | `arm64` / `x64` | Canonical domain contracts ready; desktop packaging pending                                           |
+| **Linux**           | 🚧 In Development | `x64`           | Domain contracts ready; desktop packaging pending                                                     |
 
 ---
 
-## 🚀 Installation & Running on Windows
+## 📥 Download & Installation (Windows)
 
-Follow these steps to set up and run AI Desktop on a Windows 10 or 11 machine.
+### 🖥️ Option 1: Install via Pre-Built Windows Installer (Recommended)
 
-### Prerequisites
+Download the official standalone Windows setup package from [GitHub Releases](https://github.com/hellocloudwebdev/ai-desktop/releases/tag/v0.0.0):
+
+- **Direct Installer Download**: **[`AI Desktop-0.0.0-win-x64-setup.exe`](https://github.com/hellocloudwebdev/ai-desktop/releases/download/v0.0.0/AI.Desktop-0.0.0-win-x64-setup.exe)** (~115 MB)
+- **SHA-256 Checksum**: `f911285ad9e1c27aee723fdba088c607f3daf90309aaf88b69864953f4fa6a69`
+- **Release Page**: [AI Desktop v0.0.0 Releases](https://github.com/hellocloudwebdev/ai-desktop/releases/tag/v0.0.0)
+
+#### Installation Steps:
+
+1. Download **`AI Desktop-0.0.0-win-x64-setup.exe`**.
+2. Double-click the installer to launch the setup wizard.
+3. Select your installation folder (per-user installation; no administrative rights required).
+4. Launch **AI Desktop** from the Start Menu or Desktop shortcut.
+
+> **Data Safety Guarantee:** Installing, upgrading, or uninstalling AI Desktop on Windows will **never** overwrite or delete your databases, conversations, or credentials. All local state persists safely in `%APPDATA%\aidesktop` (`deleteAppDataOnUninstall: false`).
+
+---
+
+### 🛠️ Option 2: Build & Run from Source (Windows)
+
+If you are developing or contributing to AI Desktop, follow these steps to run the application from source.
+
+#### Prerequisites
 
 Ensure you have the following installed on your Windows system:
 
@@ -80,9 +99,9 @@ Ensure you have the following installed on your Windows system:
 
 ---
 
-### Step-by-Step Setup
+#### Step-by-Step Setup
 
-#### 1. Clone the repository
+##### 1. Clone the repository
 
 Open PowerShell or Windows Terminal and clone the codebase:
 
@@ -91,7 +110,7 @@ git clone https://github.com/hellocloudwebdev/ai-desktop.git
 cd ai-desktop
 ```
 
-#### 2. Install workspace dependencies
+##### 2. Install workspace dependencies
 
 Install all locked packages and set up workspace links across the monorepo:
 
@@ -99,7 +118,7 @@ Install all locked packages and set up workspace links across the monorepo:
 pnpm install
 ```
 
-#### 3. Run validation gates
+##### 3. Run validation gates
 
 Confirm that the toolchain, Prisma schema, and architectural boundaries pass validation:
 
@@ -108,7 +127,7 @@ pnpm architecture:check
 pnpm typecheck
 ```
 
-#### 4. Launch the application (Development Mode)
+##### 4. Launch the application (Development Mode)
 
 Start the Vite development servers and launch the Electron desktop shell with Hot Module Replacement (HMR):
 
@@ -118,23 +137,15 @@ pnpm dev
 
 The AI Desktop window will open automatically, connected to local development watchers.
 
----
+##### 5. Build your own Windows installer
 
-### 📦 Building a Local Windows Installer (Optional)
-
-If you would like to generate a standalone local Windows installer executable (`.exe` with NSIS setup wizard):
+You can also package your own local Windows NSIS installer at any time:
 
 ```powershell
 pnpm --filter @ai-desktop/desktop dist:win
 ```
 
-This compiles the renderer and Electron processes, generates the ASAR bundle, and outputs the installer to:
-
-```text
-apps/desktop/release/AI Desktop-0.0.0-win-x64-setup.exe
-```
-
-> **Data Safety Guarantee:** Installing, upgrading, or running AI Desktop on Windows will **never** overwrite or delete your databases, conversations, or credentials. All local state persists safely in `%APPDATA%\aidesktop` (`deleteAppDataOnUninstall: false`).
+Outputs the setup binary to `apps/desktop/release/AI Desktop-0.0.0-win-x64-setup.exe`.
 
 ---
 
