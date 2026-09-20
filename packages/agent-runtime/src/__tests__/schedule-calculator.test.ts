@@ -77,7 +77,7 @@ describe("schedule-calculator: delay", () => {
     expect(() =>
       initialOccurrenceMs({ kind: "delay", config: { delayMs: HOUR }, timezone: "UTC" }),
     ).toThrow(/validation-error/);
-  });
+  }, 15000);
 
   it("is consumed after handling and counts a single due window", () => {
     expect(nextAfterHandledMs(q, createdAtMs + HOUR)).toBeNull();

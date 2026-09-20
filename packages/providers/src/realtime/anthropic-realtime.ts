@@ -28,10 +28,12 @@ export class AnthropicRealtimeProvider implements RealtimeProvider {
    * (verified by grep — zero "realtime|websocket" hits in its .d.ts).
    */
   supportsRealtime(_model: ModelDefinition): boolean {
+    void _model;
     return false;
   }
 
   getCapabilities(_model: ModelDefinition): ProviderRealtimeCapabilities {
+    void _model;
     return unsupportedRealtimeCapabilities();
   }
 

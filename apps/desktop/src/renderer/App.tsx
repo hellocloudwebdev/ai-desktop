@@ -15,6 +15,7 @@ import {
   invokeSurfaceAction,
 } from "./workspace/surfaces.js";
 import { WorkspaceShell } from "./components/workspace/Workspace.js";
+import { UpdateBanner, type UpdateBannerState } from "./components/UpdateBanner.js";
 import type {
   ActivityEventView,
   AttachmentFileView,
@@ -50,6 +51,59 @@ export function App(): React.ReactElement {
   const [activeMessageId, setActiveMessageId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [healthStatus, setHealthStatus] = useState<string>("checking...");
+  // PR47: update banner state (display only; execution stays main-side).
+  const [updateState, setUpdateState] = useState<UpdateBannerState>("idle");
+  const [updateVersion, setUpdateVersion] = useState<string | null>(null);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+
+  const applyUpdateSnapshot = useCallback(
+    (snapshot: { state: string; version?: string; error?: string }) => {
+      const allowed: ReadonlyArray<UpdateBannerState> = [
+        "idle",
+        "checking",
+        "available",
+        "downloading",
+        "verifying",
+        "downloaded",
+        "ready",
+        "installing",
+        "updated",
+        "up-to-date",
+        "failed",
+      ];
+      const next = allowed.includes(snapshot.state as UpdateBannerState)
+        ? (snapshot.state as UpdateBannerState)
+        : "idle";
+      setUpdateState(next);
+      setUpdateVersion(typeof snapshot.version === "string" ? snapshot.version : null);
+      setUpdateError(typeof snapshot.error === "string" ? snapshot.error : null);
+    },
+    [],
+  );
+
+  const handleUpdateCheck = useCallback(() => {
+    if (typeof window === "undefined" || !window.api?.updates) return;
+    window.api.updates
+      .checkForUpdates()
+      .then(applyUpdateSnapshot)
+      .catch(() => setUpdateState("failed"));
+  }, [applyUpdateSnapshot]);
+
+  const handleUpdateDownload = useCallback(() => {
+    if (typeof window === "undefined" || !window.api?.updates) return;
+    window.api.updates
+      .downloadUpdate()
+      .then(applyUpdateSnapshot)
+      .catch(() => setUpdateState("failed"));
+  }, [applyUpdateSnapshot]);
+
+  const handleUpdateInstall = useCallback(() => {
+    if (typeof window === "undefined" || !window.api?.updates) return;
+    window.api.updates
+      .quitAndInstall()
+      .then(applyUpdateSnapshot)
+      .catch(() => setUpdateState("failed"));
+  }, [applyUpdateSnapshot]);
   const [availableModels, setAvailableModels] = useState<ModelDefinition[]>([]);
   const [selectedModelId, setSelectedModelId] = useState<string>("");
   const [pendingPermissions, setPendingPermissions] = useState<PermissionRequest[]>([]);
@@ -1293,6 +1347,17 @@ export function App(): React.ReactElement {
       setHealthStatus(res.ok ? "healthy" : "offline");
     });
 
+    // PR47: subscribe to update state broadcasts (guarded; no-op without bridge).
+    let unsubscribeUpdates: (() => void) | null = null;
+    try {
+      const updates = window.api.updates;
+      if (updates) {
+        unsubscribeUpdates = updates.onUpdateState(applyUpdateSnapshot);
+      }
+    } catch {
+      // Update subscription is best-effort.
+    }
+
     // PR22: Load available models across providers
     window.api.commands.listProviderModels().then((res) => {
       if (res.ok && res.value.models) {
@@ -1376,8 +1441,15 @@ export function App(): React.ReactElement {
       if (unsubscribeFn) {
         unsubscribeFn();
       }
+      if (unsubscribeUpdates) {
+        try {
+          unsubscribeUpdates();
+        } catch {
+          // Best-effort.
+        }
+      }
     };
-  }, [conversationId, handleStreamEvent]);
+  }, [conversationId, handleStreamEvent, applyUpdateSnapshot]);
 
   // Model selection change handler (§42 / PR22.10)
   const handleModelChange = async (newModelId: string) => {
@@ -1679,205 +1751,219 @@ export function App(): React.ReactElement {
       : null;
 
   return (
-    <WorkspaceShell
-      store={workspace}
-      conversationId={conversationId}
-      healthStatus={healthStatus}
-      isStreaming={isStreaming}
-      surfaceHost={{
-        surfaceView: selectedSurfaceView,
-        onSurfaceAction: (actionId, input) => void handleSurfaceAction(actionId, input),
-        onSurfaceDispose: (instanceId) => void handleSurfaceDispose(instanceId),
-      }}
-      sidebar={{
-        activeSurface: workspace.state.activeSurface,
-        activeProjectId: workspace.state.activeProjectId,
-        conversationId,
-        agentActiveCount: agentTasks.filter((t) => t.status === "active" || t.status === "blocked")
-          .length,
-        codingActiveCount: codingTasks.filter(
-          (t) => t.status === "active" || t.status === "blocked",
-        ).length,
-        leftVisible: workspace.state.leftPanel.visible,
-        rightVisible: workspace.state.rightPanel.visible,
-        onSelectSurface: workspace.selectSurface,
-        onSelectProject: (projectId) => {
-          workspace.selectProject(projectId);
-          setCodingProjectId(projectId);
-        },
-        onToggleLeft: () => workspace.togglePanel("left"),
-        onToggleRight: () => workspace.togglePanel("right"),
-        availableModels,
-        selectedModelId,
-        isStreaming,
-        onModelChange: (modelId) => void handleModelChange(modelId),
-        skills,
-        memories,
-        onToggleSkill: (skillId, enabled) => void handleToggleSkill(skillId, enabled),
-        onDeleteMemory: (factId) => void handleDeleteMemory(factId),
-        extensionsSummary: {
-          total: extensions.length,
-          active: extensions.filter((e) => e.lifecycle === "enabled" || e.lifecycle === "active")
-            .length,
-        },
-      }}
-      chat={{
-        messages,
-        errorMessage,
-        pendingPermissions,
-        messagesEndRef,
-        renderMessageText,
-        onResolvePermission: (requestId, decision, mode) =>
-          void handleResolvePermission(requestId, decision, mode),
-      }}
-      coding={{
-        codingTasks,
-        codingPrompt,
-        codingProjectId,
-        codingRunning,
-        onPromptChange: setCodingPrompt,
-        onProjectChange: (projectId) => {
-          setCodingProjectId(projectId);
-          workspace.selectProject(projectId);
-        },
-        onStart: () => void handleStartCodingTask(),
-        onCancel: (taskId) => void handleCancelCodingTask(taskId),
-      }}
-      codingWorkspace={{
-        activeProjectId: workspace.state.activeProjectId,
-        files: workspaceFiles,
-        tabs: workspaceTabs,
-        activeTabPath: activeWorkspaceTab,
-        search: workspaceSearch,
-        diagnostics: workspaceDiagnostics,
-        terminals: workspaceTerminals,
-        terminalOutput: workspaceTerminalOutput,
-        diff: workspaceDiff,
-        codingTasks,
-        codingPrompt,
-        codingRunning,
-        workspaceError,
-        onRefreshFiles: () => void refreshWorkspaceFiles(),
-        onOpenFile: (path) => void handleOpenWorkspaceFile(path),
-        onCloseTab: handleCloseWorkspaceTab,
-        onSelectTab: setActiveWorkspaceTab,
-        onEditTab: handleEditWorkspaceTab,
-        onSaveFile: (path) => void handleSaveWorkspaceFile(path),
-        onSaveAllFiles: () => void handleSaveAllWorkspaceFiles(),
-        onRevertFile: (path) => void handleRevertWorkspaceFile(path),
-        onSearch: (query) => void handleWorkspaceSearch(query),
-        onTerminalCreate: (command) => void handleTerminalCreate(command),
-        onTerminalStop: (id) => void handleTerminalStop(id),
-        onPromptChange: setCodingPrompt,
-        onProjectChange: (projectId) => {
-          setCodingProjectId(projectId);
-          workspace.selectProject(projectId);
-        },
-        onStartTask: () => void handleStartCodingTask(),
-        onCancelTask: (taskId) => void handleCancelCodingTask(taskId),
-      }}
-      tasks={{
-        agentTasks,
-        codingTasks,
-        activeTaskId: workspace.state.activeTaskId,
-        agentGoal,
-        agentRunning,
-        onSelectTask: workspace.selectTask,
-        onCancelAgent: (taskId) => void handleCancelAgentTask(taskId),
-        onCancelCoding: (taskId) => void handleCancelCodingTask(taskId),
-        onAgentGoalChange: setAgentGoal,
-        onStartAgent: () => void handleStartAgentTask(),
-      }}
-      activity={activityEvents}
-      files={touchedFiles}
-      documents={projectDocuments}
-      selectedDocument={selectedDocument}
-      onSelectDocument={(documentId) => void handleSelectDocument(documentId)}
-      documentsError={documentsError}
-      attachments={projectAttachments}
-      selectedAttachmentPreview={selectedAttachmentPreview}
-      onPreviewAttachment={(attachmentId) => void handlePreviewAttachment(attachmentId)}
-      attachmentsError={attachmentsError}
-      onUploadAttachment={(file) => void handleUploadAttachment(file)}
-      onDeleteAttachment={(attachmentId) => void handleDeleteAttachment(attachmentId)}
-      extensions={{
-        extensions,
-        activeProjectId: workspace.state.activeProjectId,
-        selectedExtensionId,
-        onSelectExtension: handleSelectExtension,
-        onEnable: (extensionId) => void handleEnableExtension(extensionId),
-        onDisable: (extensionId) => void handleDisableExtension(extensionId),
-        onProjectToggle: (extensionId, enabled) =>
-          void handleExtensionProjectToggle(extensionId, enabled),
-      }}
-      browser={{
-        activeProjectId: workspace.state.activeProjectId,
-        pages: browserPages,
-        activePageId: activeBrowserPageId,
-        onSelectPage: setActiveBrowserPageId,
-        onOpenPage: (url) => void handleOpenBrowserPage(url),
-        onClosePage: (pageId) => void handleCloseBrowserPage(pageId),
-        onTakeScreenshot: (pageId) => void handleTakeScreenshot(pageId),
-        screenshotArtifact: browserScreenshot,
-      }}
-      mcp={{
-        servers: mcpServers,
-        activeProjectId: workspace.state.activeProjectId,
-        selectedServerId: selectedMcpServerId,
-        onSelectServer: setSelectedMcpServerId,
-        onDisconnect: (serverId) => void handleDisconnectMcpServer(serverId),
-      }}
-      voice={{
-        activeProjectId: workspace.state.activeProjectId,
-        session: voiceSession,
-        partialTranscript: voicePartial,
-        finalTranscripts: voiceFinals,
-        isWorking: voiceWorking,
-        error: voiceError,
-        onStart: () => void handleStartVoice(),
-        onInterrupt: () => void handleInterruptVoice(),
-        onStop: () => void handleStopVoice(),
-      }}
-      research={{
-        activeProjectId: workspace.state.activeProjectId,
-        results: researchResults,
-        activeResultUrl: activeResearchUrl,
-        openedDocument: researchDocument,
-        providerStatuses: researchProviders,
-        isSearching: researchSearching,
-        searchError: researchError,
-        onSearch: (query) => void handleResearchSearch(query),
-        onOpenResult: (url) => void handleResearchOpen(url),
-        onOpenInBrowser: (url) => void handleOpenBrowserPage(url),
-      }}
-      inspector={{
-        activeTask: activeTaskEntry,
-        activeConversationId: conversationId,
-        activeProjectId: workspace.state.activeProjectId,
-        files: touchedFiles,
-        activity: activityEvents,
-        onCancelTask: (kind, taskId) => {
-          if (kind === "agent") void handleCancelAgentTask(taskId);
-          else void handleCancelCodingTask(taskId);
-        },
-        surfaces,
-        selectedSurfaceId: workspace.state.selectedSurfaceId,
-        onSelectSurface: (id) => workspace.selectSurfaceInstance(id),
-      }}
-      composer={{
-        activeSurface: workspace.state.activeSurface,
-        inputText,
-        codingPrompt,
-        isStreaming,
-        codingRunning,
-        activeProjectId: workspace.state.activeProjectId,
-        onInputChange: setInputText,
-        onCodingPromptChange: setCodingPrompt,
-        onSend: (e) => void handleSend(e),
-        onCancel: () => void handleCancel(),
-        onStartCoding: () => void handleStartCodingTask(),
-      }}
-    />
+    <>
+      {/* PR47: update banner (guarded: hidden when bridge is absent). */}
+      {typeof window !== "undefined" && window.api?.updates ? (
+        <UpdateBanner
+          state={updateState}
+          version={updateVersion}
+          error={updateError}
+          onCheck={handleUpdateCheck}
+          onDownload={handleUpdateDownload}
+          onInstall={handleUpdateInstall}
+        />
+      ) : null}
+      <WorkspaceShell
+        store={workspace}
+        conversationId={conversationId}
+        healthStatus={healthStatus}
+        isStreaming={isStreaming}
+        surfaceHost={{
+          surfaceView: selectedSurfaceView,
+          onSurfaceAction: (actionId, input) => void handleSurfaceAction(actionId, input),
+          onSurfaceDispose: (instanceId) => void handleSurfaceDispose(instanceId),
+        }}
+        sidebar={{
+          activeSurface: workspace.state.activeSurface,
+          activeProjectId: workspace.state.activeProjectId,
+          conversationId,
+          agentActiveCount: agentTasks.filter(
+            (t) => t.status === "active" || t.status === "blocked",
+          ).length,
+          codingActiveCount: codingTasks.filter(
+            (t) => t.status === "active" || t.status === "blocked",
+          ).length,
+          leftVisible: workspace.state.leftPanel.visible,
+          rightVisible: workspace.state.rightPanel.visible,
+          onSelectSurface: workspace.selectSurface,
+          onSelectProject: (projectId) => {
+            workspace.selectProject(projectId);
+            setCodingProjectId(projectId);
+          },
+          onToggleLeft: () => workspace.togglePanel("left"),
+          onToggleRight: () => workspace.togglePanel("right"),
+          availableModels,
+          selectedModelId,
+          isStreaming,
+          onModelChange: (modelId) => void handleModelChange(modelId),
+          skills,
+          memories,
+          onToggleSkill: (skillId, enabled) => void handleToggleSkill(skillId, enabled),
+          onDeleteMemory: (factId) => void handleDeleteMemory(factId),
+          extensionsSummary: {
+            total: extensions.length,
+            active: extensions.filter((e) => e.lifecycle === "enabled" || e.lifecycle === "active")
+              .length,
+          },
+        }}
+        chat={{
+          messages,
+          errorMessage,
+          pendingPermissions,
+          messagesEndRef,
+          renderMessageText,
+          onResolvePermission: (requestId, decision, mode) =>
+            void handleResolvePermission(requestId, decision, mode),
+        }}
+        coding={{
+          codingTasks,
+          codingPrompt,
+          codingProjectId,
+          codingRunning,
+          onPromptChange: setCodingPrompt,
+          onProjectChange: (projectId) => {
+            setCodingProjectId(projectId);
+            workspace.selectProject(projectId);
+          },
+          onStart: () => void handleStartCodingTask(),
+          onCancel: (taskId) => void handleCancelCodingTask(taskId),
+        }}
+        codingWorkspace={{
+          activeProjectId: workspace.state.activeProjectId,
+          files: workspaceFiles,
+          tabs: workspaceTabs,
+          activeTabPath: activeWorkspaceTab,
+          search: workspaceSearch,
+          diagnostics: workspaceDiagnostics,
+          terminals: workspaceTerminals,
+          terminalOutput: workspaceTerminalOutput,
+          diff: workspaceDiff,
+          codingTasks,
+          codingPrompt,
+          codingRunning,
+          workspaceError,
+          onRefreshFiles: () => void refreshWorkspaceFiles(),
+          onOpenFile: (path) => void handleOpenWorkspaceFile(path),
+          onCloseTab: handleCloseWorkspaceTab,
+          onSelectTab: setActiveWorkspaceTab,
+          onEditTab: handleEditWorkspaceTab,
+          onSaveFile: (path) => void handleSaveWorkspaceFile(path),
+          onSaveAllFiles: () => void handleSaveAllWorkspaceFiles(),
+          onRevertFile: (path) => void handleRevertWorkspaceFile(path),
+          onSearch: (query) => void handleWorkspaceSearch(query),
+          onTerminalCreate: (command) => void handleTerminalCreate(command),
+          onTerminalStop: (id) => void handleTerminalStop(id),
+          onPromptChange: setCodingPrompt,
+          onProjectChange: (projectId) => {
+            setCodingProjectId(projectId);
+            workspace.selectProject(projectId);
+          },
+          onStartTask: () => void handleStartCodingTask(),
+          onCancelTask: (taskId) => void handleCancelCodingTask(taskId),
+        }}
+        tasks={{
+          agentTasks,
+          codingTasks,
+          activeTaskId: workspace.state.activeTaskId,
+          agentGoal,
+          agentRunning,
+          onSelectTask: workspace.selectTask,
+          onCancelAgent: (taskId) => void handleCancelAgentTask(taskId),
+          onCancelCoding: (taskId) => void handleCancelCodingTask(taskId),
+          onAgentGoalChange: setAgentGoal,
+          onStartAgent: () => void handleStartAgentTask(),
+        }}
+        activity={activityEvents}
+        files={touchedFiles}
+        documents={projectDocuments}
+        selectedDocument={selectedDocument}
+        onSelectDocument={(documentId) => void handleSelectDocument(documentId)}
+        documentsError={documentsError}
+        attachments={projectAttachments}
+        selectedAttachmentPreview={selectedAttachmentPreview}
+        onPreviewAttachment={(attachmentId) => void handlePreviewAttachment(attachmentId)}
+        attachmentsError={attachmentsError}
+        onUploadAttachment={(file) => void handleUploadAttachment(file)}
+        onDeleteAttachment={(attachmentId) => void handleDeleteAttachment(attachmentId)}
+        extensions={{
+          extensions,
+          activeProjectId: workspace.state.activeProjectId,
+          selectedExtensionId,
+          onSelectExtension: handleSelectExtension,
+          onEnable: (extensionId) => void handleEnableExtension(extensionId),
+          onDisable: (extensionId) => void handleDisableExtension(extensionId),
+          onProjectToggle: (extensionId, enabled) =>
+            void handleExtensionProjectToggle(extensionId, enabled),
+        }}
+        browser={{
+          activeProjectId: workspace.state.activeProjectId,
+          pages: browserPages,
+          activePageId: activeBrowserPageId,
+          onSelectPage: setActiveBrowserPageId,
+          onOpenPage: (url) => void handleOpenBrowserPage(url),
+          onClosePage: (pageId) => void handleCloseBrowserPage(pageId),
+          onTakeScreenshot: (pageId) => void handleTakeScreenshot(pageId),
+          screenshotArtifact: browserScreenshot,
+        }}
+        mcp={{
+          servers: mcpServers,
+          activeProjectId: workspace.state.activeProjectId,
+          selectedServerId: selectedMcpServerId,
+          onSelectServer: setSelectedMcpServerId,
+          onDisconnect: (serverId) => void handleDisconnectMcpServer(serverId),
+        }}
+        voice={{
+          activeProjectId: workspace.state.activeProjectId,
+          session: voiceSession,
+          partialTranscript: voicePartial,
+          finalTranscripts: voiceFinals,
+          isWorking: voiceWorking,
+          error: voiceError,
+          onStart: () => void handleStartVoice(),
+          onInterrupt: () => void handleInterruptVoice(),
+          onStop: () => void handleStopVoice(),
+        }}
+        research={{
+          activeProjectId: workspace.state.activeProjectId,
+          results: researchResults,
+          activeResultUrl: activeResearchUrl,
+          openedDocument: researchDocument,
+          providerStatuses: researchProviders,
+          isSearching: researchSearching,
+          searchError: researchError,
+          onSearch: (query) => void handleResearchSearch(query),
+          onOpenResult: (url) => void handleResearchOpen(url),
+          onOpenInBrowser: (url) => void handleOpenBrowserPage(url),
+        }}
+        inspector={{
+          activeTask: activeTaskEntry,
+          activeConversationId: conversationId,
+          activeProjectId: workspace.state.activeProjectId,
+          files: touchedFiles,
+          activity: activityEvents,
+          onCancelTask: (kind, taskId) => {
+            if (kind === "agent") void handleCancelAgentTask(taskId);
+            else void handleCancelCodingTask(taskId);
+          },
+          surfaces,
+          selectedSurfaceId: workspace.state.selectedSurfaceId,
+          onSelectSurface: (id) => workspace.selectSurfaceInstance(id),
+        }}
+        composer={{
+          activeSurface: workspace.state.activeSurface,
+          inputText,
+          codingPrompt,
+          isStreaming,
+          codingRunning,
+          activeProjectId: workspace.state.activeProjectId,
+          onInputChange: setInputText,
+          onCodingPromptChange: setCodingPrompt,
+          onSend: (e) => void handleSend(e),
+          onCancel: () => void handleCancel(),
+          onStartCoding: () => void handleStartCodingTask(),
+        }}
+      />
+    </>
   );
 }
 

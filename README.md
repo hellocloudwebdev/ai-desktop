@@ -1,6 +1,6 @@
 # ai-desktop
 
-A desktop AI assistant. This repository is currently at **PR45 — Accounts & Cross-Device Sync**:
+A desktop AI assistant. This repository is currently at **PR47 — Packaging, Updater & Production Release**:
 shared primitives, canonical AI domain contracts, projections, in-process EventBus,
 permission checkpoint, SQLite WAL event repository, OS-backed credential store, canonical
 provider contracts, concrete `AnthropicAdapter`, concrete `GeminiAdapter`, Electron 44 desktop
@@ -187,7 +187,20 @@ panels, explicit Keep local / Keep remote conflict buttons, sign-out
 preserves-local-data note with delete≠wipe), new `"account"` surface with
 sidebar attention dot, single bounded 2 s poll with re-query on mount and no
 renderer-local truth, and unit/integration/security/persistence/E2E tests
-with decision record `docs/decisions/ADR-017-accounts-sync.md`) are
+with decision record `docs/decisions/ADR-017-accounts-sync.md`), and the
+Packaging, Updater & Production Release foundation (PR47: deterministic
+production build excluding dev-only dependencies/sourcemaps/secrets, validated
+production configuration layer in `production-config.ts` rejecting dev-flags and
+secret-bearing keys, stable cross-platform application identity, multi-platform
+packaging configuration via electron-builder for Windows NSIS x64, macOS DMG,
+and Linux AppImage, installer data preservation contracts with non-destructive
+uninstalls, versioned application data directory and idempotent database migration
+pipeline in `app-data.ts` with backup retention, redacted diagnostic reporting in
+`diagnostics.ts`, production startup smoke checks in `smoke.ts`, secure fail-closed
+auto-updater orchestration via `SecureUpdateService` over HTTPS with host allowlists
+and SHA-256 verification, narrow typed update IPC bridge and `UpdateBanner` UI,
+sidecar checksum and artifact validation tooling in `scripts/release/`, and
+production CI release workflow with code signing integration in `.github/workflows/release.yml`) are
 implemented. Future packages remain empty shells awaiting their respective
 implementation PRs — see [docs/architecture/phase-0.md](docs/architecture/phase-0.md) for the honest list of what is
 and is not implemented.

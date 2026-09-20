@@ -44,7 +44,8 @@ function makeRoot(): string {
 
 class AllowAllPermissions implements PermissionManager {
   async check(request: PermissionCheck): Promise<PermissionDecisionResult> {
-    void request; return { kind: "allow" };
+    void request;
+    return { kind: "allow" };
   }
   async resolve(): Promise<boolean> {
     return true;

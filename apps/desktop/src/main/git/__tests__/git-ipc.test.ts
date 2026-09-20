@@ -97,10 +97,10 @@ describe("apps/desktop: git IPC dispatch (PR42)", () => {
     });
     expect(staged.ok).toBe(true);
 
-    const unstaged = await registry.invokeCommand<{ result: unknown }>(
-      IPC_CHANNELS.GIT_UNSTAGE,
-      { projectId: "proj-1", paths: ["a.txt"] },
-    );
+    const unstaged = await registry.invokeCommand<{ result: unknown }>(IPC_CHANNELS.GIT_UNSTAGE, {
+      projectId: "proj-1",
+      paths: ["a.txt"],
+    });
     expect(unstaged.ok).toBe(true);
 
     const committed = await registry.invokeCommand<{ result: unknown }>(IPC_CHANNELS.GIT_COMMIT, {

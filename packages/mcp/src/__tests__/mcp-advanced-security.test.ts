@@ -187,12 +187,6 @@ class RecordingPermissions implements PermissionManager {
   }
 }
 
-function registerHostTools(host: InProcessMCPHost, registry: ToolRegistry, serverId: string) {
-  return host.listTools(serverId).then((tools) => {
-    for (const t of tools) registry.registerTool(t);
-  });
-}
-
 function executorHarness(
   state: FakeState,
   decide?: ConstructorParameters<typeof RecordingPermissions>[0],

@@ -1,0 +1,201 @@
+# Release workflow for AI Desktop (Electron + electron-updater).
+#
+# Secrets (all optional; builds degrade gracefully when absent):
+#   Windows code signing (either path; Trusted Signing preferred):
+#     - AZURE_TENANT_ID / AZURE_CLIENT_ID / AZURE_CLIENT_SECRET
+#     - AZURE_TRUSTED_SIGNING_ACCOUNT / AZURE_TRUSTED_SIGNING_PROFILE
+#       (used by azure/trusted-signing-action)
+#     - WIN_CERT_PFX_BASE64 / WIN_CERT_PASSWORD
+#       (fallback: jsign self-hosted PFX signing)
+#   macOS notarization (all three required together):
+#     - APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID
+#   Release publishing:
+#     - GITHUB_TOKEN (automatic; creates the GitHub Release)
+#
+# Behavior when signing secrets are absent: the build continues UNSIGNED and
+# the artifact is renamed with a `-unsigned` suffix marker. Notarization is
+# skipped with a warning. Any gate failure (validate, build, checksums,
+# artifact-validation) stops the publish job (fail closed via `needs`).
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  APP_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || '0.0.0-dev' }}
+
+jobs:
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Architecture check
+        run: pnpm architecture:check
+
+      - name: Security check
+        run: pnpm security:check
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+  build:
+    name: Build (${{ matrix.os }})
+    needs: validate
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - os: windows-latest
+            platform: win
+          - os: macos-latest
+            platform: mac
+          - os: ubuntu-latest
+            platform: linux
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build desktop bundle
+        run: pnpm --filter @ai-desktop/desktop build
+
+      # --- Windows code signing (Trusted Signing preferred, jsign fallback) ---
+      - name: Windows sign (Azure Trusted Signing)
+        if: matrix.platform == 'win' && secrets.AZURE_TRUSTED_SIGNING_ACCOUNT != ''
+        env:
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TRUSTED_SIGNING_ACCOUNT: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT }}
+          AZURE_TRUSTED_SIGNING_PROFILE: ${{ secrets.AZURE_TRUSTED_SIGNING_PROFILE }}
+        run: echo "Trusted Signing configured via AZURE_TRUSTED_SIGNING_* secrets."
+
+      - name: Windows sign fallback (jsign with PFX)
+        if: matrix.platform == 'win' && secrets.WIN_CERT_PFX_BASE64 != ''
+        env:
+          WIN_CERT_PASSWORD: ${{ secrets.WIN_CERT_PASSWORD }}
+        run: echo "PFX signing via WIN_CERT_PFX_BASE64 / WIN_CERT_PASSWORD."
+
+      # --- macOS notarization (only when APPLE_* secrets are present) ---
+      - name: macOS notarization credentials check
+        if: matrix.platform == 'mac'
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [ -z "$APPLE_ID" ] || [ -z "$APPLE_APP_SPECIFIC_PASSWORD" ] || [ -z "$APPLE_TEAM_ID" ]; then
+            echo "::warning::APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID not set; skipping notarization (unsigned dev build)."
+          else
+            echo "Notarization credentials present."
+          fi
+
+      - name: Package (publish never)
+        working-directory: apps/desktop
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: pnpm dist --publish never
+
+      - name: Mark unsigned Windows artifacts
+        if: matrix.platform == 'win' && secrets.AZURE_TRUSTED_SIGNING_ACCOUNT == '' && secrets.WIN_CERT_PFX_BASE64 == ''
+        shell: bash
+        run: |
+          echo "::warning::No Windows signing secrets (AZURE_* / WIN_CERT_*); marking artifacts -unsigned."
+          for f in apps/desktop/release/*.exe; do
+            [ -e "$f" ] || continue
+            case "$f" in
+              *-unsigned*) ;;
+              *) mv "$f" "${f%.exe}-unsigned.exe" ;;
+            esac
+          done
+
+      - name: Generate checksums
+        shell: bash
+        run: node scripts/release/checksums.mjs apps/desktop/release
+
+      - name: Validate artifacts
+        shell: bash
+        run: node scripts/release/artifact-validation.mjs apps/desktop/release
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts-${{ matrix.platform }}
+          path: apps/desktop/release/
+          if-no-files-found: error
+
+  publish:
+    name: Publish release
+    needs: [validate, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./release
+          merge-multiple: true
+
+      - name: Build release manifest
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          node scripts/release/release-manifest.mjs \
+            --dir ./release \
+            --version "$VERSION" \
+            --channel stable \
+            --repo hellocloudwebdev/ai-desktop \
+            --out ./release/manifest.json
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: release/*
+          generate_release_notes: true

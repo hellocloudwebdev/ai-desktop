@@ -7,6 +7,9 @@ dist/
 dist-electron/
 build/
 out/
+/release/
+apps/desktop/release/
+*.sha256
 
 # tool caches
 .turbo/

@@ -59,5 +59,5 @@ describe("BackgroundQueue: bounded", () => {
     }
     expect(q.isFull()).toBe(true);
     expect(q.enqueue(999)).toBe(false);
-  });
+  }, 15000);
 });

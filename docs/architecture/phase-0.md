@@ -1,11 +1,10 @@
 # Phase 0 — What Exists and What Does Not
 
 This document prevents the repository (and its documentation) from claiming functionality
-that does not exist. It reflects the state after **PR45 (Accounts &
-Cross-Device Sync)** and
+that does not exist. It reflects the state after **PR47 (Packaging, Updater & Production Release)** and
 is updated as each PR lands.
 
-## Implemented (as of PR45)
+## Implemented (as of PR47)
 
 - Repository foundation: pnpm workspace + Turborepo task graph (`build`, `dev`,
   `typecheck`, `lint`, `test`).
@@ -1109,6 +1108,32 @@ run.skipped/run.recovered`, category extension) in the Extension/AI
   audit taxonomy (`SecurityEventSchema`, 11 types, category `extension`)
   in `ai-core` events + `security.test.ts`. README stays at PR45: PR46 is
   hardening, not a product milestone.
+- Packaging, Updater & Production Release foundation (PR47, all layers):
+  - Deterministic production build for `apps/desktop` with Vite/Rolldown/ESBuild
+    excluding development-only dependencies, test fixtures, debug flags, and source maps.
+  - Validated production configuration layer in `apps/desktop/src/main/release/production-config.ts`
+    strictly enforcing `NODE_ENV === "production"` and rejecting dev flags (`VITE_DEV_SERVER_URL`, `DEBUG`)
+    and secret-bearing configuration keys.
+  - Stable cross-platform application identity (`com.aidesktop.app`, `AI Desktop`, `aidesktop`) in `app-identity.ts`.
+  - Multi-platform packaging configuration in `electron-builder.yml` for Windows NSIS x64, macOS DMG (arm64/x64),
+    and Linux AppImage (x64) with non-destructive uninstalls and user data preservation.
+  - Versioned application data directory layout and idempotent database migrations pipeline in `app-data.ts`
+    with automatic backup retention on migration failures.
+  - First-run local directory skeleton initialization in `first-run.ts`.
+  - Secret-redacted diagnostic reporting in `diagnostics.ts`.
+  - Production startup smoke check probes in `smoke.ts`.
+  - Secure auto-update orchestration in `apps/desktop/src/main/updates/`: `SecureUpdateService`, `update-feed.ts`
+    (HTTPS-only, host allowlist, channel gating), `update-types.ts` (Zod validation, semver comparison),
+    and `update-ipc.ts` with narrow typed IPC bridge (`updates:check`, `updates:download`, `updates:install`, `updates:state`).
+  - `UpdateBanner` UI component in `apps/desktop/src/renderer/components/UpdateBanner.tsx` presenting user-facing
+    update states without exposing internal stack traces.
+  - Release verification tooling in `scripts/release/`: `checksums.mjs` (SHA-256 sidecar generation),
+    `artifact-validation.mjs` (fail-closed installer presence, size sanity, manifest validation), and
+    `release-manifest.mjs` (machine-readable JSON release metadata).
+  - CI/CD release workflow in `.github/workflows/release.yml` with multi-platform matrix packaging,
+    code signing (Azure Trusted Signing / jsign fallback / Apple Notarization), and GitHub Release publication.
+  - Full release documentation: `BUILD.md`, `PACKAGING.md`, `SIGNING.md`, `UPDATES.md`, `RELEASE-PROCESS.md`,
+    `TROUBLESHOOTING.md`, and architecture ADR `pr-47-packaging-updater-release.md`.
 - All remaining canonical packages stay **empty shells** (`package.json`, `tsconfig.json`,
   `src/index.ts` placeholder) — deliberately no premature domain functionality inside them.
 - Toolchain: TypeScript 5.9.3, ESLint 10.10.0, Vitest 4.1.10, Vite 8.1.0, Prettier 3.9.6,
@@ -1117,7 +1142,7 @@ run.skipped/run.recovered`, category extension) in the Extension/AI
 
 ## Not yet implemented
 
-- Plugin marketplace, remote registry, auto-update, extension sandbox
+- Plugin marketplace, remote registry, extension sandbox
   process, full MCP Apps runtime, GitHub App integration, cloud plugin sync,
   billing and entitlements (future ecosystem).
 - PR44 non-goals (explicitly out of scope): cron expressions, cloud

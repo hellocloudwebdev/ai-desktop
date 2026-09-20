@@ -1,0 +1,55 @@
+# electron-builder configuration for AI Desktop.
+# Invoked via `pnpm dist*` scripts in apps/desktop/package.json.
+# Publishing (GitHub provider) is used only by the CI release workflow
+# (.github/workflows/release.yml); local builds use `--publish never`.
+appId: com.aidesktop.app
+productName: AI Desktop
+executableName: aidesktop
+asar: true
+directories:
+  output: release
+  buildResources: build
+files:
+  - dist/**
+  - dist-electron/**
+  - package.json
+  - "!**/*.map"
+extraResources:
+  - from: ../../prisma/schema.prisma
+    to: prisma/schema.prisma
+  - from: ../../prisma/migrations
+    to: prisma/migrations
+    filter:
+      - "**/*"
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  artifactName: ${productName}-${version}-win-${arch}.${ext}
+mac:
+  target:
+    - target: dmg
+      arch:
+        - arm64
+        - x64
+  category: public.app-category.productivity
+  artifactName: ${productName}-${version}-mac-${arch}.${ext}
+linux:
+  target:
+    - target: AppImage
+      arch:
+        - x64
+  category: Utility
+  artifactName: ${productName}-${version}-linux-${arch}.${ext}
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  deleteAppDataOnUninstall: false
+  artifactName: ${productName}-${version}-win-${arch}-setup.${ext}
+publish:
+  provider: github
+  owner: hellocloudwebdev
+  repo: ai-desktop
+  channel: stable

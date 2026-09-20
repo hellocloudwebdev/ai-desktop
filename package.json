@@ -15,8 +15,11 @@
     "test": "turbo run test && vitest run",
     "architecture:check": "node scripts/validate-dependencies.mjs",
     "security:check": "node scripts/security-check.mjs",
+    "release:artifacts": "node scripts/release/artifact-validation.mjs",
+    "release:checksums": "node scripts/release/checksums.mjs",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "release:manifest": "node scripts/release/release-manifest.mjs"
   },
   "devDependencies": {
     "@types/node": "^24.13.3",

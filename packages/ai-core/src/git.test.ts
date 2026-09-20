@@ -55,9 +55,9 @@ describe("packages/ai-core: Git Identifiers", () => {
 
   it("validates Git commit SHAs (short and long hex)", () => {
     expect(GitCommitShaSchema.safeParse("a1b2c3d").success).toBe(true);
-    expect(
-      GitCommitShaSchema.safeParse("e18d0e78610b29439918b45ea510ee9744a7af4e").success,
-    ).toBe(true);
+    expect(GitCommitShaSchema.safeParse("e18d0e78610b29439918b45ea510ee9744a7af4e").success).toBe(
+      true,
+    );
     expect(GitCommitShaSchema.safeParse("").success).toBe(false);
     expect(GitCommitShaSchema.safeParse("12345").success).toBe(false); // too short (<7)
     expect(GitCommitShaSchema.safeParse("not-a-hex-sha-12345").success).toBe(false);
@@ -300,6 +300,8 @@ describe("packages/ai-core: Canonical Git Tools and Risk Mapping", () => {
     expect(
       GitCommitInputSchema.safeParse({ projectId: "proj-1", message: "initial commit" }).success,
     ).toBe(true);
-    expect(GitCommitInputSchema.safeParse({ projectId: "proj-1", message: "" }).success).toBe(false);
+    expect(GitCommitInputSchema.safeParse({ projectId: "proj-1", message: "" }).success).toBe(
+      false,
+    );
   });
 });

@@ -10,7 +10,14 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "dist": "pnpm build && electron-builder --config electron-builder.yml",
+    "dist:win": "pnpm dist --win",
+    "dist:mac": "pnpm dist --mac",
+    "dist:linux": "pnpm dist --linux",
+    "release:artifacts": "node ../../scripts/release/artifact-validation.mjs",
+    "release:checksums": "node ../../scripts/release/checksums.mjs",
+    "release:manifest": "node ../../scripts/release/release-manifest.mjs"
   },
   "dependencies": {
     "@ai-desktop/agent-runtime": "workspace:*",
@@ -24,6 +31,7 @@
     "@ai-desktop/shared": "workspace:*",
     "@ai-desktop/skills": "workspace:*",
     "@ai-desktop/storage": "workspace:*",
+    "electron-updater": "6.8.9",
     "puppeteer-core": "25.10.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
@@ -35,6 +43,7 @@
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "6.1.0",
     "electron": "44.0.0",
+    "electron-builder": "26.15.3",
     "eslint": "^10.10.0",
     "tailwindcss": "4.3.3",
     "typescript": "5.9.3",

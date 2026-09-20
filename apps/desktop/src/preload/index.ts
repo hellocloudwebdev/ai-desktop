@@ -575,6 +575,20 @@ export interface DesktopApplicationApi {
   };
 
   /**
+   * PR47: narrow updates bridge (check/download/install + state stream;
+   * execution stays main-side behind SecureUpdateService with checksum
+   * verification; renderer receives state snapshots only).
+   */
+  updates: {
+    checkForUpdates(channel?: string): Promise<{ state: string; version?: string; error?: string }>;
+    downloadUpdate(): Promise<{ state: string; filePath?: string; error?: string }>;
+    quitAndInstall(): Promise<{ state: string; error?: string }>;
+    onUpdateState(
+      listener: (snapshot: { state: string; version?: string; error?: string }) => void,
+    ): Unsubscribe;
+  };
+
+  /**
    * Subscriptions (Main -> Renderer event streams).
    * Canonical AIEvents are transported in batches and delivered individually.
    */
@@ -1027,6 +1041,35 @@ export function createDesktopApi(): DesktopApplicationApi {
       },
       async resolve(command: SyncResolveCommand) {
         return ipcRenderer.invoke(IPC_CHANNELS.SYNC_RESOLVE, command);
+      },
+    },
+
+    // PR47: narrow updates bridge (same channel strings as main).
+    updates: {
+      async checkForUpdates(channel?: string) {
+        return ipcRenderer.invoke("updates:check", channel ? { channel } : {});
+      },
+      async downloadUpdate() {
+        return ipcRenderer.invoke("updates:download", {});
+      },
+      async quitAndInstall() {
+        return ipcRenderer.invoke("updates:install", {});
+      },
+      onUpdateState(listener) {
+        const ipcListener = (
+          _event: IpcRendererEvent,
+          snapshot: { state: string; version?: string; error?: string },
+        ) => {
+          listener(snapshot);
+        };
+        ipcRenderer.on("updates:state", ipcListener);
+        let removed = false;
+        return () => {
+          if (!removed) {
+            removed = true;
+            ipcRenderer.removeListener("updates:state", ipcListener);
+          }
+        };
       },
     },
 

@@ -9,8 +9,9 @@
 //   6. Zero typed IPC or chat services implemented in PR12 (deferred to PR13/16).
 
 import path from "node:path";
+import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { app, BrowserWindow } from "electron";
+import { app, BrowserWindow, ipcMain } from "electron";
 import { EventBus } from "@ai-desktop/agent-runtime";
 import type { AIEvent } from "@ai-desktop/ai-core";
 import {
@@ -102,6 +103,14 @@ import { GitService, GitToolExecutor, type GitIpcDependencies } from "./git/inde
 import { AccountService } from "./account/account-service.js";
 import type { AccountIpcDependencies } from "./account/account-ipc.js";
 import type { SyncIpcDependencies, SyncServicePort } from "./sync/sync-ipc.js";
+import {
+  createUpdateIpcHandlers,
+  SecureUpdateService,
+  UPDATE_IPC_CHANNELS,
+  type UpdateAutoUpdaterAdapter,
+  type UpdateChannel,
+} from "./updates/index.js";
+import { loadProductionConfig, initializeFirstRun, resolveAppDataDir } from "./release/index.js";
 
 export { ActiveStreamRegistry, ChatService, ModelSelectionService } from "./chat/index.js";
 export { IpcBatcher, type ChatStreamBatch } from "./ipc/batcher.js";
@@ -904,6 +913,166 @@ export function getSyncIpcDependencies(): SyncIpcDependencies | undefined {
   }
 }
 
+/**
+ * PR47: Secure auto-update wiring (lazy, fail-closed, startup-safe).
+ *
+ * Constructs a SecureUpdateService whose adapter delegates to electron-updater
+ * ONLY when running packaged; in dev/test the adapter is a no-op (returns
+ * null, i.e. up-to-date) so no network or install side effects occur.
+ * IPC channels (updates:check/download/install) delegate to the service and
+ * state changes broadcast via webContents.send("updates:state"). Every step
+ * is try/catch-guarded so updater failures can never crash startup.
+ */
+let updateService: SecureUpdateService | null = null;
+
+function defaultUpdateFeedUrl(): string {
+  const platform = process.platform;
+  const arch = process.arch;
+  return `https://github.com/hellocloudwebdev/ai-desktop/releases/latest/download/update-${platform}-${arch}.json`;
+}
+
+export function initUpdateService(): SecureUpdateService | null {
+  if (updateService) {
+    return updateService;
+  }
+  try {
+    let packaged = false;
+    try {
+      packaged =
+        typeof app !== "undefined" && typeof app.isPackaged === "boolean" && app.isPackaged;
+    } catch {
+      packaged = false;
+    }
+    let feedUrl = defaultUpdateFeedUrl();
+    let channel: UpdateChannel = "stable";
+    let currentVersion = "0.0.0-dev";
+    try {
+      const { config } = loadProductionConfig(process.env);
+      if (config.runtime.updateFeedUrl) {
+        feedUrl = config.runtime.updateFeedUrl;
+      }
+      channel = config.user.updateChannel as UpdateChannel;
+      currentVersion = config.build.version;
+    } catch {
+      // Production-config failures fall back to defaults; feed validation
+      // in the service still fails closed on bad URLs.
+    }
+    try {
+      if (typeof app !== "undefined" && typeof app.getVersion === "function") {
+        const v = app.getVersion();
+        if (typeof v === "string" && v.trim().length > 0) {
+          currentVersion = v;
+        }
+      }
+    } catch {
+      // Keep the configured/default version.
+    }
+    const noOpAdapter: UpdateAutoUpdaterAdapter = {
+      checkForUpdates: async () => null,
+      downloadUpdate: async () => "",
+      quitAndInstall: () => undefined,
+    };
+    let adapter: UpdateAutoUpdaterAdapter = noOpAdapter;
+    if (packaged) {
+      try {
+        // electron-updater is loaded lazily so dev/test never touch it.
+        const require = createRequire(import.meta.url);
+        const updater = require("electron-updater") as {
+          autoUpdater?: {
+            checkForUpdates?: () => Promise<unknown>;
+            downloadUpdate?: () => Promise<string>;
+            quitAndInstall?: () => void;
+            setFeedURL?: (opts: { url: string; channel?: string }) => void;
+          };
+        };
+        const backend = updater.autoUpdater;
+        if (backend) {
+          try {
+            backend.setFeedURL?.({ url: feedUrl, channel });
+          } catch {
+            // Feed configuration is best-effort; service validation guards.
+          }
+          adapter = {
+            checkForUpdates: async () => {
+              try {
+                const info = (await backend.checkForUpdates?.()) as {
+                  updateInfo?: {
+                    version?: string;
+                    files?: Array<{ url?: string; sha512?: string }>;
+                    sha512?: string;
+                  };
+                  version?: string;
+                } | null;
+                const version =
+                  info?.updateInfo?.version ??
+                  (typeof info?.version === "string" ? info.version : undefined);
+                if (!version) {
+                  return null;
+                }
+                const file = info?.updateInfo?.files?.[0];
+                const artifactUrl =
+                  typeof file?.url === "string" && file.url.startsWith("http") ? file.url : feedUrl;
+                return { version, artifactUrl, channel };
+              } catch {
+                return null;
+              }
+            },
+            downloadUpdate: async () => {
+              const filePath = await backend.downloadUpdate?.();
+              return typeof filePath === "string" ? filePath : "";
+            },
+            quitAndInstall: () => {
+              backend.quitAndInstall?.();
+            },
+          };
+        }
+      } catch {
+        adapter = noOpAdapter;
+      }
+    }
+    updateService = new SecureUpdateService({
+      feedUrl,
+      channel,
+      currentVersion,
+      autoUpdater: adapter,
+      emit: (event, payload) => {
+        try {
+          for (const contents of BrowserWindow.getAllWindows().map((w) => w.webContents)) {
+            try {
+              if (!contents.isDestroyed()) {
+                contents.send(event, payload);
+              }
+            } catch {
+              // Per-window broadcast is best-effort.
+            }
+          }
+        } catch {
+          // Broadcast never breaks the update flow.
+        }
+      },
+    });
+    const descriptors = createUpdateIpcHandlers(updateService);
+    for (const descriptor of descriptors) {
+      if (descriptor.channel === UPDATE_IPC_CHANNELS.STATE) {
+        continue;
+      }
+      try {
+        ipcMain.handle(descriptor.channel, async (_event, req: unknown) => descriptor.handler(req));
+      } catch {
+        // Duplicate registration across HMR/activate stays safe; handler
+        // descriptors remain invokable directly.
+      }
+    }
+    return updateService;
+  } catch {
+    return null;
+  }
+}
+
+export function getUpdateService(): SecureUpdateService | null {
+  return updateService;
+}
+
 export function getSecureWebPreferences(preloadPath: string): Electron.WebPreferences {
   return {
     preload: preloadPath,
@@ -1305,7 +1474,30 @@ export function initIpc(options?: {
 
 if (app) {
   app.whenReady().then(async () => {
+    try {
+      let currentVersion = "0.0.0-dev";
+      try {
+        if (typeof app !== "undefined" && typeof app.getVersion === "function") {
+          const v = app.getVersion();
+          if (typeof v === "string" && v.trim().length > 0) {
+            currentVersion = v;
+          }
+        }
+      } catch {
+        // Keep default
+      }
+      const dataDir = resolveAppDataDir();
+      await initializeFirstRun(dataDir, { appVersion: currentVersion });
+    } catch {
+      // First-run initialization is non-fatal to app window launch
+    }
     initIpc();
+    try {
+      // PR47: updater wiring is startup-safe (never throws into ready).
+      initUpdateService();
+    } catch {
+      // Updater failures never crash startup.
+    }
     await createMainWindow();
 
     app.on("activate", async () => {
