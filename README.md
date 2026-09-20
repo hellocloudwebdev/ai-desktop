@@ -4,6 +4,7 @@
 
 **Next-Generation Local-First AI Workspace & Multi-Provider Desktop Assistant**
 
+[![Platform](<https://img.shields.io/badge/Platform-Windows%2010%20%2F%2011%20(x64)-0078D6?logo=windows>)](README.md#-platform-support)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D22-brightgreen?logo=node.js)](https://nodejs.org/)
 [![pnpm](https://img.shields.io/badge/pnpm-11.25.0-orange?logo=pnpm)](https://pnpm.io/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9.3-blue?logo=typescript)](https://www.typescriptlang.org/)
@@ -14,9 +15,9 @@
 [![Security](https://img.shields.io/badge/Security-Fail--Closed-red)](docs/architecture/CONSTITUTION.md)
 
 <p align="center">
-  <a href="#-download--installation">Download Installers</a> •
+  <a href="#-platform-support">Platform Support</a> •
+  <a href="#-installation--running-on-windows">Windows Installation</a> •
   <a href="#-features">Features</a> •
-  <a href="#-build-from-source">Build from Source</a> •
   <a href="#-architecture">Architecture</a> •
   <a href="#-verification--quality-gates">Quality Gates</a> •
   <a href="#-toolchain">Toolchain</a>
@@ -50,103 +51,90 @@ All user data, conversation histories, schedules, and memory facts remain local-
 
 ---
 
-## 📥 Download & Installation
+## 💻 Platform Support
 
-AI Desktop provides signed release binaries across all major desktop operating systems with automatic updates and strict user data preservation.
+| Platform            | Compatibility     | Architecture    | Status                                                      |
+| :------------------ | :---------------- | :-------------- | :---------------------------------------------------------- |
+| **Windows 10 / 11** | ✅ Supported      | `x64` (64-bit)  | Primary development and runtime target                      |
+| **macOS**           | 🚧 In Development | `arm64` / `x64` | Canonical domain contracts ready; desktop packaging pending |
+| **Linux**           | 🚧 In Development | `x64`           | Domain contracts ready; desktop packaging pending           |
 
-### 🖥️ Option 1: Pre-Built Installers
-
-Download the latest release package for your operating system from the **[GitHub Releases](https://github.com/hellocloudwebdev/ai-desktop/releases)** page:
-
-| Operating System | Package Format                  | Architecture          | Download File Pattern   |
-| :--------------- | :------------------------------ | :-------------------- | :---------------------- |
-| **Windows**      | NSIS Installer (`.exe`)         | x64 (64-bit)          | `aidesktop-Setup-*.exe` |
-| **macOS**        | Apple Disk Image (`.dmg`)       | Apple Silicon / Intel | `aidesktop-*.dmg`       |
-| **Linux**        | Portable AppImage (`.AppImage`) | x64 (64-bit)          | `aidesktop-*.AppImage`  |
-
-#### Windows Installation
-
-1. Download `aidesktop-Setup-<version>.exe`.
-2. Double-click the installer.
-3. Select your target directory (per-user installation; no administrative rights required).
-4. Launch **AI Desktop** from the Start Menu or Desktop shortcut.
-
-#### macOS Installation
-
-1. Download `aidesktop-<version>.dmg`.
-2. Open the `.dmg` file.
-3. Drag **AI Desktop** into your `/Applications` folder.
-4. Launch **AI Desktop** from Spotlight or Launchpad.
-
-#### Linux Installation
-
-1. Download `aidesktop-<version>.AppImage`.
-2. Grant executable permissions:
-   ```bash
-   chmod +x aidesktop-*.AppImage
-   ```
-3. Run the application:
-   ```bash
-   ./aidesktop-*.AppImage
-   ```
-
-> **Data Safety Guarantee:** Upgrading or uninstalling the desktop application will **never** delete your databases, configurations, or credentials. Data persists safely in the application data directory (`%APPDATA%\aidesktop` on Windows, `~/Library/Application Support/aidesktop` on macOS, `~/.config/aidesktop` on Linux).
+> **Release Status Note:** Pre-compiled standalone binary releases (such as `aidesktop-Setup-*.exe`) are not yet published on GitHub Releases. The active and supported method to run, test, and package AI Desktop on Windows is by running or building from source using `pnpm`.
 
 ---
 
-### 🛠️ Option 2: Build & Run from Source
+## 🚀 Installation & Running on Windows
 
-To build or contribute to AI Desktop, clone the repository and build the workspace using `pnpm`.
+Follow these steps to set up and run AI Desktop on a Windows 10 or 11 machine.
 
-#### Prerequisites
+### Prerequisites
 
-- **Node.js**: `>= 22.0.0` (LTS recommended)
-- **pnpm**: `11.25.0` (pinned in `packageManager`)
-- **Git**: `2.30+`
+Ensure you have the following installed on your Windows system:
 
-#### Step-by-Step Setup
-
-1. **Clone the repository:**
-
-   ```bash
-   git clone https://github.com/hellocloudwebdev/ai-desktop.git
-   cd ai-desktop
+1. **Node.js**: `>= 22.0.0` (Download LTS from [nodejs.org](https://nodejs.org/))
+2. **pnpm**: `11.25.0`
+   ```powershell
+   npm install -g pnpm@11.25.0
    ```
+3. **Git for Windows**: Available from [git-scm.com](https://git-scm.com/)
 
-2. **Install locked dependencies:**
+---
 
-   ```bash
-   pnpm install
-   ```
+### Step-by-Step Setup
 
-3. **Verify the toolchain & architecture:**
+#### 1. Clone the repository
 
-   ```bash
-   pnpm architecture:check
-   pnpm typecheck
-   ```
+Open PowerShell or Windows Terminal and clone the codebase:
 
-4. **Launch development mode:**
+```powershell
+git clone https://github.com/hellocloudwebdev/ai-desktop.git
+cd ai-desktop
+```
 
-   ```bash
-   pnpm dev
-   ```
+#### 2. Install workspace dependencies
 
-   This starts Vite dev servers and mounts the Electron shell with Hot Module Replacement (HMR).
+Install all locked packages and set up workspace links across the monorepo:
 
-5. **Package local desktop binaries:**
-   To package an installer for your current host platform:
-   ```bash
-   # Windows NSIS installer
-   pnpm --filter @ai-desktop/desktop dist:win
+```powershell
+pnpm install
+```
 
-   # macOS DMG package
-   pnpm --filter @ai-desktop/desktop dist:mac
+#### 3. Run validation gates
 
-   # Linux AppImage
-   pnpm --filter @ai-desktop/desktop dist:linux
-   ```
-   Packaged artifacts and SHA-256 sidecars will be placed in `apps/desktop/dist/`.
+Confirm that the toolchain, Prisma schema, and architectural boundaries pass validation:
+
+```powershell
+pnpm architecture:check
+pnpm typecheck
+```
+
+#### 4. Launch the application (Development Mode)
+
+Start the Vite development servers and launch the Electron desktop shell with Hot Module Replacement (HMR):
+
+```powershell
+pnpm dev
+```
+
+The AI Desktop window will open automatically, connected to local development watchers.
+
+---
+
+### 📦 Building a Local Windows Installer (Optional)
+
+If you would like to generate a standalone local Windows installer executable (`.exe` with NSIS setup wizard):
+
+```powershell
+pnpm --filter @ai-desktop/desktop dist:win
+```
+
+This compiles the renderer and Electron processes, generates the ASAR bundle, and outputs the installer to:
+
+```text
+apps/desktop/release/AI Desktop-0.0.0-win-x64-setup.exe
+```
+
+> **Data Safety Guarantee:** Installing, upgrading, or running AI Desktop on Windows will **never** overwrite or delete your databases, conversations, or credentials. All local state persists safely in `%APPDATA%\aidesktop` (`deleteAppDataOnUninstall: false`).
 
 ---
 
