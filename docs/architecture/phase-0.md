@@ -1136,7 +1136,7 @@ run.skipped/run.recovered`, category extension) in the Extension/AI
     `TROUBLESHOOTING.md`, and architecture ADR `pr-47-packaging-updater-release.md`.
 - All remaining canonical packages stay **empty shells** (`package.json`, `tsconfig.json`,
   `src/index.ts` placeholder) — deliberately no premature domain functionality inside them.
-- Toolchain: TypeScript 5.9.3, ESLint 10.10.0, Vitest 4.1.10, Vite 8.1.0, Prettier 3.9.6,
+- Toolchain: TypeScript 5.9.3, ESLint 10.10.0, Vitest 4.1.11, Vite 8.1.0, Prettier 3.9.6,
   Zod 4.4.3.
 - CI workflow: install → typecheck → lint → architecture check → test → build → format check.
 

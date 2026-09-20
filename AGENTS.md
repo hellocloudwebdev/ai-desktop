@@ -87,7 +87,7 @@ Do **NOT** "helpfully" upgrade package versions without a verified toolchain com
 | **ESLint**                    | `10.10.0`                  | Flat config foundation                                                                      |
 | **typescript-eslint**         | `^8.69.0`                  | Strict type linting                                                                         |
 | **eslint-plugin-boundaries**  | `7.2.0`                    | AST-level architecture boundary enforcement                                                 |
-| **Vitest**                    | `4.1.10`                   | Unit test runner                                                                            |
+| **Vitest**                    | `4.1.11`                   | Unit test runner                                                                            |
 | **Vite**                      | `8.1.0`                    | Pinned peer foundation                                                                      |
 | **Zod**                       | `4.4.3`                    | Schema validation at process and contract boundaries                                        |
 | **Prisma**                    | `6.4.1`                    | SQLite persistence with WAL mode strictly inside `storage`                                  |

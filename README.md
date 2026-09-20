@@ -220,7 +220,7 @@ and is not implemented.
 | @anthropic-ai/sdk         | 0.124.0                                  | used strictly inside `@ai-desktop/providers`                       |
 | @google/genai             | 2.21.0                                   | used strictly inside `@ai-desktop/providers`                       |
 | @modelcontextprotocol/sdk | 1.30.0                                   | used strictly inside `@ai-desktop/mcp`                             |
-| Vitest                    | 4.1.10                                   | root test runner for repository tooling                            |
+| Vitest                    | 4.1.11                                   | root test runner for repository tooling                            |
 | Vite                      | 8.1.0                                    | locked peer foundation for Vitest                                  |
 | Electron                  | 44.0.0                                   | desktop shell strictly inside `apps/desktop`                       |
 | React                     | 19.2.8                                   | UI renderer strictly inside `apps/desktop`                         |
