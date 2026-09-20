@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
-    "dist": "pnpm build && electron-builder --config electron-builder.yml",
+    "dist": "pnpm build && node ../../scripts/release/prepare-prisma-resources.mjs && electron-builder --config electron-builder.yml",
     "dist:win": "pnpm dist --win",
     "dist:mac": "pnpm dist --mac",
     "dist:linux": "pnpm dist --linux",

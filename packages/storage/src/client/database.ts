@@ -6,7 +6,15 @@
 //   - Controlled database lifecycle: one central access mechanism, explicit connect/disconnect.
 //   - WAL mode is actively verified at runtime via PRAGMA journal_mode.
 
-import { PrismaClient } from "@prisma/client";
+import { createRequire } from "node:module";
+import type { PrismaClient as PrismaClientType } from "@prisma/client";
+
+const require = createRequire(import.meta.url);
+const prismaModule = require("@prisma/client") as {
+  PrismaClient: new (options?: unknown) => PrismaClientType;
+};
+const PrismaClient = prismaModule.PrismaClient;
+type PrismaClient = PrismaClientType;
 
 export interface DatabaseOptions {
   /**

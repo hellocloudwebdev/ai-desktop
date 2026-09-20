@@ -21,6 +21,10 @@ extraResources:
     to: prisma/migrations
     filter:
       - "**/*"
+  - from: build/prisma/node_modules
+    to: node_modules
+    filter:
+      - "**/*"
 win:
   target:
     - target: nsis

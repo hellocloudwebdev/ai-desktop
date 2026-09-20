@@ -67,8 +67,8 @@ All user data, conversation histories, schedules, and memory facts remain local-
 
 Download the official standalone Windows setup package from [GitHub Releases](https://github.com/hellocloudwebdev/ai-desktop/releases/tag/v0.0.0):
 
-- **Direct Installer Download**: **[`AI Desktop-0.0.0-win-x64-setup.exe`](https://github.com/hellocloudwebdev/ai-desktop/releases/download/v0.0.0/AI.Desktop-0.0.0-win-x64-setup.exe)** (~115 MB)
-- **SHA-256 Checksum**: `f911285ad9e1c27aee723fdba088c607f3daf90309aaf88b69864953f4fa6a69`
+- **Direct Installer Download**: **[`AI Desktop-0.0.0-win-x64-setup.exe`](https://github.com/hellocloudwebdev/ai-desktop/releases/download/v0.0.0/AI.Desktop-0.0.0-win-x64-setup.exe)** (~125 MB)
+- **SHA-256 Checksum**: `3b293b03241352bbd8bc1810100899b189f0903dc956c97b9f4747d14189203c`
 - **Release Page**: [AI Desktop v0.0.0 Releases](https://github.com/hellocloudwebdev/ai-desktop/releases/tag/v0.0.0)
 
 #### Installation Steps:
