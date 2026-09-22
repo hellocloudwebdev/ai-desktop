@@ -91,33 +91,35 @@ function SignInForm({
     <form
       aria-label="Sign in"
       onSubmit={handleSubmit}
-      className="mt-3 rounded-lg border border-slate-700 bg-slate-900/60 p-3 text-xs space-y-2"
+      className="mt-3.5 rounded-xl border border-slate-800/90 bg-slate-900/70 p-4 text-xs space-y-3 shadow-md shadow-black/20"
     >
       <label className="block">
-        <span className="text-slate-400 text-[11px]">Display name (≤120)</span>
+        <span className="text-slate-400 text-[11px] font-medium">Display name (≤120)</span>
         <input
           type="text"
           value={form.displayName}
           onChange={(e) => setForm((prev) => ({ ...prev, displayName: e.target.value }))}
           aria-label="Display name"
           disabled={busy}
-          className="mt-0.5 w-full rounded-lg bg-slate-800 border border-slate-700 px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
+          className="mt-1 w-full rounded-lg bg-slate-950/90 border border-slate-700/80 px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 disabled:opacity-50 transition-all"
         />
         {errors.displayName && (
-          <span className="text-rose-300 text-[11px]">{errors.displayName}</span>
+          <span className="text-rose-300 text-[11px] mt-1 block">{errors.displayName}</span>
         )}
       </label>
       <label className="block">
-        <span className="text-slate-400 text-[11px]">Email (optional)</span>
+        <span className="text-slate-400 text-[11px] font-medium">Email (optional)</span>
         <input
           type="email"
           value={form.email ?? ""}
           onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
           aria-label="Email (optional)"
           disabled={busy}
-          className="mt-0.5 w-full rounded-lg bg-slate-800 border border-slate-700 px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
+          className="mt-1 w-full rounded-lg bg-slate-950/90 border border-slate-700/80 px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 disabled:opacity-50 transition-all"
         />
-        {errors.email && <span className="text-rose-300 text-[11px]">{errors.email}</span>}
+        {errors.email && (
+          <span className="text-rose-300 text-[11px] mt-1 block">{errors.email}</span>
+        )}
       </label>
       {formError && (
         <p role="alert" className="text-rose-300 text-[11px]">
@@ -133,7 +135,7 @@ function SignInForm({
         type="submit"
         disabled={busy || !valid}
         title={valid ? "Sign in with this display name" : "Fix validation errors to sign in"}
-        className="rounded px-2 py-1 text-[11px] font-medium bg-indigo-700 hover:bg-indigo-600 text-white disabled:opacity-50"
+        className="rounded-lg px-3.5 py-1.5 text-xs font-medium bg-indigo-700 hover:bg-indigo-600 text-white shadow-sm shadow-indigo-600/30 active:scale-[0.98] disabled:opacity-50 transition-all"
       >
         {busy ? "Signing in…" : "Sign in"}
       </button>
@@ -392,42 +394,48 @@ export function AccountSurface({
             <>
               <section
                 aria-label="Signed-in account"
-                className="mt-3 rounded-lg border border-slate-700 bg-slate-900/60 p-3 text-xs"
+                className="mt-3.5 rounded-xl border border-slate-800/90 bg-slate-900/70 p-4.5 text-xs shadow-md shadow-black/20"
               >
-                <p className="font-medium text-slate-100">
-                  {truncateDisplayName(redactSecretAssignments(session.displayName ?? "Account"))}
-                </p>
-                {session.identifier && (
-                  <p className="font-mono text-slate-400 text-[11px] mt-0.5">
-                    {truncateText(redactSecretAssignments(session.identifier), 320)}
-                  </p>
-                )}
-                <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] mt-2">
-                  <dt className="text-slate-500">Device</dt>
-                  <dd className="text-slate-300">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-white">
+                      {truncateDisplayName(
+                        redactSecretAssignments(session.displayName ?? "Account"),
+                      )}
+                    </p>
+                    {session.identifier && (
+                      <p className="font-mono text-slate-400 text-xs mt-0.5">
+                        {truncateText(redactSecretAssignments(session.identifier), 320)}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs mt-3.5 bg-slate-950/60 p-3.5 rounded-lg border border-slate-800/80">
+                  <dt className="text-slate-400 font-medium">Device</dt>
+                  <dd className="text-slate-200">
                     {device
                       ? `${truncateText(redactSecretAssignments(device.deviceName), 120)}${device.platform ? ` · ${device.platform}` : ""}`
                       : "—"}
                   </dd>
-                  <dt className="text-slate-500">Device last seen</dt>
-                  <dd className="text-slate-300">{formatRelativeTime(device?.lastSeenAt)}</dd>
-                  <dt className="text-slate-500">Sync status</dt>
+                  <dt className="text-slate-400 font-medium">Device last seen</dt>
+                  <dd className="text-slate-200">{formatRelativeTime(device?.lastSeenAt)}</dd>
+                  <dt className="text-slate-400 font-medium">Sync status</dt>
                   <dd>
                     <span
-                      className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${syncStatusBadgeClass(syncStatus.status)}`}
+                      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-medium border ${syncStatusBadgeClass(syncStatus.status)}`}
                     >
                       {syncStatusIndicator(syncStatus.status)}
                     </span>
                   </dd>
-                  <dt className="text-slate-500">Last sync</dt>
-                  <dd className="text-slate-300">
+                  <dt className="text-slate-400 font-medium">Last sync</dt>
+                  <dd className="text-slate-200">
                     {formatAccountTimestamp(syncStatus.lastSyncAt)} (
                     {formatRelativeTime(syncStatus.lastSyncAt)})
                   </dd>
-                  <dt className="text-slate-500">Pending</dt>
-                  <dd className="text-slate-300">{pendingSyncCount(syncStatus)} pending</dd>
-                  <dt className="text-slate-500">Conflicts</dt>
-                  <dd className="text-slate-300">{conflictCount(syncStatus)} conflicts</dd>
+                  <dt className="text-slate-400 font-medium">Pending</dt>
+                  <dd className="text-slate-200">{pendingSyncCount(syncStatus)} pending</dd>
+                  <dt className="text-slate-400 font-medium">Conflicts</dt>
+                  <dd className="text-slate-200">{conflictCount(syncStatus)} conflicts</dd>
                 </dl>
                 {syncStatus.lastError && (
                   <p role="alert" className="text-rose-300 text-[11px] mt-2">
@@ -439,12 +447,12 @@ export function AccountSurface({
                     {truncateText(actionError, 500)}
                   </p>
                 )}
-                <div className="flex flex-wrap gap-2 mt-3">
+                <div className="flex flex-wrap gap-2 mt-3.5">
                   <button
                     type="button"
                     onClick={() => void handleRefresh()}
                     disabled={actionBusy}
-                    className="rounded px-2 py-1 text-[11px] font-medium bg-slate-700 hover:bg-slate-600 text-slate-200 disabled:opacity-50"
+                    className="rounded-lg px-3 py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 disabled:opacity-50 transition-colors"
                   >
                     {actionBusy ? "Working…" : "Refresh session"}
                   </button>
@@ -453,12 +461,12 @@ export function AccountSurface({
                     onClick={() => void handleSignOut()}
                     disabled={actionBusy}
                     title="Sign-out keeps local projects on this device"
-                    className="rounded px-2 py-1 text-[11px] font-medium bg-rose-900/60 hover:bg-rose-800 text-rose-200 disabled:opacity-50"
+                    className="rounded-lg px-3 py-1.5 text-xs font-medium bg-rose-950/80 hover:bg-rose-900 border border-rose-800/50 text-rose-300 disabled:opacity-50 transition-colors"
                   >
                     {actionBusy ? "Working…" : "Sign out"}
                   </button>
                 </div>
-                <p className="text-[10px] text-slate-500 mt-2">
+                <p className="text-[10px] text-slate-500 mt-2.5">
                   Signing out preserves local projects on this device (delete ≠ wipe) — only the
                   session is cleared.
                 </p>
@@ -470,16 +478,16 @@ export function AccountSurface({
 
               <section
                 aria-label="Sync detail"
-                className="mt-3 rounded-lg border border-slate-700 bg-slate-900/60 p-3 text-xs"
+                className="mt-3.5 rounded-xl border border-slate-800/90 bg-slate-900/70 p-4.5 text-xs shadow-md shadow-black/20"
               >
-                <div className="flex items-center justify-between mb-2">
-                  <p className="font-medium text-slate-100">Sync</p>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-sm font-semibold text-white">Sync</p>
                   <div className="flex gap-2">
                     <button
                       type="button"
                       onClick={() => void handleStartSync()}
                       disabled={actionBusy}
-                      className="rounded px-2 py-1 text-[11px] font-medium bg-indigo-700 hover:bg-indigo-600 text-white disabled:opacity-50"
+                      className="rounded-lg px-3.5 py-1.5 text-xs font-medium bg-indigo-700 hover:bg-indigo-600 text-white shadow-sm shadow-indigo-600/30 disabled:opacity-50 transition-colors"
                     >
                       {actionBusy ? "Working…" : "Start sync"}
                     </button>
@@ -487,7 +495,7 @@ export function AccountSurface({
                       type="button"
                       onClick={() => void handlePauseSync()}
                       disabled={actionBusy}
-                      className="rounded px-2 py-1 text-[11px] font-medium bg-slate-700 hover:bg-slate-600 text-slate-200 disabled:opacity-50"
+                      className="rounded-lg px-3 py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 disabled:opacity-50 transition-colors"
                     >
                       {actionBusy ? "Working…" : "Pause"}
                     </button>

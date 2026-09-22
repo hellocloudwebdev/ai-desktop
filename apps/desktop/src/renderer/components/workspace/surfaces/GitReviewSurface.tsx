@@ -361,8 +361,10 @@ function GitFileRow({
   return (
     <li>
       <div
-        className={`flex items-center gap-1 rounded px-1.5 py-1 ${
-          selected ? "bg-indigo-700" : "hover:bg-slate-800"
+        className={`flex items-center gap-1.5 rounded-md px-2 py-1.5 transition-all ${
+          selected
+            ? "bg-indigo-600 text-white shadow-sm shadow-indigo-600/30"
+            : "hover:bg-slate-800/70 text-slate-200"
         }`}
       >
         <button
@@ -372,18 +374,19 @@ function GitFileRow({
           className="min-w-0 flex-1 text-left focus:outline-none"
         >
           <span
-            className={`block truncate font-mono text-[11px] ${
-              selected ? "text-white" : "text-slate-200"
+            className={`block truncate font-mono text-xs ${
+              selected ? "text-white font-medium" : "text-slate-200"
             }`}
           >
             {file.path}
           </span>
           <span
             className={`mt-0.5 block truncate text-[10px] ${
-              selected ? "text-indigo-200" : "text-slate-500"
+              selected ? "text-indigo-100" : "text-slate-400"
             }`}
           >
-            {file.status} · +{file.additions} −{file.deletions}
+            {file.status} · <span className="text-emerald-400">+{file.additions}</span>{" "}
+            <span className="text-rose-400">−{file.deletions}</span>
           </span>
         </button>
         <button
@@ -391,7 +394,7 @@ function GitFileRow({
           disabled={busy}
           onClick={() => onToggleStaged(file.path, file.staged)}
           aria-label={`${file.staged ? "Unstage" : "Stage"} ${file.path}`}
-          className="shrink-0 rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-300 hover:bg-slate-700 disabled:opacity-40"
+          className="shrink-0 rounded px-2 py-0.5 text-[10px] font-medium bg-slate-800 hover:bg-slate-700 border border-slate-700/80 text-slate-200 disabled:opacity-40 transition-colors"
         >
           {file.staged ? "Unstage" : "Stage"}
         </button>

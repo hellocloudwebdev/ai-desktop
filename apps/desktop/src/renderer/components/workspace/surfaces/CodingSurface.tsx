@@ -44,7 +44,7 @@ export function CodingSurface({
 }: CodingSurfaceProps): React.ReactElement {
   return (
     <div className="flex h-full flex-col px-6 py-4 overflow-y-auto">
-      <div className="flex items-center space-x-2 mb-4">
+      <div className="flex items-center space-x-2.5 mb-4 max-w-3xl">
         <input
           type="text"
           value={codingProjectId}
@@ -52,7 +52,7 @@ export function CodingSurface({
           placeholder="project id"
           disabled={codingRunning}
           aria-label="Coding project id"
-          className="w-36 rounded-lg bg-slate-800 border border-slate-700 px-2.5 py-1.5 text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
+          className="w-36 rounded-xl bg-slate-950/90 border border-slate-700/80 px-3 py-2 text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 disabled:opacity-50 transition-all font-mono"
         />
         <input
           type="text"
@@ -64,13 +64,13 @@ export function CodingSurface({
           placeholder="Describe the coding goal…"
           disabled={codingRunning}
           aria-label="Coding goal"
-          className="flex-1 rounded-lg bg-slate-800 border border-slate-700 px-2.5 py-1.5 text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
+          className="flex-1 rounded-xl bg-slate-950/90 border border-slate-700/80 px-3.5 py-2 text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 disabled:opacity-50 transition-all"
         />
         <button
           type="button"
           onClick={onStart}
           disabled={codingRunning || !codingPrompt.trim()}
-          className="rounded-lg bg-indigo-700 hover:bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white transition-colors disabled:opacity-50"
+          className="rounded-xl bg-indigo-600 hover:bg-indigo-500 px-4 py-2 text-xs font-medium text-white shadow-sm shadow-indigo-600/30 active:scale-[0.98] transition-all disabled:opacity-50 shrink-0"
         >
           {codingRunning ? "Starting…" : "Run"}
         </button>

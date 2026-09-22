@@ -34,8 +34,8 @@ export function ResearchSurface({
   return (
     <div className="flex h-full flex-col bg-slate-950 text-slate-200">
       {/* Header / Search bar */}
-      <div className="flex shrink-0 items-center justify-between border-b border-slate-800 bg-slate-900/60 px-4 py-2.5 backdrop-blur-sm gap-3">
-        <form onSubmit={handleSubmit} className="flex flex-1 items-center gap-2 max-w-2xl">
+      <div className="flex shrink-0 items-center justify-between border-b border-slate-800/80 bg-slate-900/60 px-5 py-3 backdrop-blur-md gap-3 shadow-sm">
+        <form onSubmit={handleSubmit} className="flex flex-1 items-center gap-2.5 max-w-2xl">
           <div className="relative flex-1">
             <input
               type="text"
@@ -43,24 +43,24 @@ export function ResearchSurface({
               onChange={(e) => setQueryInput(e.target.value)}
               placeholder="Search the web…"
               aria-label="Research query"
-              className="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full rounded-xl bg-slate-950/90 border border-slate-700/80 px-3.5 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 transition-all"
             />
           </div>
           <button
             type="submit"
             disabled={isSearching}
-            className="rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 px-3 py-1.5 text-xs font-medium text-white transition-colors focus:outline-none focus:ring-1 focus:ring-indigo-400 shrink-0"
+            className="rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 px-4 py-2 text-xs font-medium text-white shadow-sm shadow-indigo-600/30 transition-all focus:outline-none focus:ring-2 focus:ring-indigo-400 shrink-0"
           >
             {isSearching ? "Searching…" : "Search"}
           </button>
         </form>
 
         <div className="flex items-center gap-2 text-xs">
-          <span className="rounded-full bg-slate-800 border border-slate-700 px-2.5 py-0.5 text-[11px] font-mono text-slate-400">
-            project: <strong className="text-slate-200">{activeProjectId}</strong>
+          <span className="rounded-full bg-slate-800/80 border border-slate-700/60 px-3 py-0.5 text-[11px] font-mono text-slate-400">
+            project: <strong className="text-slate-200 font-medium">{activeProjectId}</strong>
           </span>
-          <span className="rounded-full bg-slate-800 border border-slate-700 px-2.5 py-0.5 text-[11px] font-mono text-slate-400">
-            results: <strong className="text-slate-200">{results.length}</strong>
+          <span className="rounded-full bg-slate-800/80 border border-slate-700/60 px-3 py-0.5 text-[11px] font-mono text-slate-400">
+            results: <strong className="text-slate-200 font-medium">{results.length}</strong>
           </span>
         </div>
       </div>

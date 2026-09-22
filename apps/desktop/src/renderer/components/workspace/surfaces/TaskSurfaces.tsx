@@ -218,23 +218,26 @@ export function FilesSurface({
         </ul>
       )}
       {/* PR37: project documents (ingested source material with status). */}
-      <p className="mt-4 mb-2 text-slate-400">
+      <p className="mt-5 mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
         Documents: <span className="font-mono text-slate-200">{documents.length}</span>
       </p>
       {documents.length === 0 ? (
-        <p className="text-slate-500">No documents ingested in this project yet.</p>
+        <p className="text-slate-500 text-xs italic">No documents ingested in this project yet.</p>
       ) : (
-        <ul className="space-y-1">
+        <ul className="space-y-1.5">
           {documents.map((d) => (
-            <li key={d.documentId} className="rounded bg-slate-800/60 px-2 py-1.5">
+            <li
+              key={d.documentId}
+              className="rounded-lg bg-slate-900/70 border border-slate-800/80 px-3 py-2 flex items-center justify-between hover:border-slate-700/80 transition-all"
+            >
               <button
                 type="button"
                 onClick={() => onSelectDocument?.(d.documentId)}
-                className="font-mono text-slate-200 break-all hover:text-white text-left"
+                className="font-mono text-slate-200 break-all hover:text-indigo-300 text-left text-xs font-medium transition-colors"
               >
                 {d.name}
               </button>
-              <span className="text-slate-400 ml-2">
+              <span className="text-slate-400 text-[11px] font-mono shrink-0 ml-2">
                 {d.mimeType} · {d.sizeBytes} bytes · {d.status}
               </span>
             </li>
@@ -242,22 +245,28 @@ export function FilesSurface({
         </ul>
       )}
       {selectedDocument && (
-        <div className="mt-3 rounded bg-slate-800/60 px-2 py-1.5">
-          <p className="font-mono text-slate-200 break-all">{selectedDocument.name}</p>
-          <p className="text-slate-400 mt-1">
+        <div className="mt-3.5 rounded-xl bg-slate-900/90 border border-slate-700/80 p-4 shadow-md">
+          <p className="font-mono text-white text-xs font-medium break-all">
+            {selectedDocument.name}
+          </p>
+          <p className="text-slate-400 text-[11px] mt-1">
             {selectedDocument.mimeType} · {selectedDocument.status}
             {selectedDocument.pageCount !== null && ` · ${selectedDocument.pageCount} pages`}
           </p>
-          {selectedDocument.error && <p className="text-red-400 mt-1">{selectedDocument.error}</p>}
+          {selectedDocument.error && (
+            <p className="text-rose-400 text-xs mt-1">{selectedDocument.error}</p>
+          )}
           {selectedDocument.preview && (
-            <p className="text-slate-300 mt-2 whitespace-pre-wrap break-words">
-              {selectedDocument.preview}
-            </p>
+            <div className="mt-2.5 rounded-lg bg-slate-950/80 p-3 border border-slate-800">
+              <p className="text-slate-300 text-xs whitespace-pre-wrap break-words leading-relaxed font-mono">
+                {selectedDocument.preview}
+              </p>
+            </div>
           )}
           <button
             type="button"
             onClick={() => onSelectDocument?.(null)}
-            className="text-slate-400 hover:text-slate-200 mt-2"
+            className="text-xs font-medium text-slate-400 hover:text-white mt-3 px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 transition-colors"
           >
             Close preview
           </button>
@@ -267,10 +276,10 @@ export function FilesSurface({
         Read-only context. Editing uses the coding tools.
       </p>
       {/* PR39: project attachments (upload + list + delete + preview). */}
-      <p className="mt-4 mb-2 text-slate-400">
+      <p className="mt-5 mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
         Attachments: <span className="font-mono text-slate-200">{attachments.length}</span>
       </p>
-      {attachmentsError && <p className="text-red-400 mb-2">{attachmentsError}</p>}
+      {attachmentsError && <p className="text-rose-400 text-xs mb-2">{attachmentsError}</p>}
       <input
         ref={fileInputRef}
         type="file"
@@ -288,7 +297,7 @@ export function FilesSurface({
         type="button"
         onClick={() => fileInputRef.current?.click()}
         disabled={!onUploadAttachment}
-        className="rounded-lg bg-indigo-700 hover:bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white transition-colors disabled:opacity-50 mb-2"
+        className="rounded-xl bg-indigo-600 hover:bg-indigo-500 px-4 py-2 text-xs font-medium text-white shadow-sm shadow-indigo-600/30 transition-all disabled:opacity-50 mb-3"
       >
         Upload attachment
       </button>

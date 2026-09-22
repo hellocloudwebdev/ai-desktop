@@ -13,6 +13,7 @@ apps/desktop/release/
 
 # tool caches
 .turbo/
+.mimosa/
 coverage/
 *.tsbuildinfo
 

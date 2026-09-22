@@ -324,23 +324,25 @@ function ScheduleForm({
     <form
       aria-label={projectLocked ? "Edit schedule" : "Create schedule"}
       onSubmit={handleSubmit}
-      className="mt-3 rounded-lg border border-slate-700 bg-slate-900/60 p-3 text-xs space-y-2"
+      className="mt-3.5 rounded-xl border border-slate-800/90 bg-slate-900/70 p-4.5 text-xs space-y-3 shadow-md shadow-black/20"
     >
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-3">
         <label className="block col-span-2">
-          <span className="text-slate-400 text-[11px]">Name (≤120)</span>
+          <span className="text-slate-400 text-[11px] font-medium">Name (≤120)</span>
           <input
             type="text"
             value={form.name}
             onChange={(e) => set("name", e.target.value)}
             aria-label="Schedule name"
             disabled={busy}
-            className="mt-0.5 w-full rounded-lg bg-slate-800 border border-slate-700 px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
+            className="mt-1 w-full rounded-lg bg-slate-950/90 border border-slate-700/80 px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 disabled:opacity-50 transition-all"
           />
-          {errors.name && <span className="text-rose-300 text-[11px]">{errors.name}</span>}
+          {errors.name && (
+            <span className="text-rose-300 text-[11px] mt-1 block">{errors.name}</span>
+          )}
         </label>
         <label className="block col-span-2">
-          <span className="text-slate-400 text-[11px]">
+          <span className="text-slate-400 text-[11px] font-medium">
             Project{projectLocked ? " (locked per schedule)" : ""}
           </span>
           <input
@@ -354,32 +356,34 @@ function ScheduleForm({
                 ? "Project choice locked per schedule: editing never re-scopes a schedule."
                 : "Project that owns this schedule"
             }
-            className="mt-0.5 w-full rounded-lg bg-slate-800 border border-slate-700 px-2.5 py-1.5 text-xs font-mono text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
+            className="mt-1 w-full rounded-lg bg-slate-950/90 border border-slate-700/80 px-3 py-1.5 text-xs font-mono text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 disabled:opacity-50 transition-all"
           />
           {errors.projectId && (
-            <span className="text-rose-300 text-[11px]">{errors.projectId}</span>
+            <span className="text-rose-300 text-[11px] mt-1 block">{errors.projectId}</span>
           )}
         </label>
         <label className="block col-span-2">
-          <span className="text-slate-400 text-[11px]">Prompt (≤4000)</span>
+          <span className="text-slate-400 text-[11px] font-medium">Prompt (≤4000)</span>
           <textarea
             value={form.prompt}
             onChange={(e) => set("prompt", e.target.value)}
             aria-label="Schedule prompt"
             disabled={busy}
             rows={3}
-            className="mt-0.5 w-full rounded-lg bg-slate-800 border border-slate-700 px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
+            className="mt-1 w-full rounded-lg bg-slate-950/90 border border-slate-700/80 px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 disabled:opacity-50 transition-all leading-relaxed"
           />
-          {errors.prompt && <span className="text-rose-300 text-[11px]">{errors.prompt}</span>}
+          {errors.prompt && (
+            <span className="text-rose-300 text-[11px] mt-1 block">{errors.prompt}</span>
+          )}
         </label>
         <label className="block">
-          <span className="text-slate-400 text-[11px]">Schedule kind</span>
+          <span className="text-slate-400 text-[11px] font-medium">Schedule kind</span>
           <select
             value={form.kind}
             onChange={(e) => set("kind", e.target.value)}
             aria-label="Schedule kind"
             disabled={busy}
-            className="mt-0.5 w-full rounded-lg bg-slate-800 border border-slate-700 px-2 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
+            className="mt-1 w-full rounded-lg bg-slate-950/90 border border-slate-700/80 px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 disabled:opacity-50 transition-all cursor-pointer"
           >
             <option value="interval">Interval</option>
             <option value="delay">Delay once</option>
@@ -387,10 +391,12 @@ function ScheduleForm({
             <option value="daily">Daily</option>
             <option value="weekly">Weekly</option>
           </select>
-          {errors.kind && <span className="text-rose-300 text-[11px]">{errors.kind}</span>}
+          {errors.kind && (
+            <span className="text-rose-300 text-[11px] mt-1 block">{errors.kind}</span>
+          )}
         </label>
         <label className="block">
-          <span className="text-slate-400 text-[11px]">Timezone (IANA)</span>
+          <span className="text-slate-400 text-[11px] font-medium">Timezone (IANA)</span>
           <input
             type="text"
             value={form.timezone}

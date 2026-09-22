@@ -257,21 +257,24 @@ function TaskDetail({
       {/* Permission approval: routed through the existing permission UI path
           (pending permissions + resolvePermission), never auto-approved here. */}
       {task.status === "waiting_permission" && (
-        <div role="alert" className="mt-3 rounded-lg border border-orange-700 bg-orange-950/40 p-2">
-          <p className="font-medium text-orange-200">Background task requires approval</p>
+        <div
+          role="alert"
+          className="mt-3.5 rounded-xl border border-amber-600/70 bg-amber-950/50 p-3.5 shadow-md"
+        >
+          <p className="font-semibold text-amber-200 text-xs">Background task requires approval</p>
           {onApprovePermission && onDenyPermission ? (
             <>
-              <p className="text-orange-200/70 mt-1">
+              <p className="text-amber-200/80 text-[11px] mt-1">
                 {pendingApprovalCount > 0
                   ? `${pendingApprovalCount} pending permission request(s) available for review.`
                   : "No matching pending request is visible yet — refresh and review carefully."}
               </p>
-              <div className="flex gap-2 mt-2">
+              <div className="flex gap-2 mt-2.5">
                 <button
                   type="button"
                   onClick={onApprovePermission}
                   disabled={approvalBusy}
-                  className="rounded-lg bg-emerald-700 hover:bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition-colors disabled:opacity-50"
+                  className="rounded-lg bg-emerald-700 hover:bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition-colors disabled:opacity-50 shadow-sm"
                 >
                   {approvalBusy ? "Resolving…" : "Approve (allow once)"}
                 </button>
@@ -279,12 +282,12 @@ function TaskDetail({
                   type="button"
                   onClick={onDenyPermission}
                   disabled={approvalBusy}
-                  className="rounded-lg bg-rose-800 hover:bg-rose-700 px-3 py-1.5 text-xs font-medium text-white transition-colors disabled:opacity-50"
+                  className="rounded-lg bg-rose-800 hover:bg-rose-700 px-3 py-1.5 text-xs font-medium text-white transition-colors disabled:opacity-50 shadow-sm"
                 >
                   {approvalBusy ? "Resolving…" : "Deny"}
                 </button>
               </div>
-              <p className="text-[10px] text-orange-200/50 mt-1">
+              <p className="text-[10px] text-amber-300/60 mt-1.5">
                 Resolves through the existing permission checkpoint — this surface never
                 auto-approves.
               </p>
@@ -300,10 +303,10 @@ function TaskDetail({
 
       {/* Input response: free-text data for the task (not a permission decision). */}
       {task.status === "waiting_input" && (
-        <div className="mt-3 rounded-lg border border-amber-700 bg-amber-950/30 p-2">
+        <div className="mt-3.5 rounded-xl border border-amber-600/70 bg-amber-950/40 p-3.5 shadow-md">
           <label
             htmlFor="background-input-response"
-            className="font-medium text-amber-200 block mb-1"
+            className="font-semibold text-amber-200 text-xs block mb-1.5"
           >
             Background task is waiting for input
           </label>
@@ -319,13 +322,13 @@ function TaskDetail({
               placeholder="Type the requested input…"
               disabled={inputBusy}
               aria-label="Input response for background task"
-              className="flex-1 rounded-lg bg-slate-800 border border-slate-700 px-2.5 py-1.5 text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-amber-500 disabled:opacity-50"
+              className="flex-1 rounded-lg bg-slate-950/90 border border-slate-700/80 px-3 py-1.5 text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/30 disabled:opacity-50 transition-all"
             />
             <button
               type="button"
               onClick={onSubmitInput}
               disabled={inputBusy || !inputValue.trim()}
-              className="rounded-lg bg-amber-700 hover:bg-amber-600 px-3 py-1.5 text-xs font-medium text-white transition-colors disabled:opacity-50"
+              className="rounded-lg bg-amber-700 hover:bg-amber-600 px-3.5 py-1.5 text-xs font-medium text-white shadow-sm transition-colors disabled:opacity-50"
             >
               {inputBusy ? "Sending…" : "Send"}
             </button>
