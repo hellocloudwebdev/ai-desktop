@@ -55,7 +55,7 @@ All user data, conversation histories, schedules, and memory facts remain local-
 
 | Platform            | Compatibility     | Architecture    | Release Status                                                                                        |
 | :------------------ | :---------------- | :-------------- | :---------------------------------------------------------------------------------------------------- |
-| **Windows 10 / 11** | ✅ Supported      | `x64` (64-bit)  | [v0.0.0 NSIS Installer Available](https://github.com/hellocloudwebdev/ai-desktop/releases/tag/v0.0.0) |
+| **Windows 10 / 11** | ✅ Supported      | `x64` (64-bit)  | [v1.0.0 NSIS Installer Available](https://github.com/hellocloudwebdev/ai-desktop/releases/tag/v1.0.0) |
 | **macOS**           | 🚧 In Development | `arm64` / `x64` | Canonical domain contracts ready; desktop packaging pending                                           |
 | **Linux**           | 🚧 In Development | `x64`           | Domain contracts ready; desktop packaging pending                                                     |
 
@@ -65,15 +65,15 @@ All user data, conversation histories, schedules, and memory facts remain local-
 
 ### 🖥️ Option 1: Install via Pre-Built Windows Installer (Recommended)
 
-Download the official standalone Windows setup package from [GitHub Releases](https://github.com/hellocloudwebdev/ai-desktop/releases/tag/v0.0.0):
+Download the official standalone Windows setup package from [GitHub Releases](https://github.com/hellocloudwebdev/ai-desktop/releases/tag/v1.0.0):
 
-- **Direct Installer Download**: **[`AI Desktop-0.0.0-win-x64-setup.exe`](https://github.com/hellocloudwebdev/ai-desktop/releases/download/v0.0.0/AI.Desktop-0.0.0-win-x64-setup.exe)** (~125 MB)
-- **SHA-256 Checksum**: `6e756b61faae6a506ba92bbd964a6c4a3be627db98fac6ae2c79832c5cd52cb2`
-- **Release Page**: [AI Desktop v0.0.0 Releases](https://github.com/hellocloudwebdev/ai-desktop/releases/tag/v0.0.0)
+- **Direct Installer Download**: **[`AI Desktop-1.0.0-win-x64-setup.exe`](https://github.com/hellocloudwebdev/ai-desktop/releases/download/v1.0.0/AI.Desktop-1.0.0-win-x64-setup.exe)** (~125 MB)
+- **SHA-256 Checksum**: `74e24b025b919d8ad51c6d07585c5d622c1e6ab52d518f4d06b102b3ecd54617`
+- **Release Page**: [AI Desktop v1.0.0 Releases](https://github.com/hellocloudwebdev/ai-desktop/releases/tag/v1.0.0)
 
 #### Installation Steps:
 
-1. Download **`AI Desktop-0.0.0-win-x64-setup.exe`**.
+1. Download **`AI Desktop-1.0.0-win-x64-setup.exe`**.
 2. Double-click the installer to launch the setup wizard.
 3. Select your installation folder (per-user installation; no administrative rights required).
 4. Launch **AI Desktop** from the Start Menu or Desktop shortcut.
@@ -145,7 +145,7 @@ You can also package your own local Windows NSIS installer at any time:
 pnpm --filter @ai-desktop/desktop dist:win
 ```
 
-Outputs the setup binary to `apps/desktop/release/AI Desktop-0.0.0-win-x64-setup.exe`.
+Outputs the setup binary to `apps/desktop/release/AI Desktop-1.0.0-win-x64-setup.exe`.
 
 ---
 
